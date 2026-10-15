@@ -1,0 +1,23 @@
+{
+  "_aciklama": "YER TUTUCU değerler. Mekanik tasarım bitince mekatronik ekibi doldurur (bkz. docs/parametre_tablosu.md). Birimler SI.",
+  "M": 0.5,
+  "m": 0.2,
+  "l": 0.3,
+  "I": 0.0,
+  "b": 0.1,
+  "c": 0.0005,
+  "g": 9.81,
+  "rail_half": 0.4,
+  "u_max": 12.0,
+  "input_mode": "voltage",
+  "motor": {
+    "R": 2.2,
+    "Kt": 0.0083,
+    "Ke": 0.0109,
+    "gear": 10.0,
+    "r_pulley": 0.0127,
+    "V_max": 12.0,
+    "J_rotor": 0.0
+  },
+  "note": "YER TUTUCU DEĞERLER — mekatronik ekibinden gerçek değerler gelince güncellenecek"
+}
