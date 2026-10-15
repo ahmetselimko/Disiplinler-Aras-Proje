@@ -1,5 +1,9 @@
 # Ters Sarkaç — Bilgisayar Mühendisliği Kısmı
 
+![Arayüz: bağlan → kalibre et → swing-up → LQR ile denge → dürtme](docs/media/demo.gif)
+
+🎬 Tam tanıtım videosu: [docs/media/demo.webm](docs/media/demo.webm) · 📖 Ekran görüntülü anlatım: [docs/kullanim_kilavuzu.md](docs/kullanim_kilavuzu.md)
+
 Mekatronik + Bilgisayar disiplinlerarası ters sarkaç projesinin yazılım tarafı:
 
 * **`pendulum_lab/`**: Matlab'in yerine geçen Python kütüphanesi. Modelleme, doğrusallaştırma, LQR, enerji bazlı swing-up, mod geçişi, simülasyon, filtreler ve seri haberleşme.
@@ -49,6 +53,7 @@ config/         params.json  (YER TUTUCU değerler — mekatronik ekibi doldurac
 firmware/       esp32_pendulum/ (referans, henüz kartta denenmedi)
 docs/           protokol.md · mimari.md · parametre_tablosu.md · matlab_karsiliklari.md
 tests/          pytest
+tools/          demo_kayit.py (tanıtım videosu, GIF ve ekran görüntülerini üretir → docs/media/)
 kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 ```
 

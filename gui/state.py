@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +38,7 @@ class AppState(QtCore.QObject):
         self.swingup_enabled = True
         self.x_ref = 0.0
         self.device_Ts: float | None = None     # cihazın bildirdiği kontrol periyodu
+        self._last_info = -1e9
         self.K = np.zeros(4)
         self.cl_poles = np.array([])
         self.reader = None
@@ -63,6 +65,11 @@ class AppState(QtCore.QObject):
         Cihaz yeniden başladıysa PC'den gelen ayarları kaybetmiştir; bu yüzden boot'ta da çağrılır."""
         if "Ts" in data:
             self.device_Ts = float(data["Ts"])
+        # bağlanırken boot olayı ve ping yanıtı art arda gelebilir: aynı ayarları iki kez gönderme
+        now = time.monotonic()
+        if now - self._last_info < 1.0:
+            return
+        self._last_info = now
         ts = f"  Ts={self.device_Ts * 1000:g} ms" if self.device_Ts else "  (Ts bildirilmedi)"
         self.log.emit(f"Cihaz: fw={data.get('fw', '?')}{ts}")
         self.push_to_device()
