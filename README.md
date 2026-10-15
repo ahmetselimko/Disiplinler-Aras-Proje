@@ -1,5 +1,9 @@
 # Ters Sarkaç — Bilgisayar Mühendisliği Kısmı
 
+> [!IMPORTANT]
+> **Bu çalışma, projeyi daha iyi anlamak amacıyla hazırlanmıştır.**
+> Projenin prototipi olarak sayılabilmesi için **hocamızın onayı gerekmektedir.**
+
 ![Arayüz: bağlan → kalibre et → swing-up → LQR ile denge → dürtme](docs/media/demo.gif)
 
 🎬 Tam tanıtım videosu: [docs/media/demo.webm](docs/media/demo.webm) · 📖 Ekran görüntülü anlatım: [docs/kullanim_kilavuzu.md](docs/kullanim_kilavuzu.md)
