@@ -135,7 +135,19 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 4. Firmware'i derleyip pinleri donanıma uyarlamak; ilk açılış kontrol listesini uygulamak (`firmware/esp32_pendulum/README.md`): işaret kontrolü → homing → yalnız LQR → swing-up.
 5. NC limit switch'ler ve motor beslemesini kesen donanımsal acil stop butonu.
 
-### Bilgisayar ekibi
+### Şimdi başlanabilecek işler (mekatronik verisi beklemeyen)
+Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutucu değerlerle hemen yapılabilir. Projeye yeni katılanlar için iyi bir başlangıçtır. İlk ikisi önceliklidir.
+
+| # | İş | Nasıl yapılır | Faydası |
+|---|---|---|---|
+| 1 | **Motor karşılaştırması** *(öncelikli)* | Aday motorların datasheet değerleri (Pololu 37D farklı redüktörler, Pololu 35, NEMA17) "Model ve LQR Tasarımı" sekmesine girilir; en yüksek araba hızı ve kuvvet not edilir. "Analiz" sekmesinde θ₀ = 180° ile swing-up denenir | Mekatronik ekibin bekleyen motor kararına doğrudan veri sağlar. Sonuç tablo hâlinde mekatronik ekibe verilir |
+| 2 | **Firmware'i derlemek** *(öncelikli)* | Arduino IDE + "esp32 by Espressif" paketi + ArduinoJson kurulur, `firmware/esp32_pendulum` derlenir (kart gerekmez) | Kod hiç derlenmedi. Hatalar şimdi düzeltilirse kart gelince zaman kaybedilmez |
+| 3 | **Hassasiyet analizi** | Simülasyonda her parametre (m, M, l, b, c, motor sabitleri) ±%10–30 bozulup swing-up ve dengenin sürüp sürmediği denenir (`tests/test_control.py::test_swing_up_robust_to_model_mismatch` örnek alınabilir) | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
+| 4 | **Kalman filtresi** | `pendulum_lab/filters.py::KalmanFilter` ile hız kestirimi simülasyonda denenir, motor gerilimi titreşimi ölçülür, sonra firmware'e taşınır | Dengedeki ±1–1.5 V titreşimi azaltır. Gerçek değerler gelince yalnızca sayılar değişir |
+| 5 | **Kayıt oynatma sekmesi** | Arayüze CSV kaydını açıp aynı başlangıç koşullu simülasyonla üst üste çizen bir sekme eklenir; sanal cihazdan alınan kayıtla denenir | Gerçek denemeler başlayınca modelin doğrulanmasını kolaylaştırır |
+| 6 | **Masada sensör testi** *(elde ESP32 + AS5600 varsa)* | Mekanizma olmadan ESP32'ye AS5600 bağlanıp açı okuma ve arayüzle haberleşme gerçek kartla denenir | Firmware'in sensör ve haberleşme kısmı donanım gelmeden doğrulanır |
+
+### Bilgisayar ekibi (veri geldikten sonra)
 1. Gerçek parametreler gelince: K'yı yeniden hesaplamak, aşağıdan swing-up simülasyonunu tekrarlamak, gerekirse swing-up kazançlarını ayarlamak, `gains.h` üretmek.
 2. İlk donanım denemesinde mekatronik ekiple birlikte olmak; CSV kayıtlarından simülasyonla gerçek davranışı karşılaştırıp modeli düzeltmek (sürtünme vb.).
 3. Titreşim sorun olursa firmware'e Kalman filtresi eklemek.
