@@ -1,5 +1,7 @@
 # Ters Sarkaç — Bilgisayar Mühendisliği Kısmı
 
+[![Testler](https://github.com/ahmetselimko/Disiplinler-Aras-Proje/actions/workflows/test.yml/badge.svg)](https://github.com/ahmetselimko/Disiplinler-Aras-Proje/actions/workflows/test.yml)
+
 > [!IMPORTANT]
 > **Bu çalışma, projeyi daha iyi anlamak amacıyla hazırlanmıştır.**
 > Projenin prototipi olarak sayılabilmesi için **hocamızın onayı gerekmektedir.**

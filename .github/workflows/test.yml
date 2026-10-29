@@ -1,0 +1,25 @@
+# Her push ve PR'da testleri GitHub'ın sunucusunda çalıştırır.
+# Sonuç: repoda Actions sekmesi ve commit'lerin yanındaki ✔ / ✘.
+name: Testler
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:      # Actions sekmesinden elle de çalıştırılabilir
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen   # ekransız sunucuda Qt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Kütüphaneleri kur
+        run: pip install -r requirements.txt
+      - name: Testleri çalıştır
+        run: python -m pytest -q
