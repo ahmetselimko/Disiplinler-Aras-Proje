@@ -25,6 +25,8 @@ static const float LQR_K[4] = {-9.568725f, -22.128074f, -56.441844f, -8.714121f}
 #define MOTOR_ALPHA        2.970651f   // N/V
 #define MOTOR_BETA         25.496142f   // N·s/m
 #define MOTOR_V_MAX        12.000f   // besleme gerilimi [V] (PWM ölçeği)
+#define MOTOR_GEAR         10.0000f   // redüktör oranı (enkoder sayımı → araba konumu)
+#define PULLEY_R_M         0.012700f   // kasnak yarıçapı [m]
 #define INPUT_MODE_VOLTAGE 1
 
 #define SU_K_E             100.0000f

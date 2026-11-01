@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Bilgisayar ekibi tarafından protokolü ve kontrol mantığını tanımlamak için yazıldı.
  * Mekatronik ekibi pinleri, motor sürücüsünü ve sensör yönlerini kendi donanımına göre
- * düzenlemelidir. BU DOSYA HENÜZ GERÇEK KARTTA DERLENİP DENENMEDİ.
+ * düzenlemelidir. BU DOSYA HATASIZ DERLENİYOR (sürümler: README) AMA HENÜZ GERÇEK KARTTA DENENMEDİ.
  *
  * Mantık, Python tarafındaki pendulum_lab/control/supervisor.py, swingup.py ve
  * comm/mock_device.py (komut kabul/ret kuralları) ile BİREBİR aynıdır — birinde değişiklik
@@ -24,8 +24,8 @@
 #include "gains.h"
 
 // ============================================================ DERLEME ANI DENETİMLERİ
-#if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX)
-#error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX yok. Arayüzden yeniden dışa aktarın."
+#if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX) || !defined(MOTOR_GEAR) || !defined(PULLEY_R_M)
+#error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX / MOTOR_GEAR / PULLEY_R_M yok. Arayüzden yeniden dışa aktarın."
 #endif
 #ifndef P_FC
 #define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
@@ -51,9 +51,10 @@ static const char *FW_NAME = "ref-1.1";
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
-static const float ENC_COUNTS_PER_REV = 64.0f * 10.0f; // 37D: 64 CPR (4x) × redüktör
-static const float PULLEY_R = 0.0127f;                // [m]
-static const float X_PER_COUNT = 2.0f * PI * PULLEY_R / ENC_COUNTS_PER_REV;
+static const float ENC_CPR_MOTOR = 64.0f;             // motor milindeki enkoder (37D: 64 CPR, 4x). Motor değişirse düzenleyin
+// redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
+static const float ENC_COUNTS_PER_REV = ENC_CPR_MOTOR * MOTOR_GEAR;
+static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;
 static const float V_SUPPLY = MOTOR_V_MAX;            // arayüzdeki motor.V_max ile aynı (gains.h)
 static const int   PWM_FREQ = 20000, PWM_BITS = 10;   // 20 kHz (duyulmaz), 0..1023
 static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi (Python ile aynı)

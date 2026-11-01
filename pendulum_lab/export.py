@@ -50,6 +50,8 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
         f"#define MOTOR_ALPHA        {p.motor.alpha:.6f}f   // N/V",
         f"#define MOTOR_BETA         {p.motor.beta:.6f}f   // N·s/m",
         f"#define MOTOR_V_MAX        {p.motor.V_max:.3f}f   // besleme gerilimi [V] (PWM ölçeği)",
+        f"#define MOTOR_GEAR         {p.motor.gear:.4f}f   // redüktör oranı (enkoder sayımı → araba konumu)",
+        f"#define PULLEY_R_M         {p.motor.r_pulley:.6f}f   // kasnak yarıçapı [m]",
         f"#define INPUT_MODE_{p.input_mode.upper()} 1",
     ]
     if swingup is not None:
