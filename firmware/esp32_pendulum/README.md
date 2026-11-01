@@ -32,6 +32,7 @@
 | AS5600 art arda 3 kez okunamadı | FAULT `sensor`; I2C zaman aşımı 2 ms (döngü takılmaz) |
 | Açılış kalibrasyonu: mıknatıs yok/zayıf ya da sarkaç hareket ediyor | `calib ok:false`, `start` reddedilir; sarkaç durunca `calib` komutu |
 | Aynı anda estop ve start/home | estop kazanır |
+| Araba ray ucuna 0.10 m'den yakın veya 0.2 m/s'den hızlı | `start` sebebi yazılarak reddedilir |
 | IDLE / FAULT | Sürücü EN = LOW (motor serbest) |
 | `gains.h` eski veya Ts kesirli ms / giriş türü voltage değil | Derleme hatası (`#error`) |
 

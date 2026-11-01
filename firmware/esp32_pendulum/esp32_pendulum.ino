@@ -58,6 +58,8 @@ static const float V_SUPPLY = MOTOR_V_MAX;            // arayüzdeki motor.V_max
 static const int   PWM_FREQ = 20000, PWM_BITS = 10;   // 20 kHz (duyulmaz), 0..1023
 static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi (Python ile aynı)
 static const float SOFT_MARGIN = 0.03f;               // rayın ucundan bu kadar önce FAULT [m]
+static const float START_X_MARGIN = 0.10f;            // BAŞLAT için rayın ucuna en az bu kadar uzak [m]
+static const float START_MAX_SPEED = 0.2f;            // BAŞLAT için araba hızı bundan düşük [m/s]
 static const float HOME_SPEED = 0.10f;                // homing hızı [m/s]
 static const float HOME_TIMEOUT_S = 20.0f;
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
@@ -398,6 +400,8 @@ static void handleCommand(const char *line) {
     if (!s.angle_ok)       { sendAck("start", false, "açı kalibrasyonu başarısız: sarkacı aşağıda sabit tutup calib gönderin"); return; }
     if (s.mode == FAULT)   { sendAck("start", false, "hata modunda: önce stop"); return; }
     if (s.mode != IDLE)    { sendAck("start", false, "IDLE dışında başlatılamaz"); return; }
+    if (fabsf(s.x) > RAIL_HALF_M - START_X_MARGIN) { sendAck("start", false, "araba ray ucuna çok yakın: KALİBRE ET ile ortaya alın"); return; }
+    if (fabsf(s.dx) > START_MAX_SPEED) { sendAck("start", false, "araba hâlâ hareket ediyor: durmasını bekleyin"); return; }
     SET_SHARED(req_start, true); sendAck("start", true); return;
   }
   if (!strcmp(cmd, "home")) {

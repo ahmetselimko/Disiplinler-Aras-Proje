@@ -39,6 +39,17 @@ def test_idle_after_stop_shown_as_stopped(tab):
     assert tab.mode_lbl.text() == "HATA / STOP"
 
 
+def test_rejected_start_keeps_stopped_indicator(tab, monkeypatch):
+    monkeypatch.setattr(tab.state, "send", lambda *a, **k: True)
+    tab.send_mode_cmd("stop")
+    tab.send_mode_cmd("start")                  # cihaz reddederse mod IDLE kalır
+    tab._show_mode("IDLE")
+    assert tab.mode_lbl.text() == "DURDURULDU"
+    tab.send_mode_cmd("home")
+    tab._show_mode("IDLE")
+    assert tab.mode_lbl.text() == "BEKLEMEDE"
+
+
 def test_pause_button_reverts_when_command_cannot_be_sent(tab):
     tab.b_pause.setChecked(True)                # bağlı değil → gönderilemez
     assert not tab.b_pause.isChecked() and tab.b_pause.text() == "Duraklat"

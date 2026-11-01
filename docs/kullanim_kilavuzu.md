@@ -94,6 +94,8 @@ Yalnız θ'ya oransal geri besleme verilseydi köklerin nasıl hareket edeceğin
 |---|---|
 | BAŞLAT'a basınca "✗ start: önce home" | Önce KALİBRE ET |
 | "✗ start: hata modunda: önce stop" | Hata (FAULT) sonrası önce DURDUR |
+| "✗ start: araba ray ucuna çok yakın" | **KALİBRE ET** ile arabayı ortaya alın |
+| "✗ start: araba hâlâ hareket ediyor" | Arabanın durmasını bekleyip tekrar **BAŞLAT** |
 | "✗ start: açı kalibrasyonu başarısız" | Sarkacı aşağıda durdurup **Açı Sıfırla (calib)** |
 | "UYARI: cihaz Ts = … ms, tasarım Ts = … ms" | Tasarım sekmesinde Ts'yi cihazınkiyle aynı yapıp K Hesapla → Cihaza Gönder |
 | "olay: fault reason=homing_wrong_side" | Homing'de araba sağa gitti: motor veya enkoder yönü ters (protokol.md §2) |

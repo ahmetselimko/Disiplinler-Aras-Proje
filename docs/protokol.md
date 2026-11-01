@@ -67,7 +67,7 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 | `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.1","homed":false}`. PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
 | `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları |
 | `calib` | `{"cmd":"calib"}` | Yalnız IDLE modunda. Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (açılıştaki kalibrasyon başarısız olduysa) |
-| `start` | `{"cmd":"start"}` | Yalnız **IDLE** modunda, homing ve açı kalibrasyonu yapılmışsa. FAULT'tan doğrudan başlatılamaz (önce `stop`). Swing-up açıksa SWING_UP, kapalıysa WAIT |
+| `start` | `{"cmd":"start"}` | Yalnız **IDLE** modunda, homing ve açı kalibrasyonu yapılmışsa. FAULT'tan doğrudan başlatılamaz (önce `stop`). Araba ray ucuna 0.10 m'den yakınsa veya 0.2 m/s'den hızlı gidiyorsa reddedilir. Swing-up açıksa SWING_UP, kapalıysa WAIT |
 | `stop` | `{"cmd":"stop"}` | IDLE moduna geçer, sürücü kapatılır (araba elle itilebilir). Homing'i de iptal eder |
 | `estop` | `{"cmd":"estop"}` | FAULT moduna geçer, sürücü EN pini düşürülür. Aynı anda gelen diğer komutları **ezer**. Arayüzde **Esc** tuşu (açık bir pencere varken de çalışır) |
 | `set_gain` | `{"cmd":"set_gain","K":[-9.57,-22.13,-56.44,-8.71]}` | LQR kazancı. Çalışırken de değiştirilebilir |

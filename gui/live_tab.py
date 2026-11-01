@@ -142,7 +142,8 @@ class LiveTab(QtWidgets.QWidget):
 
     # ------------------------------------------------------------ eylemler
     def send_mode_cmd(self, cmd: str):
-        if self.state.send(cmd):
+        # start reddedilebilir: kabul edilirse mod zaten IDLE'dan çıkar, "Durduruldu" burada silinmez
+        if self.state.send(cmd) and cmd != "start":
             self._stopped = cmd == "stop"
 
     def toggle_pause(self, on: bool):

@@ -8,6 +8,7 @@ from pendulum_lab.comm import protocol as P
 from pendulum_lab.comm.mock_device import MockDevice
 from pendulum_lab.comm.reader import RingBuffer, TelemetryReader, COLUMNS
 from pendulum_lab.comm.transport import SimTransport, Transport
+from pendulum_lab.control.supervisor import START_MAX_SPEED, START_X_MARGIN
 from pendulum_lab.recorder import Recorder
 from pendulum_lab.export import gains_header
 from pendulum_lab import PendulumParams
@@ -375,6 +376,7 @@ def test_estop_emits_single_fault_event_and_blocks_start():
     dev.feed(P.encode_command("start"))
     dev.step()
     assert _acks(out, "start")[-1].ok is False                              # hatadan doğrudan başlamaz
+    dev.s[1] = 0.0                                                          # araba durdu (hareket ederken start reddedilir)
     dev.feed(P.encode_command("stop") + P.encode_command("start"))
     dev.step()
     assert _acks(out, "start")[-1].ok is True
@@ -430,6 +432,44 @@ def test_firmware_param_limits_match_python():
     table = dict((k, (float(lo), float(hi))) for k, lo, hi in
                  re.findall(r'\{"(\w+)",\s*([-\d.]+)f,\s*([-\d.]+)f\}', src))
     assert table == {k: (float(lo), float(hi)) for k, (lo, hi) in P.SET_PARAM_LIMITS.items()}
+
+
+def test_firmware_start_limits_and_messages_match_python():
+    src = FIRMWARE.read_text(encoding="utf-8")
+    assert float(re.search(r"START_X_MARGIN = ([\d.]+)f", src).group(1)) == START_X_MARGIN
+    assert float(re.search(r"START_MAX_SPEED = ([\d.]+)f", src).group(1)) == START_MAX_SPEED
+    sup = MockDevice(realtime=False).sup
+    assert f'"{sup.start_block_reason(sup.p.rail_half, 0.0)}"' in src
+    assert f'"{sup.start_block_reason(0.0, 1.0)}"' in src
+
+
+def test_start_rejected_near_rail_then_allowed_after_homing():
+    dev, out = _homed_device()
+    dev.s[0], dev.s[1] = dev.x_offset + dev.p.rail_half - START_X_MARGIN + 0.01, 0.0
+    out.clear()
+    dev.feed(P.encode_command("start"))
+    dev.step()
+    ack = _acks(out, "start")[-1]
+    assert not ack.ok and "ray ucuna" in ack.msg and dev.sup.mode.value == "IDLE"
+    dev.feed(P.encode_command("home"))
+    assert _run(dev, 25.0, until=lambda: dev.homed and dev.sup.mode.value == "IDLE" and dev._home_phase == 0)
+    dev.feed(P.encode_command("start"))
+    dev.step()
+    assert _acks(out, "start")[-1].ok
+
+
+def test_start_rejected_while_cart_moving_then_allowed_when_slow():
+    dev, out = _homed_device()
+    dev.s[0], dev.s[1] = dev.x_offset, START_MAX_SPEED + 0.05
+    out.clear()
+    dev.feed(P.encode_command("start"))
+    dev.step()
+    ack = _acks(out, "start")[-1]
+    assert not ack.ok and "hareket" in ack.msg and dev.sup.mode.value == "IDLE"
+    dev.s[1] = 0.0
+    dev.feed(P.encode_command("start"))
+    dev.step()
+    assert _acks(out, "start")[-1].ok
 
 
 def test_firmware_handles_every_protocol_command():

@@ -6,6 +6,7 @@ enerji bazlı swing-up çalışır. Geçiş yazılımsaldır ve histerezislidir 
     BALANCE  → SWING_UP:  |θ| > release_deg
     her mod  → FAULT   :  |x| > rail_half − soft_margin   (motor gücü kesilir)
     FAULT → IDLE yalnız STOP ile; BAŞLAT yalnız IDLE'dan kabul edilir (hatadan doğrudan çıkılmaz).
+    Cihaz BAŞLAT'ı araba ray ucuna yakınsa veya hâlâ hareket ediyorsa da reddeder (start_block_reason).
 
 ESP32 firmware'indeki mantık (firmware/esp32_pendulum) bu sınıfla BİREBİR aynı tutulmalıdır.
 """
@@ -18,6 +19,9 @@ from enum import Enum
 import numpy as np
 
 from ..model.dynamics import accel_to_input, wrap_angle
+
+START_X_MARGIN = 0.10     # BAŞLAT için rayın ucuna en az bu kadar uzak olmalı [m]
+START_MAX_SPEED = 0.2     # BAŞLAT için araba hızı bundan düşük olmalı [m/s]
 from ..model.params import PendulumParams
 from .swingup import EnergySwingUp
 
@@ -59,6 +63,14 @@ class Supervisor:
             return False, f"{self.mode.value} modunda başlatılamaz"
         self.mode = Mode.SWING_UP if self.swingup_enabled else Mode.WAIT
         return True, ""
+
+    def start_block_reason(self, x: float, dx: float) -> str:
+        """Ölçülen araba durumu BAŞLAT'a uygun değilse sebebi, uygunsa boş metin döndürür."""
+        if abs(x) > self.p.rail_half - START_X_MARGIN:
+            return "araba ray ucuna çok yakın: KALİBRE ET ile ortaya alın"
+        if abs(dx) > START_MAX_SPEED:
+            return "araba hâlâ hareket ediyor: durmasını bekleyin"
+        return ""
 
     def stop(self):
         self.mode = Mode.IDLE
