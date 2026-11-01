@@ -20,6 +20,10 @@ Mekanik tasarım bitince bu tablo doldurulup bilgisayar ekibine iletilir. Değer
 | `motor.r_pulley` | Kayış kasnağı yarıçapı | m | 0.0127 | | GT2: diş sayısı × 2 mm / 2π |
 | `motor.V_max` | Besleme gerilimi | V | 12 | | `u_max` bundan büyük olamaz |
 | `motor.J_rotor` | Rotor ataleti (motor mili) | kg·m² | 0 | | Datasheet. Arabaya J·N²/r² kadar eşdeğer kütle ekler — redüktörlü motorda araba kütlesiyle kıyaslanabilir olabilir |
+| `motor.T_f` | Coulomb (kuru) sürtünme torku (motor mili) | N·m | 0 | | Boşta akımdan: T_f ≈ Kt·I₀ (Pololu 37D: 0.0089 × 0.2 A ≈ 0.0018). Arabaya T_f·N/r kadar sabit sürtünme kuvveti olarak yansır |
+| `motor.B_m` | Viskoz sürtünme (motor mili) | N·m·s/rad | 0 | | Boşta akım ve hızdan: B_m ≈ Kt·I₀ / ω₀ (Pololu 37D: ≈ 1.7·10⁻⁶). Arabaya B_m·N²/r² kadar sönüm ekler |
+
+**T_f ve B_m için not:** İkisi de aynı boşta akım kaybından (Kt·I₀) hesaplanırsa aynı kayıp iki kez sayılır. Ya biri seçilmeli ya da kayıp ikisine bölünmelidir (ör. iki farklı gerilimde boşta akım ölçülerek: hızla değişmeyen kısım T_f, hızla artan kısım B_m). Kayış-ray sürtünmesi motorun değil arabanın sürtünmesidir, `b`'ye yazılır.
 
 ## Motor seçimi için not
 Tasarım sekmesi, seçilen motorla ulaşılabilecek **en yüksek araba hızını** gösterir. Örnek: Pololu 37D, 30:1 redüktör ve 20 dişli GT2 kasnakla araba en fazla ~0.2 m/s gidebilir. Bu, swing-up için **yetersizdir**. Yer tutucu olarak 10:1 redüktör ve 40 dişli kasnak (~1.4 m/s) kullanıldı.

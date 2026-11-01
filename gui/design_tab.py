@@ -34,6 +34,8 @@ MOTOR_FIELDS = [
     ("r_pulley", "Kasnak yarıçapı", "m", 0.001, 0.2, 5),
     ("V_max", "Besleme gerilimi", "V", 1, 60, 1),
     ("J_rotor", "Rotor ataleti (motor mili)", "kg·m²", 0, 1e-2, 8),
+    ("T_f", "Coulomb sürtünme torku T_f (motor mili)", "N·m", 0, 0.1, 5),
+    ("B_m", "Viskoz sürtünme B_m (motor mili)", "N·m·s/rad", 0, 1e-2, 8),
 ]
 
 
@@ -222,6 +224,9 @@ class DesignTab(QtWidgets.QWidget):
         if p.input_mode == "voltage":
             lines.append(f"Motor: α = {p.motor.alpha:.3f} N/V, β = {p.motor.beta:.3f} N·s/m, "
                          f"en yüksek araba hızı ≈ {max_cart_speed(p):.2f} m/s, kuvvet ≈ {max_cart_force(p):.1f} N")
+            if p.motor.T_f or p.motor.B_m:
+                lines.append(f"Motor sürtünmesi arabada: Coulomb F_c = T_f·N/r = {p.F_coulomb:.3f} N "
+                             f"(LQR'da ihmal), viskoz B_m·N²/r² = {p.motor.viscous_cart:.3f} N·s/m (b'ye eklendi)")
         lines += [
             "", "A =", _fmt(ss.A), "", "B =", _fmt(ss.B.ravel()), "",
             f"Açık çevrim kutupları: {_fmt(ol)}",

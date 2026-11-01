@@ -7,6 +7,7 @@ from pendulum_lab import (PendulumParams, Supervisor, Mode, EnergySwingUp, PID, 
                           linearize, lqr, dlqr, c2d, rlocus, step_info,
                           simulate_closed_loop, SensorModel)
 from pendulum_lab.control.lqr import design_lqr
+from pendulum_lab.model.params import MotorParams
 
 Q = [10, 1, 100, 1]
 R = [[0.1]]
@@ -222,3 +223,19 @@ def test_discrete_step_matches_continuous_for_small_Ts(p):
     info = step_info(t, y[:, 0])
     assert info["final"] == pytest.approx(1.0, abs=1e-3)
     assert info["undershoot_pct"] > 0
+
+
+def test_swing_up_and_balance_with_motor_coulomb_friction(p):
+    """Gerçekçi motor kuru sürtünmesiyle (T_f ≈ Kt·I₀, Pololu 37D boşta ~0.2 A → arabada ≈1.3 N) kalkış ve
+    denge sürmeli. Telafisiz ilk dürtme (≈1.4 N) sürtünmeye gidiyor ve sarkaç kalkamıyordu; accel_to_input
+    telafisiyle sürtünmesiz durumdaki gibi kalkar. K sürtünmesiz modelle tasarlanır."""
+    K, _, _ = design_lqr(p, Q, R, Ts=0.002)
+    real = PendulumParams(motor=MotorParams(T_f=p.motor.Kt * 0.2))
+    sup = Supervisor(real, K)
+    sup.start()
+    r = simulate_closed_loop(real, sup, [0, 0, math.pi, 0], 15.0, sensor=SensorModel())
+    assert r.mode[-1] == "BALANCE"
+    assert r.mode.index("BALANCE") * 0.002 < 6.0          # sürtünmesizde ~3.6 s
+    last = r.t > r.t[-1] - 2.0
+    assert np.abs(r.th[last]).max() < math.radians(2.0)
+    assert np.abs(r.x).max() < p.rail_half - 0.05

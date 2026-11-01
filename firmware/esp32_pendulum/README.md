@@ -40,12 +40,25 @@
 |---|---|
 | `ctrlTask` mod makinesi | `pendulum_lab/control/supervisor.py` |
 | `swingUpAccel` | `pendulum_lab/control/swingup.py` |
-| `accelToVolt` | `pendulum_lab/model/dynamics.py::accel_to_input` |
+| `accelToVolt` (Coulomb telafisi dahil) | `pendulum_lab/model/dynamics.py::accel_to_input`, `coulomb_compensation` (test: `test_firmware_coulomb_compensation_matches_python`) |
 | `VelEst` (25 Hz) | `pendulum_lab/filters.py::VelocityEstimator` |
 | telemetri `snprintf` biçimi | `pendulum_lab/comm/protocol.py::encode_telemetry` |
 | `PARAM_LIMITS`, komut kabul/ret kuralları | `protocol.py::SET_PARAM_LIMITS`, `mock_device.py::_handle` (test: `test_firmware_param_limits_match_python`) |
 
 Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı testlerle doğrulanır (`tests/test_control.py`).
+
+## Coulomb sürtünme telafisi (#12, firmware'e eklendi — derleyen/düzenleyen için not)
+"Modele Coulomb sürtünmesi eklemek" görevinde (#12) firmware'e bilerek eklenen parçalar. Derleme hatalarını düzeltirken (#8) **kaldırılmamalı veya değiştirilmemelidir**; Python'daki karşılığıyla birebir aynı olmalı:
+
+| Firmware | Ne yapar | Python karşılığı |
+|---|---|---|
+| `#ifndef P_FC … #define P_FC 0.0f` (derleme anı denetimlerinde) | Eski `gains.h`'de `P_FC` yoksa telafiyi kapatır, derleme bozulmaz | — |
+| `FC_V_COMP = 0.01f` | Bu hızın [m/s] altında araba duruyor sayılır | `dynamics.V_COMP` |
+| `accelToVolt` içindeki `F += / -= P_FC` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde | `dynamics.coulomb_compensation` |
+| `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (`motor.T_f` = 0 iken 0) | `export.gains_header` |
+| `gains.h` → `P_B` | Artık motor mili viskoz sürtünmesini de (B_m·N²/r²) içerir | `PendulumParams.b_cart` |
+
+**Neden:** Simülasyonda Pololu 37D'nin tahmini kuru sürtünmesi (arabada ≈1.3 N) swing-up'ın ilk dürtmesini (≈1.4 N) yutuyor, sarkaç aşağıdan kalkamıyordu; telafiyle sürtünmesiz durumdaki gibi ~3.6 s'de kalkıyor. Telafi yalnız `accelToVolt`'u kullanan swing-up ve homing'de çalışır, LQR'da yoktur. `motor.T_f` ölçülene kadar 0 olduğundan davranış değişmez.
 
 ## İlk açılış kontrol listesi
 1. Motor sürücüsünün EN pini bağlı değilken yükleyin, Seri Monitör'de (921600) telemetrinin geldiğini görün.

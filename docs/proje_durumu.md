@@ -122,7 +122,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 * **Motor kararı kritik:** düşük devirli bir redüktörle swing-up fiziksel olarak mümkün olmayabilir.
 * **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. Gerekirse Kalman filtresi (kütüphanede hazır) firmware'e taşınabilir.
 * **Step motor desteği yarım:** modelde ve simülasyonda var, firmware'de yok.
-* **Model sadeleştirmeleri:** kuru (Coulomb) sürtünme, kayış esnekliği, motor endüktansı ve rotor ataleti (değer girilene kadar) ihmal ediliyor. Gerçek sistemde kazançlar biraz farklı çıkabilir.
+* **Model sadeleştirmeleri:** kayış esnekliği ve motor endüktansı ihmal ediliyor; motorun kuru (Coulomb) sürtünmesi `T_f`, viskoz sürtünmesi `B_m` ve rotor ataleti simülasyonda var ama değer girilene kadar 0 (Coulomb sürtünmesi LQR tasarımında ihmal edilir). Gerçek sistemde kazançlar biraz farklı çıkabilir.
 * **Donanımsal acil stop yazılımla sağlanamaz:** motor beslemesini fiziksel olarak kesen bir buton şart.
 * Arayüz Windows'ta denendi; Linux/macOS'ta denenmedi (PyQt5 çapraz platform olduğu için sorun beklenmiyor).
 

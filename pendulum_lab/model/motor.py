@@ -37,12 +37,12 @@ def cart_velocity_tf(p: PendulumParams):
     """Gerilim → araba hızı (sarkaç kütlesi arabaya eklenmiş, endüktans ihmal):
     v(s)/V(s) = alpha / ((M+m) s + b + beta)."""
     mp = p.motor
-    return np.array([mp.alpha]), np.array([p.M_eff + p.m, p.b + mp.beta])
+    return np.array([mp.alpha]), np.array([p.M_eff + p.m, p.b_cart + mp.beta])
 
 
 def max_cart_speed(p: PendulumParams) -> float:
-    """Tam gerilimde ulaşılabilecek kararlı araba hızı [m/s]."""
-    return p.motor.alpha * p.motor.V_max / (p.b + p.motor.beta)
+    """Tam gerilimde ulaşılabilecek kararlı araba hızı [m/s] (Coulomb sürtünmesi düşülmüş)."""
+    return max(0.0, p.motor.alpha * p.motor.V_max - p.F_coulomb) / (p.b_cart + p.motor.beta)
 
 
 def max_cart_force(p: PendulumParams) -> float:
