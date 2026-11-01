@@ -151,6 +151,94 @@ def test_mock_device_offline_homing_swingup_balance():
     assert dev.sup.mode.value == "FAULT"
 
 
+def _homed_device(seed: int = 1):
+    out = []
+    dev = MockDevice(seed=seed, realtime=False)
+    dev.output = out.append
+    dev.start()
+    dev.feed(P.encode_command("home"))
+    for _ in range(int(15 / dev.Ts)):
+        dev.step()
+        if dev.homed:
+            break
+    assert dev.homed
+    return dev, out
+
+
+def _run(dev, seconds: float):
+    for _ in range(int(seconds / dev.Ts)):
+        dev.step()
+
+
+def test_mock_pause_freezes_physics_but_clock_and_telemetry_continue():
+    dev, out = _homed_device()
+    dev.feed(P.encode_command("start"))
+    _run(dev, 1.0)                                       # swing-up sürerken, sarkaç hareketliyken
+    dev.feed(P.encode_command("pause", on=1))
+    dev.step()
+    frozen = dev.true_state.copy()
+    out.clear()
+    _run(dev, 1.0)
+    np.testing.assert_array_equal(dev.true_state, frozen)
+    tel = [m for m in map(P.parse_line, out) if isinstance(m, P.Telemetry)]
+    assert len(tel) > 150                                # 200 Hz telemetri sürüyor
+    assert np.all(np.diff([m.t for m in tel]) > 0)       # cihaz saati ilerliyor
+    assert len({(m.x, m.th, m.dth) for m in tel}) == 1   # değerler donuk
+    dev.feed(P.encode_command("pause", on=0))
+    _run(dev, 0.1)
+    assert not np.array_equal(dev.true_state, frozen)
+    _run(dev, 15.0)
+    assert dev.sup.mode.value == "BALANCE"               # devam edince swing-up tamamlanıyor
+
+
+def test_mock_pause_during_homing_does_not_time_out():
+    out = []
+    dev = MockDevice(seed=1, realtime=False)
+    dev.output = out.append
+    dev.start()
+    dev.feed(P.encode_command("home"))
+    dev.step()
+    dev.feed(P.encode_command("pause", on=1))
+    _run(dev, 25.0)                                      # homing süre sınırından (20 s) uzun
+    assert dev.sup.mode.value == "HOMING"
+    dev.feed(P.encode_command("pause", on=0))
+    for _ in range(int(15 / dev.Ts)):
+        dev.step()
+        if dev.homed:
+            break
+    assert dev.homed and dev.sup.mode.value == "IDLE"
+
+
+def test_mock_reset_returns_to_idle_at_chosen_angle_without_velocity_spike():
+    dev, out = _homed_device()
+    dev.feed(P.encode_command("start"))
+    _run(dev, 15.0)
+    assert dev.sup.mode.value == "BALANCE"
+    dev.feed(P.encode_command("pause", on=1))
+    dev.feed(P.encode_command("reset", th0_deg=180))
+    out.clear()
+    _run(dev, 0.1)
+    assert dev.sup.mode.value == "IDLE" and not dev.paused and dev.homed
+    np.testing.assert_allclose(dev.true_state, [0.0, 0.0, math.pi, 0.0], atol=1e-6)
+    tel = [m for m in map(P.parse_line, out) if isinstance(m, P.Telemetry)]
+    assert tel and max(abs(m.dth) for m in tel) < 0.5     # dikten aşağıya sıçrama sahte hız üretmedi
+    dev.feed(P.encode_command("reset", th0_deg=30))
+    dev.step()
+    assert abs(dev.true_state[2] - math.radians(30)) < 1e-3
+
+
+def test_mock_reset_rejects_out_of_range_angle():
+    dev, out = _homed_device()
+    twin, _ = _homed_device()                            # aynı tohum: komut almayan ikiz
+    out.clear()
+    dev.feed(P.encode_command("reset", th0_deg=999))
+    dev.step()
+    twin.step()
+    acks = [m for m in map(P.parse_line, out) if isinstance(m, P.Ack)]
+    assert len(acks) == 1 and acks[0].cmd == "reset" and not acks[0].ok
+    np.testing.assert_array_equal(dev.true_state, twin.true_state)   # durum hiç değişmedi
+
+
 def test_realtime_mock_through_reader_rate_and_no_drops():
     tr = SimTransport(MockDevice(seed=2, telemetry_hz=500))
     rd = TelemetryReader(tr)
@@ -347,4 +435,4 @@ def test_firmware_param_limits_match_python():
 def test_firmware_handles_every_protocol_command():
     src = FIRMWARE.read_text(encoding="utf-8")
     handled = set(re.findall(r'strcmp\(cmd, "(\w+)"\)', src))
-    assert set(P.COMMANDS) - {"kick"} == handled          # kick yalnız simülasyonda
+    assert set(P.COMMANDS) - set(P.SIM_ONLY_COMMANDS) == handled          # kick/pause/reset yalnız simülasyonda

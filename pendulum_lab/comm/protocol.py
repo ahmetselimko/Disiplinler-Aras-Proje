@@ -8,6 +8,7 @@ ESP32 → PC
 PC → ESP32
   {"cmd":"set_gain","K":[k1,k2,k3,k4]}   {"cmd":"start"}  {"cmd":"stop"}  {"cmd":"estop"}
   {"cmd":"home"}  {"cmd":"ping"}  {"cmd":"calib"}  {"cmd":"set_param","catch_deg":15,...}
+  yalnız simülasyon: {"cmd":"kick","dth":1.0}  {"cmd":"pause","on":1}  {"cmd":"reset","th0_deg":180}
 
 SET_PARAM_LIMITS bu protokolün TEK kaynağıdır; firmware'deki PARAM_LIMITS tablosu ve docs/protokol.md
 bununla aynı olmalıdır (tests/test_comm.py::test_firmware_param_limits_match_python bunu denetler).
@@ -20,7 +21,9 @@ import math
 from dataclasses import dataclass, field
 
 TELEMETRY_KEYS = ("n", "t", "x", "dx", "th", "dth", "u", "mode")
-COMMANDS = ("ping", "start", "stop", "estop", "home", "calib", "set_gain", "set_param", "kick")
+COMMANDS = ("ping", "start", "stop", "estop", "home", "calib", "set_gain", "set_param", "kick", "pause", "reset")
+# yalnız sanal ESP32'de geçerli komutlar (firmware'de yok): dürt, fiziği dondur/sürdür, başlangıç durumuna dön
+SIM_ONLY_COMMANDS = ("kick", "pause", "reset")
 # set_param ile değiştirilebilecek parametreler ve kabul edilen aralıklar
 SET_PARAM_LIMITS = {
     "catch_deg": (1.0, 45.0),
