@@ -27,6 +27,9 @@
 #if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX)
 #error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX yok. Arayüzden yeniden dışa aktarın."
 #endif
+#ifndef P_FC
+#define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
+#endif
 #ifndef INPUT_MODE_VOLTAGE
 #error "Bu firmware yalnız DC motor (input_mode = voltage) için yazıldı. Step motor için motor sürme kısmı yeniden yazılmalı."
 #endif
@@ -177,10 +180,14 @@ static void motorWrite(float volts) {
 }
 
 // Swing-up ivmesini motor gerilimine çevir (dynamics.accel_to_input ile aynı)
+static const float FC_V_COMP = 0.01f;   // [m/s] altında araba duruyor sayılır (dynamics.V_COMP)
 static float accelToVolt(float dx, float th, float dth, float a) {
   float s = sinf(th), c = cosf(th), ml = P_M_POLE * P_L;
   float ddth = (ml * P_G * s - P_C * dth - ml * c * a) / P_J;
   float F = (P_M_CART + P_M_POLE) * a + ml * c * ddth - ml * s * dth * dth + P_B * dx;
+  // Coulomb sürtünme telafisi (dynamics.coulomb_compensation): hareket yönünde, duruyorsa istenen ivme yönünde
+  float d = fabsf(dx) > FC_V_COMP ? dx : a;
+  if (d > 0.0f) F += P_FC; else if (d < 0.0f) F -= P_FC;
   return (F + MOTOR_BETA * dx) / MOTOR_ALPHA;
 }
 

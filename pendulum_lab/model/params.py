@@ -36,6 +36,22 @@ class MotorParams:
     r_pulley: float = 0.0127   # kasnak yarıçapı [m] (GT2 40 diş)
     V_max: float = 12.0     # besleme gerilimi [V]
     J_rotor: float = 0.0    # rotor ataleti, motor mili [kg·m^2] — datasheet'ten girilmeli (0 = ihmal)
+    T_f: float = 0.0        # Coulomb (kuru) sürtünme torku, motor mili [N·m] (0 = ihmal)
+    B_m: float = 0.0        # viskoz sürtünme, motor mili [N·m·s/rad] (0 = ihmal)
+
+    def __post_init__(self):
+        if self.T_f < 0 or self.B_m < 0:
+            raise ValueError("T_f ve B_m negatif olamaz")
+
+    @property
+    def coulomb_force(self) -> float:
+        """T_f'nin arabaya yansıyan sabit sürtünme kuvveti: T_f·N/r [N]."""
+        return self.T_f * self.gear / self.r_pulley
+
+    @property
+    def viscous_cart(self) -> float:
+        """B_m'nin arabaya yansıyan viskoz sönümü: B_m·N²/r² [N·s/m]."""
+        return self.B_m * self.gear ** 2 / self.r_pulley ** 2
 
     @property
     def reflected_mass(self) -> float:
@@ -85,6 +101,16 @@ class PendulumParams:
     def M_eff(self) -> float:
         """Arabanın eşdeğer kütlesi: DC motorda rotor ataleti de arabaya eklenir."""
         return self.M + (self.motor.reflected_mass if self.input_mode == "voltage" else 0.0)
+
+    @property
+    def b_cart(self) -> float:
+        """Arabadaki toplam viskoz sürtünme: b + DC motorda B_m'nin yansıması [N·s/m]."""
+        return self.b + (self.motor.viscous_cart if self.input_mode == "voltage" else 0.0)
+
+    @property
+    def F_coulomb(self) -> float:
+        """Arabaya etkiyen Coulomb sürtünme kuvvetinin büyüklüğü: DC motorda T_f·N/r [N]."""
+        return self.motor.coulomb_force if self.input_mode == "voltage" else 0.0
 
     @property
     def J(self) -> float:

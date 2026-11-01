@@ -2,6 +2,7 @@
 
 sinθ ≈ θ, cosθ ≈ 1, θ̇² ≈ 0 varsayımıyla  ṡ = A s + B u.
 Analitik sonuç, sayısal jacobian ile testte karşılaştırılır.
+Coulomb sürtünmesi (F_c) doğrusal değildir ve ihmal edilir; motor mili viskoz sürtünmesi b_cart'ta dahildir.
 """
 
 from __future__ import annotations
@@ -25,9 +26,9 @@ def linearize(p: PendulumParams) -> tuple[np.ndarray, np.ndarray]:
         return A, B
 
     if p.input_mode == "voltage":
-        b_eff, gain = p.b + p.motor.beta, p.motor.alpha
+        b_eff, gain = p.b_cart + p.motor.beta, p.motor.alpha
     else:
-        b_eff, gain = p.b, 1.0
+        b_eff, gain = p.b_cart, 1.0
 
     D = (p.M_eff + p.m) * J - ml ** 2
     A = np.array([
