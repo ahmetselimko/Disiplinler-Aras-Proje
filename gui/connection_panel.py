@@ -63,7 +63,7 @@ class ConnectionPanel(QtWidgets.QWidget):
             transport = SimTransport(MockDevice(params=copy.deepcopy(self.state.p), Ts=self.state.Ts))
         else:
             transport = SerialTransport(dev, int(self.baud.currentText()))
-        reader = TelemetryReader(transport)
+        reader = TelemetryReader(transport, u_max=self.state.p.u_max)
         try:
             reader.start()
         except Exception as e:

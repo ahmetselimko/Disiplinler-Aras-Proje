@@ -1,0 +1,2722 @@
+{
+  "nominal": {
+    "M": 0.5,
+    "m": 0.2,
+    "l": 0.3,
+    "I": 0.0,
+    "b": 0.1,
+    "c": 0.0005,
+    "g": 9.81,
+    "rail_half": 0.4,
+    "u_max": 12.0,
+    "input_mode": "voltage",
+    "motor": {
+      "R": 2.2,
+      "Kt": 0.0083,
+      "Ke": 0.0109,
+      "gear": 10.0,
+      "r_pulley": 0.0127,
+      "V_max": 12.0,
+      "J_rotor": 0.0,
+      "T_f": 0.0,
+      "B_m": 0.0
+    },
+    "note": "YER TUTUCU DEĞERLER — mekatronik ekibinden gerçek değerler gelince güncellenecek"
+  },
+  "settings": {
+    "sim_time": 12.0,
+    "dt": 0.002,
+    "threshold_deg": 2.0,
+    "hold_s": 1.0,
+    "Q": [
+      10.0,
+      1.0,
+      100.0,
+      1.0
+    ],
+    "R": 0.1,
+    "K_source": "nominal Q/R ile tasarlandı",
+    "K": [
+      -9.568725160198044,
+      -22.128073536795796,
+      -56.44184372806983,
+      -8.714120750703069
+    ],
+    "variations": [
+      -0.3,
+      -0.2,
+      -0.1,
+      0.1,
+      0.2,
+      0.3
+    ],
+    "swingup": {
+      "k_E": 100.0,
+      "a_max": 4.0,
+      "k_x": 10.0,
+      "k_v": 6.0,
+      "a_kick": 2.0,
+      "E_target": 0.0
+    },
+    "catch_deg": 15.0,
+    "release_deg": 30.0,
+    "sensor": {
+      "th_resolution": 0.0015339807878856412,
+      "x_resolution": 0.000125,
+      "noise_std": 0.0,
+      "seed": 0
+    },
+    "initial_angles_deg": {
+      "swing": 180.0,
+      "balance": 5.0
+    },
+    "zero_scales": {
+      "I": 0.018,
+      "b": 0.1,
+      "c": 0.0005,
+      "motor.J_rotor": 8.064499999999998e-07,
+      "motor.T_f": 0.0012699999999999999,
+      "motor.B_m": 1.6128999999999998e-07
+    },
+    "substeps": 4,
+    "vel_fc_hz": 25.0,
+    "delay_steps": 0,
+    "end_stops": true
+  },
+  "baseline": {
+    "swing": {
+      "balanced": true,
+      "settling_time": 4.144,
+      "max_x": 0.16059386167411263,
+      "sat_time": 0.0,
+      "final_mode": "BALANCE",
+      "status": "BAŞARILI",
+      "final_hold_s": 7.856,
+      "error": null
+    },
+    "balance": {
+      "balanced": true,
+      "settling_time": 0.07200000000000001,
+      "max_x": 0.04953434847603061,
+      "sat_time": 0.0,
+      "final_mode": "BALANCE",
+      "status": "BAŞARILI",
+      "final_hold_s": 11.928,
+      "error": null
+    }
+  },
+  "results": [
+    {
+      "param_path": "l",
+      "description": "Pivot–ağırlık merkezi mesafesi",
+      "unit": "m",
+      "nominal_val": 0.3,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.3,
+          "perturbed_val": 0.21,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.1407590786523028,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.08600000000000001,
+            "max_x": 0.048562108542900655,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.914,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.1407590786523028,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.3,
+          "perturbed_val": 0.24,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.22461627024092548,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.082,
+            "max_x": 0.04879784406266455,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.918,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.22461627024092548,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.3,
+          "perturbed_val": 0.27,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.1550616962725768,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.078,
+            "max_x": 0.04914725403679505,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.922,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.1550616962725768,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.3,
+          "perturbed_val": 0.33,
+          "balanced": true,
+          "settling_time": 5.3340000000000005,
+          "max_x": 0.18337048842632828,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.068,
+            "max_x": 0.0500992545022929,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.932,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.3340000000000005,
+            "max_x": 0.18337048842632828,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.6659999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.3,
+          "perturbed_val": 0.36,
+          "balanced": true,
+          "settling_time": 5.43,
+          "max_x": 0.27844937416495935,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.066,
+            "max_x": 0.0511703299178032,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.934,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.43,
+            "max_x": 0.27844937416495935,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.57,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.3,
+          "perturbed_val": 0.39,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.21799999999999997,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.064,
+            "max_x": 0.052341109221131527,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.936,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.21799999999999997,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "KRİTİK (Çok Hassas)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "m",
+      "description": "Sarkaç kütlesi",
+      "unit": "kg",
+      "nominal_val": 0.2,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.2,
+          "perturbed_val": 0.13999999999999999,
+          "balanced": true,
+          "settling_time": 4.2860000000000005,
+          "max_x": 0.17507987779463655,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049787607710897325,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.2860000000000005,
+            "max_x": 0.17507987779463655,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.7139999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.2,
+          "perturbed_val": 0.16000000000000003,
+          "balanced": true,
+          "settling_time": 4.002,
+          "max_x": 0.17035309166366547,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04960625792811345,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.002,
+            "max_x": 0.17035309166366547,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.998,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.2,
+          "perturbed_val": 0.18000000000000002,
+          "balanced": true,
+          "settling_time": 4.086,
+          "max_x": 0.16565371465021697,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04961005349624498,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.086,
+            "max_x": 0.16565371465021697,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.914,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.2,
+          "perturbed_val": 0.22000000000000003,
+          "balanced": true,
+          "settling_time": 5.208,
+          "max_x": 0.2552424875928835,
+          "sat_time": 0.018000000000000682,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04955730075166179,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.208,
+            "max_x": 0.2552424875928835,
+            "sat_time": 0.018000000000000682,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.792,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.2,
+          "perturbed_val": 0.24,
+          "balanced": true,
+          "settling_time": 4.5,
+          "max_x": 0.15485154559578784,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04977123867416995,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.5,
+            "max_x": 0.15485154559578784,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.5,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.2,
+          "perturbed_val": 0.26,
+          "balanced": true,
+          "settling_time": 6.13,
+          "max_x": 0.2810132537758883,
+          "sat_time": 0.03399999999999981,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04958523722770537,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 6.13,
+            "max_x": 0.2810132537758883,
+            "sat_time": 0.03399999999999981,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 5.87,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "M",
+      "description": "Araba kütlesi",
+      "unit": "kg",
+      "nominal_val": 0.5,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.5,
+          "perturbed_val": 0.35,
+          "balanced": true,
+          "settling_time": 3.91,
+          "max_x": 0.1621016959398534,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04943019357587618,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.91,
+            "max_x": 0.1621016959398534,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.09,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.5,
+          "perturbed_val": 0.4,
+          "balanced": true,
+          "settling_time": 3.98,
+          "max_x": 0.163259683348003,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049431623310645,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.98,
+            "max_x": 0.163259683348003,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.02,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.5,
+          "perturbed_val": 0.45,
+          "balanced": true,
+          "settling_time": 4.0200000000000005,
+          "max_x": 0.1608522810217843,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04949552609323563,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.0200000000000005,
+            "max_x": 0.1608522810217843,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.9799999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.5,
+          "perturbed_val": 0.55,
+          "balanced": true,
+          "settling_time": 5.39,
+          "max_x": 0.21845281809347789,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04964075141889252,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.39,
+            "max_x": 0.21845281809347789,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.61,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.5,
+          "perturbed_val": 0.6,
+          "balanced": true,
+          "settling_time": 5.15,
+          "max_x": 0.21990041507804578,
+          "sat_time": 0.010000000000000675,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.04978797725910092,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.15,
+            "max_x": 0.21990041507804578,
+            "sat_time": 0.010000000000000675,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.85,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.5,
+          "perturbed_val": 0.65,
+          "balanced": true,
+          "settling_time": 4.598,
+          "max_x": 0.1591050083229191,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.049814303612066395,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.598,
+            "max_x": 0.1591050083229191,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.402,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "I",
+      "description": "Sarkacın ağırlık merkezi etrafındaki ataleti",
+      "unit": "kg·m²",
+      "nominal_val": 0.0,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": -0.005399999999999999,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": -0.0036,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": -0.0018,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": 0.0018,
+          "balanced": true,
+          "settling_time": 5.486,
+          "max_x": 0.16954004948906662,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.068,
+            "max_x": 0.050284067883953766,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.932,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.486,
+            "max_x": 0.16954004948906662,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.514,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": 0.0036,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.1640000000000006,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.066,
+            "max_x": 0.051517861547498975,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.934,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.1640000000000006,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": 0.005399999999999999,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.18799999999999972,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.066,
+            "max_x": 0.052671621687072075,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.934,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.18799999999999972,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "KRİTİK (Çok Hassas)",
+      "reference_scale": 0.018
+    },
+    {
+      "param_path": "b",
+      "description": "Araba viskoz sürtünmesi",
+      "unit": "N·s/m",
+      "nominal_val": 0.1,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.1,
+          "perturbed_val": 0.06999999999999999,
+          "balanced": true,
+          "settling_time": 3.8000000000000003,
+          "max_x": 0.16256222600379394,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04974493726573615,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.8000000000000003,
+            "max_x": 0.16256222600379394,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.2,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.1,
+          "perturbed_val": 0.08000000000000002,
+          "balanced": true,
+          "settling_time": 3.79,
+          "max_x": 0.16338908500269594,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04976190816140831,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.79,
+            "max_x": 0.16338908500269594,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.21,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.1,
+          "perturbed_val": 0.09000000000000001,
+          "balanced": true,
+          "settling_time": 3.992,
+          "max_x": 0.16314909029738725,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049644697071084834,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.992,
+            "max_x": 0.16314909029738725,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.008,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.1,
+          "perturbed_val": 0.11000000000000001,
+          "balanced": true,
+          "settling_time": 4.234,
+          "max_x": 0.16135297481616703,
+          "sat_time": 0.0040000000000000036,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04968113561599732,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.234,
+            "max_x": 0.16135297481616703,
+            "sat_time": 0.0040000000000000036,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.766,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.1,
+          "perturbed_val": 0.12,
+          "balanced": true,
+          "settling_time": 4.2620000000000005,
+          "max_x": 0.165418481138021,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04963757015484206,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.2620000000000005,
+            "max_x": 0.165418481138021,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.7379999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.1,
+          "perturbed_val": 0.13,
+          "balanced": true,
+          "settling_time": 4.268,
+          "max_x": 0.16866129958433948,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04967225432280374,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.268,
+            "max_x": 0.16866129958433948,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.732,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "c",
+      "description": "Pivot viskoz sürtünmesi",
+      "unit": "N·m·s/rad",
+      "nominal_val": 0.0005,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0005,
+          "perturbed_val": 0.00035,
+          "balanced": true,
+          "settling_time": 3.8120000000000003,
+          "max_x": 0.16102405232618455,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04962308115725678,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.8120000000000003,
+            "max_x": 0.16102405232618455,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.187999999999999,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0005,
+          "perturbed_val": 0.0004,
+          "balanced": true,
+          "settling_time": 3.786,
+          "max_x": 0.15986567865260531,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04970058182874774,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.786,
+            "max_x": 0.15986567865260531,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.214,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0005,
+          "perturbed_val": 0.00045000000000000004,
+          "balanced": true,
+          "settling_time": 3.7800000000000002,
+          "max_x": 0.1604151300085172,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04953544467303253,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.7800000000000002,
+            "max_x": 0.1604151300085172,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.219999999999999,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0005,
+          "perturbed_val": 0.00055,
+          "balanced": true,
+          "settling_time": 4.276,
+          "max_x": 0.17129664504006464,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04970929110330421,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.276,
+            "max_x": 0.17129664504006464,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.724,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0005,
+          "perturbed_val": 0.0006,
+          "balanced": true,
+          "settling_time": 4.386,
+          "max_x": 0.2190553358201336,
+          "sat_time": 0.023999999999999577,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04965944309340706,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.386,
+            "max_x": 0.2190553358201336,
+            "sat_time": 0.023999999999999577,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.614,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0005,
+          "perturbed_val": 0.0006500000000000001,
+          "balanced": true,
+          "settling_time": 4.446,
+          "max_x": 0.2544387096744205,
+          "sat_time": 0.038000000000000256,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049658672826812335,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.446,
+            "max_x": 0.2544387096744205,
+            "sat_time": 0.038000000000000256,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.554,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "motor.R",
+      "description": "Motor direnci",
+      "unit": "Ω",
+      "nominal_val": 2.2,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 2.2,
+          "perturbed_val": 1.54,
+          "balanced": true,
+          "settling_time": 3.572,
+          "max_x": 0.17755755894368244,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07,
+            "max_x": 0.04935093518299418,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.93,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.572,
+            "max_x": 0.17755755894368244,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.428,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 2.2,
+          "perturbed_val": 1.7600000000000002,
+          "balanced": true,
+          "settling_time": 3.5300000000000002,
+          "max_x": 0.17262124963534298,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049252799510509204,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.5300000000000002,
+            "max_x": 0.17262124963534298,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.469999999999999,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 2.2,
+          "perturbed_val": 1.9800000000000002,
+          "balanced": true,
+          "settling_time": 3.968,
+          "max_x": 0.16787394150088242,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07,
+            "max_x": 0.04944892713710877,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.93,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.968,
+            "max_x": 0.16787394150088242,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.032,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 2.2,
+          "perturbed_val": 2.4200000000000004,
+          "balanced": true,
+          "settling_time": 4.888,
+          "max_x": 0.15756108355049236,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04972905358728225,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.888,
+            "max_x": 0.15756108355049236,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.112,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 2.2,
+          "perturbed_val": 2.64,
+          "balanced": true,
+          "settling_time": 4.71,
+          "max_x": 0.15234745388627946,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.05003442730616596,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.71,
+            "max_x": 0.15234745388627946,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.29,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 2.2,
+          "perturbed_val": 2.8600000000000003,
+          "balanced": true,
+          "settling_time": 5.114,
+          "max_x": 0.14786377534287787,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.076,
+            "max_x": 0.05003260692052095,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.924,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.114,
+            "max_x": 0.14786377534287787,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.886,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "motor.Kt",
+      "description": "Motor tork sabiti",
+      "unit": "N·m/A",
+      "nominal_val": 0.0083,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0083,
+          "perturbed_val": 0.00581,
+          "balanced": true,
+          "settling_time": 6.446,
+          "max_x": 0.25213342942007133,
+          "sat_time": 0.036000000000000476,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.076,
+            "max_x": 0.05054638956009479,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.924,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 6.446,
+            "max_x": 0.25213342942007133,
+            "sat_time": 0.036000000000000476,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 5.554,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0083,
+          "perturbed_val": 0.00664,
+          "balanced": true,
+          "settling_time": 5.742,
+          "max_x": 0.20833668219514104,
+          "sat_time": 0.014000000000000234,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.04999210879216484,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.742,
+            "max_x": 0.20833668219514104,
+            "sat_time": 0.014000000000000234,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.258,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0083,
+          "perturbed_val": 0.00747,
+          "balanced": true,
+          "settling_time": 4.5600000000000005,
+          "max_x": 0.1565385803807649,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04977509685142703,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.5600000000000005,
+            "max_x": 0.1565385803807649,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.4399999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0083,
+          "perturbed_val": 0.009130000000000001,
+          "balanced": true,
+          "settling_time": 3.972,
+          "max_x": 0.16553596924732783,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04939770046401063,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.972,
+            "max_x": 0.16553596924732783,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.028,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0083,
+          "perturbed_val": 0.00996,
+          "balanced": true,
+          "settling_time": 3.648,
+          "max_x": 0.169286919132774,
+          "sat_time": 0.008000000000000007,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049643495638170984,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.648,
+            "max_x": 0.169286919132774,
+            "sat_time": 0.008000000000000007,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.352,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0083,
+          "perturbed_val": 0.010790000000000001,
+          "balanced": true,
+          "settling_time": 3.606,
+          "max_x": 0.17416418877964576,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.049536762559949196,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 3.606,
+            "max_x": 0.17416418877964576,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 8.394,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "motor.Ke",
+      "description": "Motor ters EMK sabiti",
+      "unit": "V·s/rad",
+      "nominal_val": 0.0109,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0109,
+          "perturbed_val": 0.00763,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.12799999999999997,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.062,
+            "max_x": 0.04413653526135743,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.938,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.12799999999999997,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0109,
+          "perturbed_val": 0.00872,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.3999991563089241,
+          "sat_time": 0.09199999999999997,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.064,
+            "max_x": 0.04579581792606772,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.936,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.3999991563089241,
+            "sat_time": 0.09199999999999997,
+            "final_mode": "FAULT",
+            "status": "FAULT",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0109,
+          "perturbed_val": 0.009810000000000001,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.0,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07,
+            "max_x": 0.047556778497687725,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.93,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.0,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0109,
+          "perturbed_val": 0.01199,
+          "balanced": true,
+          "settling_time": 7.878,
+          "max_x": 0.1459002870267115,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.076,
+            "max_x": 0.05177149266632351,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.924,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 7.878,
+            "max_x": 0.1459002870267115,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 4.122,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0109,
+          "perturbed_val": 0.01308,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.07359757405284786,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.08,
+            "max_x": 0.054077627384045625,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.92,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.07359757405284786,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0109,
+          "perturbed_val": 0.01417,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.05792037585347201,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.084,
+            "max_x": 0.056554026305442755,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.916,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.05792037585347201,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "KRİTİK (Çok Hassas)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "motor.gear",
+      "description": "Redüktör oranı",
+      "unit": "1",
+      "nominal_val": 10.0,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 10.0,
+          "perturbed_val": 7.0,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.10399999999999998,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.066,
+            "max_x": 0.04477529586587448,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.934,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.10399999999999998,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 10.0,
+          "perturbed_val": 8.0,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.3999981259147668,
+          "sat_time": 0.05399999999999999,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.068,
+            "max_x": 0.04633642608222585,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.932,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.3999981259147668,
+            "sat_time": 0.05399999999999999,
+            "final_mode": "FAULT",
+            "status": "FAULT",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 10.0,
+          "perturbed_val": 9.0,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.0,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07,
+            "max_x": 0.047780775518943615,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.93,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.0,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 10.0,
+          "perturbed_val": 11.0,
+          "balanced": true,
+          "settling_time": 6.886,
+          "max_x": 0.1081530511572163,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.076,
+            "max_x": 0.051807935911811626,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.924,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 6.886,
+            "max_x": 0.1081530511572163,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 5.114,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 10.0,
+          "perturbed_val": 12.0,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.12925686828041444,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.08,
+            "max_x": 0.053945201201581236,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.92,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.12925686828041444,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.24600000000000044,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 10.0,
+          "perturbed_val": 13.0,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.06228143553472328,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.084,
+            "max_x": 0.056304303621574826,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.916,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.06228143553472328,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "KRİTİK (Çok Hassas)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "motor.r_pulley",
+      "description": "Kasnak yarıçapı",
+      "unit": "m",
+      "nominal_val": 0.0127,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0127,
+          "perturbed_val": 0.008889999999999999,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.05987225881663139,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.088,
+            "max_x": 0.05987225881663139,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.912,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.048524131875196205,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0127,
+          "perturbed_val": 0.01016,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.06854262824795143,
+          "sat_time": 0.0,
+          "final_mode": "SWING_UP",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.08,
+            "max_x": 0.054983195762582086,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.92,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.06854262824795143,
+            "sat_time": 0.0,
+            "final_mode": "SWING_UP",
+            "status": "BAŞARISIZ",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0127,
+          "perturbed_val": 0.01143,
+          "balanced": true,
+          "settling_time": 8.044,
+          "max_x": 0.18856205849115923,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.076,
+            "max_x": 0.05182199295128224,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.924,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 8.044,
+            "max_x": 0.18856205849115923,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 3.9559999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0127,
+          "perturbed_val": 0.01397,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.0,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07,
+            "max_x": 0.047849500437147426,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.93,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.0,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0127,
+          "perturbed_val": 0.015239999999999998,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.4,
+          "sat_time": 0.010000000000000009,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.068,
+            "max_x": 0.04666818313633419,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.932,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.4,
+            "sat_time": 0.010000000000000009,
+            "final_mode": "FAULT",
+            "status": "RAY SINIRI",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0127,
+          "perturbed_val": 0.01651,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.3999980843045887,
+          "sat_time": 0.08000000000000002,
+          "final_mode": "FAULT",
+          "status": "BAŞARISIZ",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.066,
+            "max_x": 0.04584423699840536,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.934,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": false,
+            "settling_time": null,
+            "max_x": 0.3999980843045887,
+            "sat_time": 0.08000000000000002,
+            "final_mode": "FAULT",
+            "status": "FAULT",
+            "final_hold_s": 0.0,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "KRİTİK (Çok Hassas)",
+      "reference_scale": null
+    },
+    {
+      "param_path": "motor.J_rotor",
+      "description": "Motor rotor ataleti",
+      "unit": "kg·m²",
+      "nominal_val": 0.0,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": -2.419349999999999e-07,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": -1.6128999999999998e-07,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": -8.064499999999999e-08,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": 8.064499999999999e-08,
+          "balanced": true,
+          "settling_time": 5.39,
+          "max_x": 0.21845281809347789,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04964075141889252,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.39,
+            "max_x": 0.21845281809347789,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.61,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": 1.6128999999999998e-07,
+          "balanced": true,
+          "settling_time": 5.15,
+          "max_x": 0.21990041507804578,
+          "sat_time": 0.010000000000000675,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.04978797725910092,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.15,
+            "max_x": 0.21990041507804578,
+            "sat_time": 0.010000000000000675,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.85,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": 2.419349999999999e-07,
+          "balanced": true,
+          "settling_time": 4.598,
+          "max_x": 0.1591050083229191,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.0498143036120664,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.598,
+            "max_x": 0.1591050083229191,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.402,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": 8.064499999999998e-07
+    },
+    {
+      "param_path": "motor.T_f",
+      "description": "Motor Coulomb sürtünme torku",
+      "unit": "N·m",
+      "nominal_val": 0.0,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": -0.00038099999999999994,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": -0.000254,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": -0.000127,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": 0.000127,
+          "balanced": true,
+          "settling_time": 5.15,
+          "max_x": 0.2280387137674836,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.050291747523381024,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.15,
+            "max_x": 0.2280387137674836,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.85,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": 0.000254,
+          "balanced": true,
+          "settling_time": 4.524,
+          "max_x": 0.13881344604052664,
+          "sat_time": 0.0,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.05064808589951212,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.524,
+            "max_x": 0.13881344604052664,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.476,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": 0.00038099999999999994,
+          "balanced": true,
+          "settling_time": 5.87,
+          "max_x": 0.21038194098146362,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.074,
+            "max_x": 0.051032866479198795,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.926,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 5.87,
+            "max_x": 0.21038194098146362,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 6.13,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": 0.0012699999999999999
+    },
+    {
+      "param_path": "motor.B_m",
+      "description": "Motor viskoz sürtünmesi",
+      "unit": "N·m·s/rad",
+      "nominal_val": 0.0,
+      "results": [
+        {
+          "variation": -0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": -4.8386999999999995e-08,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": -3.2258e-08,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": -0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": -1.6129e-08,
+          "balanced": false,
+          "settling_time": null,
+          "max_x": 0.0,
+          "sat_time": 0.0,
+          "final_mode": "—",
+          "status": "UYGULANAMAZ",
+          "balance_case": null,
+          "swing_case": null,
+          "note": "Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır"
+        },
+        {
+          "variation": 0.1,
+          "nominal_val": 0.0,
+          "perturbed_val": 1.6129e-08,
+          "balanced": true,
+          "settling_time": 4.234,
+          "max_x": 0.16135297481616703,
+          "sat_time": 0.0040000000000000036,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04968113561599732,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.234,
+            "max_x": 0.16135297481616703,
+            "sat_time": 0.0040000000000000036,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.766,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.2,
+          "nominal_val": 0.0,
+          "perturbed_val": 3.2258e-08,
+          "balanced": true,
+          "settling_time": 4.2620000000000005,
+          "max_x": 0.165418481138021,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04963757015484206,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.2620000000000005,
+            "max_x": 0.165418481138021,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.7379999999999995,
+            "error": null
+          },
+          "note": ""
+        },
+        {
+          "variation": 0.3,
+          "nominal_val": 0.0,
+          "perturbed_val": 4.8386999999999995e-08,
+          "balanced": true,
+          "settling_time": 4.268,
+          "max_x": 0.16866129958433948,
+          "sat_time": 0.009999999999999787,
+          "final_mode": "BALANCE",
+          "status": "BAŞARILI",
+          "balance_case": {
+            "balanced": true,
+            "settling_time": 0.07200000000000001,
+            "max_x": 0.04967225432280374,
+            "sat_time": 0.0,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 11.928,
+            "error": null
+          },
+          "swing_case": {
+            "balanced": true,
+            "settling_time": 4.268,
+            "max_x": 0.16866129958433948,
+            "sat_time": 0.009999999999999787,
+            "final_mode": "BALANCE",
+            "status": "BAŞARILI",
+            "final_hold_s": 7.732,
+            "error": null
+          },
+          "note": ""
+        }
+      ],
+      "criticality": "TOLERANSLI (yalnız taranan koşullarda)",
+      "reference_scale": 1.6128999999999998e-07
+    }
+  ]
+}

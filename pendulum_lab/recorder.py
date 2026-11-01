@@ -6,6 +6,8 @@ TelemetryReader.sinks listesine eklenir; satırlar okuyucu thread'inden gelir, d
 from __future__ import annotations
 
 import csv
+import json
+from dataclasses import asdict
 import threading
 import time
 from pathlib import Path
@@ -19,7 +21,8 @@ class Recorder:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._f = open(self.path, "x", newline="", encoding="utf-8")   # "x": varsa üzerine yazma
         for k, v in (meta or {}).items():
-            self._f.write(f"# {k}: {v}\n")
+            encoded = v if isinstance(v, str) and '\n' not in v and '\r' not in v else json.dumps(v, ensure_ascii=False, allow_nan=False)
+            self._f.write(f"# {k}: {encoded}\n")
         self._w = csv.writer(self._f)
         self._w.writerow(COLUMNS)
         self._lock = threading.Lock()
@@ -40,6 +43,16 @@ class Recorder:
         with self._lock:
             if not self._f.closed:
                 self._f.close()
+
+    def write_event(self, kind: str, data: dict):
+        """JSON comment, ignored by CSV readers using comment='#'."""
+        payload = json.dumps({"kind": kind, **data}, ensure_ascii=False, allow_nan=False)
+        with self._lock:
+            if not self._f.closed:
+                self._f.write(f"# event: {payload}\n")
+
+    def record_message(self, msg):
+        self.write_event(type(msg).__name__, asdict(msg))
 
     @staticmethod
     def default_path(folder: str | Path = "kayitlar") -> Path:

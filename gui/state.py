@@ -43,6 +43,7 @@ class AppState(QtCore.QObject):
         self.cl_poles = np.array([])
         self.reader = None
         self.recorder = None
+        self.gains_changed.connect(self._record_design_snapshot)
         self.compute_gains()
 
     def compute_gains(self):
@@ -111,3 +112,43 @@ class AppState(QtCore.QObject):
         """Cihazın kuralı: |x_ref| ≤ rail_half − 0.1 m."""
         lim = max(0.0, self.p.rail_half - 0.1)
         return max(-lim, min(lim, x))
+
+    def get_metadata(self) -> dict:
+        """CSV başlığı için tüm parametre, kazanç ve ayarları sözlük olarak döndürür."""
+        su = self.swingup
+        return {
+            "schema_version": 1,
+            "settings_scope": "PC tasarım anlık görüntüsü; gönderilen komutlar ve cihaz ACK/olayları event satırlarında",
+            "device_Ts": self.device_Ts,
+            "device_acknowledged_settings": dict(getattr(self.reader, "applied_settings", {})),
+            "units": {"t": "s", "x": "m", "dx": "m/s", "th": "rad", "dth": "rad/s",
+                      "u": {"voltage": "V", "force": "N", "acceleration": "m/s^2"}[self.p.input_mode]},
+            "summary_definition": {"threshold_deg": 2.0, "min_duration_s": 1.0,
+                                   "time_origin": "ilk WAIT/SWING_UP/BALANCE telemetrisi",
+                                   "saturation_integral": "sol örnek sabit; eksik sıra numarası ve duraklatma aralığı hariç",
+                                   "max_telemetry_gap_s": 1.5},
+            "K": self.K.tolist(),
+            "Q": list(self.Q),
+            "R": float(self.R),
+            "Ts": float(self.Ts),
+            "catch_deg": float(self.catch_deg),
+            "release_deg": float(self.release_deg),
+            "swingup_enabled": bool(self.swingup_enabled),
+            "x_ref": float(self.x_ref),
+            "swingup": {
+                "k_E": float(su.k_E),
+                "a_max": float(su.a_max),
+                "k_x": float(su.k_x),
+                "k_v": float(su.k_v),
+                "a_kick": float(su.a_kick),
+                "E_target": float(su.E_target),
+            },
+            "params": self.p.to_dict(),
+        }
+
+    def _record_design_snapshot(self):
+        if self.recorder is not None:
+            try:
+                self.recorder.write_event("pc_design_snapshot", {"settings": self.get_metadata()})
+            except (OSError, ValueError) as exc:
+                self.log.emit(f"Tasarım ayarları kayda yazılamadı: {exc}")

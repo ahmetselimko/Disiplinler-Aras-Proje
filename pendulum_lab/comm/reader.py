@@ -10,9 +10,11 @@ from __future__ import annotations
 import queue
 import threading
 import time
+from collections import deque
 import numpy as np
 
 from ..control.supervisor import MODE_CODES, Mode
+from ..analysis.summary import LiveTrialTracker
 from . import protocol as P
 from .transport import Transport
 
@@ -66,8 +68,13 @@ class RingBuffer:
 
 
 class TelemetryReader:
-    def __init__(self, transport: Transport, capacity: int = 120_000):
+    def __init__(self, transport: Transport, capacity: int = 120_000, u_max: float = 12.0):
         self.transport = transport
+        self.trials = LiveTrialTracker(u_max=u_max)
+        self._command_lock = threading.Lock()
+        self._pending_commands = deque(maxlen=512)
+        # Replace atomically so GUI metadata reads a stable accepted-settings snapshot.
+        self.applied_settings = {}
         self.buffer = RingBuffer(capacity, len(COLUMNS))
         self.messages: "queue.Queue[P.Event | P.Ack]" = queue.Queue()
         self.sinks: list = []              # rows(list[tuple]) alan nesneler, ör. Recorder
@@ -97,6 +104,7 @@ class TelemetryReader:
         if self._thread:
             self._thread.join(timeout=1.0)
         self.transport.close()
+        self.trials.finish()
 
     @property
     def alive(self) -> bool:
@@ -104,7 +112,17 @@ class TelemetryReader:
 
     def send(self, cmd: str, **fields) -> None:
         """GUI'den komut gönder (yazma thread-güvenli)."""
-        self.transport.write(P.encode_command(cmd, **fields))
+        encoded = P.encode_command(cmd, **fields)
+        with self._command_lock:
+            self.transport.write(encoded)
+            self._pending_commands.append((cmd, fields))
+        for sink in list(self.sinks):
+            if hasattr(sink, "write_event"):
+                try:
+                    sink.write_event("command_sent", {"cmd": cmd, "fields": fields,
+                                     "t": self.last.t if self.last is not None else None})
+                except Exception as exc:
+                    self._sink_failed(sink, exc)
 
     @property
     def rate_hz(self) -> float:
@@ -149,6 +167,7 @@ class TelemetryReader:
                 self.parse_errors += 1
                 continue
             if isinstance(msg, P.Telemetry):
+                self.trials.update(msg)
                 if msg.n >= 0:
                     if self._last_n is not None and msg.n > self._last_n + 1:
                         self.dropped += msg.n - self._last_n - 1
@@ -162,6 +181,34 @@ class TelemetryReader:
                     rows = []
                     self.buffer.clear()
                     self._last_n = None
+                    self.trials.finish("Cihaz yeniden başladı")
+                    with self._command_lock:
+                        self._pending_commands.clear()
+                    self.applied_settings = {}
+                if isinstance(msg, P.Ack):
+                    with self._command_lock:
+                        request = next((r for r in self._pending_commands if r[0] == msg.cmd), None)
+                        if request is not None:
+                            self._pending_commands.remove(request)
+                    if request is not None and msg.ok:
+                        fields = request[1]
+                        if msg.cmd in ("set_param", "set_gain"):
+                            self.applied_settings = {**self.applied_settings, **fields}
+                        if msg.cmd == "set_param" and "u_max" in fields:
+                            self.trials.set_u_max(float(fields["u_max"]))
+                        elif msg.cmd == "pause":
+                            self.trials.set_paused(bool(fields.get("on", 1)))
+                        elif msg.cmd == "reset":
+                            self.trials.finish("Simülasyon sıfırlandı")
+                # Record ACKs/events in stream order, after preceding telemetry.
+                self._flush(rows)
+                rows = []
+                for sink in list(self.sinks):
+                    if hasattr(sink, "record_message"):
+                        try:
+                            sink.record_message(msg)
+                        except Exception as exc:
+                            self._sink_failed(sink, exc)
                 self.messages.put(msg)
         self._flush(rows)
 
@@ -174,9 +221,12 @@ class TelemetryReader:
             try:
                 sink.write_rows(rows)
             except Exception as e:  # ör. disk dolu: kaydı durdur ama okumaya devam et
-                if sink in self.sinks:
-                    self.sinks.remove(sink)
-                self.messages.put(P.Event("recorder_error", {"msg": str(e)}))
+                self._sink_failed(sink, e)
+
+    def _sink_failed(self, sink, exc):
+        if sink in self.sinks:
+            self.sinks.remove(sink)
+        self.messages.put(P.Event("recorder_error", {"msg": str(exc)}))
 
 
 def mode_name(code: float) -> str:

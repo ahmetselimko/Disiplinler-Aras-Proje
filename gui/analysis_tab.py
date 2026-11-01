@@ -10,6 +10,7 @@ import pyqtgraph as pg
 from PyQt5 import QtCore, QtWidgets
 
 from pendulum_lab.analysis.linear import StateSpace, rlocus, step_info
+from pendulum_lab.analysis.summary import compute_trial_summary
 from pendulum_lab.control.supervisor import MODE_CODES, Mode, Supervisor
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
 
@@ -76,18 +77,25 @@ class SimulationPage(QtWidgets.QWidget):
         self.p_th = self.glw.addPlot(row=0, col=0, title="θ [°]")
         self.p_x = self.glw.addPlot(row=1, col=0, title="x [m]")
         self.p_u = self.glw.addPlot(row=2, col=0, title="u")
-        self.p_m = self.glw.addPlot(row=3, col=0, title="mod  (3 = swing-up, 4 = LQR, 5 = hata)")
-        for pl in (self.p_th, self.p_x, self.p_u, self.p_m):
+        self.p_e = self.glw.addPlot(row=3, col=0, title="Enerji E [J]  (0 = dik)")
+        self.p_m = self.glw.addPlot(row=4, col=0, title="mod  (3 = swing-up, 4 = LQR, 5 = hata)")
+        for pl in (self.p_th, self.p_x, self.p_u, self.p_e, self.p_m):
             pl.showGrid(x=True, y=True, alpha=0.25)
-        for pl in (self.p_x, self.p_u, self.p_m):
+        for pl in (self.p_x, self.p_u, self.p_e, self.p_m):
             pl.setXLink(self.p_th)
         self.p_m.setLabel("bottom", "t [s]")
         self.c_th = self.p_th.plot(pen=pg.mkPen("#2980b9", width=2))
         self.c_x = self.p_x.plot(pen=pg.mkPen("#16a085", width=2))
         self.c_u = self.p_u.plot(pen=pg.mkPen("#c0392b", width=1))
+        self.c_e = self.p_e.plot(pen=pg.mkPen("#e67e22", width=1.8))
         self.c_m = self.p_m.plot(pen=pg.mkPen("#8e44ad", width=2), stepMode="left")
-        self.cursor = [pg.InfiniteLine(angle=90, pen=pg.mkPen("#f39c12")) for _ in range(4)]
-        for pl, c in zip((self.p_th, self.p_x, self.p_u, self.p_m), self.cursor):
+        self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine)))
+        ax_m = self.p_m.getAxis("left")
+        ax_m.setTicks([[(0, "IDLE"), (1, "HOME"), (2, "WAIT"), (3, "SWING"), (4, "LQR"), (5, "FAULT")]])
+        self.p_m.setYRange(-0.5, 5.5, padding=0)
+
+        self.cursor = [pg.InfiniteLine(angle=90, pen=pg.mkPen("#f39c12")) for _ in range(5)]
+        for pl, c in zip((self.p_th, self.p_x, self.p_u, self.p_e, self.p_m), self.cursor):
             pl.addItem(c)
         mid.addWidget(self.glw)
 
@@ -140,17 +148,15 @@ class SimulationPage(QtWidgets.QWidget):
         self.c_th.setData(r.t, th_deg)
         self.c_x.setData(r.t, r.x)
         self.c_u.setData(r.t, r.u)
+        E = 0.5 * real.J * (r.s[:, 3] ** 2) + real.m * real.g * real.l * (np.cos(r.th) - 1.0)
+        self.c_e.setData(r.t, E)
         codes = np.array([MODE_CODES.get(Mode(m), -1) if m else -1 for m in r.mode], dtype=float)
         self.c_m.setData(r.t, codes)
-        bal = [i for i, m in enumerate(r.mode) if m == "BALANCE"]
-        final = r.mode[-1]
-        txt = [f"Son mod: {final}", f"max |x| = {np.abs(r.x).max():.3f} m  (ray ±{st.p.rail_half} m)",
-               f"max |u| = {np.abs(r.u).max():.2f}"]
-        if bal:
-            txt.insert(1, f"LQR ilk devreye giriş: t = {r.t[bal[0]]:.2f} s")
-        if final == "BALANCE":
-            txt.append(f"son |θ| = {abs(th_deg[-1]):.2f}°")
-        self.info.setText("\n".join(txt))
+        summary = compute_trial_summary(
+            r.t, r.x, r.th, r.u, modes=r.mode,
+            u_max=st.p.u_max, rail_half=st.p.rail_half
+        )
+        self.info.setText("\n".join(summary.format_lines(rail_half=st.p.rail_half, u_max=st.p.u_max)))
         self.slider.setRange(0, len(r.t) - 1)
         self.slider.setValue(0)
         self._show_frame(0)
