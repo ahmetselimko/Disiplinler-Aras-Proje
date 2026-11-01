@@ -26,7 +26,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | Bölge | Ne gösterir / ne yapar |
 |---|---|
 | Sol grafikler | Sarkaç açısı θ (0 = dik; yeşil kesikli çizgiler LQR devreye girme sınırı ±15°), araba konumu x (kırmızı kesikli çizgiler ray uçları), kontrol girişi u (volt). Son 10 s kayarak çizilir |
-| Yeşil/turuncu/kırmızı kutu | Mod: BEKLEMEDE · KALİBRASYON · SWING-UP · DENGE (LQR) · HATA/STOP |
+| Yeşil/turuncu/kırmızı kutu | Mod: BEKLEMEDE · KALİBRASYON · SWING-UP · DENGE (LQR) · DURDURULDU · HATA/STOP. DURDURULDU, DURDUR'dan sonraki BEKLEMEDE'dir (yalnız arayüzde). Simülasyon duraklatılmışsa başında ⏸ görünür |
 | Animasyon | Araba ve sarkacın anlık konumu; yeşil kesikli çizgi hedef konum |
 | **KALİBRE ET (Homing)** | Araba yavaşça sol limit switch'e gider, orayı −ray yarı boyu kabul eder, ortaya döner. **Bu yapılmadan BAŞLAT kabul edilmez** |
 | **BAŞLAT** | Swing-up açıksa sarkacı aşağıdan kaldırır; \|θ\| < 15° olunca LQR devreye girer |
@@ -36,6 +36,8 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | **Açı Sıfırla (calib)** | Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur. Açılışta sarkaç sallanıyorduysa kullanılır |
 | **Kaydı Başlat** | Telemetriyi `kayitlar/oturum_….csv` dosyasına yazar (Excel/Matlab ile açılır) |
 | **Sarkacı Dürt** | Yalnız simülasyonda: sarkaca darbe verir, LQR'ın toparlamasını görmek için |
+| **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
+| **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik) durağan koyar. Homing yapıldıysa araba rayın ortasına gelir, homing'in tekrarı gerekmez |
 | Hedef + x_ref gönder | Dengedeyken arabanın gideceği konum (ray sınırına göre kısıtlanır) |
 | Swing-up açık | Kapatılırsa cihaz sarkacın elle dik konuma getirilmesini bekler (WAIT), sonra LQR tutar. İlk donanım denemesinde önerilir |
 | Durum çubuğu | Veri hızı (Hz), kayıp satır, hatalı satır, çizim FPS, güncel K |

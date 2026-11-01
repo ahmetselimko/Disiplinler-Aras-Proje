@@ -5,7 +5,7 @@
   yanlış taraftaki switch'e çarparsa FAULT)
 - fiziksel ray sonları (limit switch olayı + FAULT)
 - protokoldeki tüm komutlar, firmware ile AYNI kabul/ret kurallarıyla; ek olarak yalnız
-  simülasyonda "kick" (sarkacı dürt)
+  simülasyonda "kick" (sarkacı dürt), "pause" (fiziği dondur/sürdür) ve "reset" (başlangıç durumuna dön)
 
 Arayüz ve okuyucu, gerçek kart gelmeden bu cihazla uçtan uca geliştirilir/test edilir.
 """
@@ -64,6 +64,8 @@ class MockDevice:
         self._thread: threading.Thread | None = None
         self._running = False
         self._at_limit = False
+        self.paused = False                       # yalnız simülasyon: fizik ve kontrol donuk
+        self._last_tel: tuple | None = None       # duraklatmada tekrar gönderilen son ölçüm (x, ẋ, θ, θ̇, u)
 
     # ------------------------------------------------------------ yaşam döngüsü
     def start(self):
@@ -161,7 +163,25 @@ class MockDevice:
         if cmd == "kick":
             self.s[3] += float(a.get("dth", 1.5))
             return P.encode_ack("kick")
+        if cmd == "pause":
+            self.paused = bool(int(a.get("on", 1)))
+            return P.encode_ack("pause")
+        if cmd == "reset":
+            th0 = float(a.get("th0_deg", 180.0))
+            if not -180.0 <= th0 <= 180.0:
+                return P.encode_ack("reset", False, "th0_deg −180…180 aralığında olmalı")
+            self._reset(math.radians(th0))
+            return P.encode_ack("reset")
         return P.encode_ack(cmd, False, "desteklenmiyor")
+
+    def _reset(self, th0: float):
+        """IDLE'a dön, duraklatmayı kaldır, sarkacı θ₀'da durağan koy; homing yapıldıysa araba rayın ortasına."""
+        self.sup.stop()
+        self._home_phase = 0
+        self.paused = False
+        self.s = [0.0 if self.homed else self.s[0], 0.0, th0, 0.0]
+        for est in (self.vx, self.vth):           # açı sıçraması sahte bir hız tepesi üretmesin
+            est.prev, est.lp.y = None, None
 
     def _check_params(self, a: dict) -> str:
         """Firmware'deki doğrulamanın aynısı: protokol aralıkları + cihaza özgü sınırlar."""
@@ -233,6 +253,9 @@ class MockDevice:
 
     def step(self):
         self._process_commands()
+        if self.paused:
+            self._paused_step()
+            return
         p, sup = self.p, self.sup
         xm, thm = self.sensor.measure([self.s[0] - self.x_offset, 0, self.s[2], 0])
         s_hat = [xm, self.vx.update(xm), thm, self.vth.update(thm)]
@@ -260,10 +283,24 @@ class MockDevice:
         self._rail_end_stops()
 
         self.k += 1
+        self._last_tel = (xm, s_hat[1], thm, s_hat[3], u)
+        self._telemetry(*self._last_tel, mode)
+
+    def _paused_step(self):
+        """Duraklatılmışken: fizik, sensör ve kontrol donar; saat ve telemetri (son değerlerle) sürer."""
+        if self.sup.mode == Mode.HOMING:
+            self._home_t0 += self.Ts                      # duraklatma homing süre sınırından sayılmasın
+        self.k += 1
+        if self._last_tel is not None:
+            xm, dx, thm, dth, u = self._last_tel
+            mode = self.sup.mode                          # duraklatmada gelen stop/estop da görünsün
+            self._telemetry(xm, dx, thm, dth, 0.0 if mode in (Mode.IDLE, Mode.FAULT) else u, mode)
+
+    def _telemetry(self, xm: float, dx: float, thm: float, dth: float, u: float, mode: Mode):
         self._tel_acc += self.telemetry_hz * self.Ts      # 200 Hz / 500 Hz = her 2.5 adımda bir
         if self._tel_acc >= 1.0:
             self._tel_acc -= 1.0
-            self._emit(P.encode_telemetry(self.n, self.k * self.Ts, xm, s_hat[1], thm, s_hat[3], u, mode.value))
+            self._emit(P.encode_telemetry(self.n, self.k * self.Ts, xm, dx, thm, dth, u, mode.value))
             self.n += 1
 
     def _rail_end_stops(self):

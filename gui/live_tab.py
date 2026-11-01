@@ -16,6 +16,7 @@ from pendulum_lab.recorder import Recorder
 from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, spin
 
 C = {name: i for i, name in enumerate(COLUMNS)}
+STOPPED_COLOR = "#5d6d7e"   # DURDUR'dan sonraki IDLE ("Durduruldu")
 
 
 class LiveTab(QtWidgets.QWidget):
@@ -77,6 +78,14 @@ class LiveTab(QtWidgets.QWidget):
         self.b_calib = QtWidgets.QPushButton("Açı Sıfırla (calib)")
         self.b_calib.setToolTip("Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (yalnız IDLE)")
         self.b_kick = QtWidgets.QPushButton("Sarkacı Dürt (yalnız simülasyon)")
+        self.b_pause = QtWidgets.QPushButton("Duraklat")
+        self.b_pause.setCheckable(True)
+        self.b_pause.setToolTip("Yalnız simülasyon: fizik ve kontrol donar, telemetri son değerlerle sürer")
+        self.b_reset = QtWidgets.QPushButton("Sıfırla")
+        self.b_reset.setToolTip("Yalnız simülasyon: BEKLEMEDE'ye döner, sarkaç θ₀ açısında durağan konur "
+                                "(homing yapıldıysa araba rayın ortasına)")
+        self.th0 = spin(180.0, -180.0, 180.0, 0, 5, "°")
+        self.th0.setToolTip("Sıfırlamada başlangıç açısı θ₀ (0 = dik, 180 = aşağıda)")
         self.b_rec = QtWidgets.QPushButton("● Kaydı Başlat")
         self.b_rec.setCheckable(True)
         btns.addWidget(self.b_home, 0, 0)
@@ -87,6 +96,11 @@ class LiveTab(QtWidgets.QWidget):
         btns.addWidget(self.b_calib, 3, 0)
         btns.addWidget(self.b_rec, 3, 1)
         btns.addWidget(self.b_kick, 4, 0, 1, 2)
+        btns.addWidget(self.b_pause, 5, 0)
+        reset_row = QtWidgets.QHBoxLayout()
+        for w in (self.b_reset, QtWidgets.QLabel("θ₀:"), self.th0):
+            reset_row.addWidget(w)
+        btns.addLayout(reset_row, 5, 1)
         right.addLayout(btns)
 
         opts = QtWidgets.QHBoxLayout()
@@ -107,13 +121,16 @@ class LiveTab(QtWidgets.QWidget):
         self.log.setFont(mono_font())
         right.addWidget(self.log, 1)
 
-        self.b_home.clicked.connect(lambda: state.send("home"))
+        self._stopped = False      # son mod komutu DURDUR muydu (IDLE "Durduruldu" gösterilir)
+        self.b_home.clicked.connect(lambda: self.send_mode_cmd("home"))
         self.b_calib.clicked.connect(lambda: state.send("calib"))
         self.b_push.clicked.connect(state.push_to_device)
-        self.b_start.clicked.connect(lambda: state.send("start"))
-        self.b_stop.clicked.connect(lambda: state.send("stop"))
+        self.b_start.clicked.connect(lambda: self.send_mode_cmd("start"))
+        self.b_stop.clicked.connect(lambda: self.send_mode_cmd("stop"))
         self.b_estop.clicked.connect(self.estop)
         self.b_kick.clicked.connect(lambda: state.send("kick", dth=1.0))
+        self.b_pause.toggled.connect(self.toggle_pause)
+        self.b_reset.clicked.connect(self.reset_sim)
         self.b_xref.clicked.connect(self.send_xref)
         self.swing_cb.toggled.connect(self.set_swingup)
         self.b_rec.toggled.connect(self.toggle_record)
@@ -124,6 +141,20 @@ class LiveTab(QtWidgets.QWidget):
         self._on_conn(False)
 
     # ------------------------------------------------------------ eylemler
+    def send_mode_cmd(self, cmd: str):
+        if self.state.send(cmd):
+            self._stopped = cmd == "stop"
+
+    def toggle_pause(self, on: bool):
+        if not self.state.send("pause", on=int(on)):
+            on = not on                          # gönderilemedi: buton eski hâline dönsün
+        self._set_paused(on)
+
+    def reset_sim(self):
+        if self.state.send("reset", th0_deg=self.th0.value()):
+            self._stopped = False
+            self._set_paused(False)              # cihaz sıfırlamada duraklatmayı da kaldırır
+
     def set_swingup(self, on: bool):
         self.state.swingup_enabled = on          # bağlı değilken de saklanır, bağlanınca gönderilir
         if self.state.connected:
@@ -182,9 +213,7 @@ class LiveTab(QtWidgets.QWidget):
             return
         last = reader.last
         if last is not None:
-            mode = last.mode
-            self.mode_lbl.setText(MODE_TR.get(mode, mode))
-            self._set_mode_style(MODE_COLORS.get(mode, "#bdc3c7"))
+            self._show_mode(last.mode)
             self.view.set_state(last.x, last.th, self.xref.value())
             self.values.setText(
                 f"t={last.t:8.3f} s   θ={math.degrees(last.th):+7.2f}°   θ̇={last.dth:+6.2f} rad/s\n"
@@ -202,6 +231,22 @@ class LiveTab(QtWidgets.QWidget):
         self.p_th.setXRange(-self.window.value(), 0, padding=0)
 
     # ------------------------------------------------------------ yardımcılar
+    def _show_mode(self, mode: str):
+        if mode == "IDLE" and self._stopped:     # yalnız arayüzde; cihazda ayrı bir mod yok
+            text, color = "DURDURULDU", STOPPED_COLOR
+        else:
+            text, color = MODE_TR.get(mode, mode), MODE_COLORS.get(mode, "#bdc3c7")
+        if self.b_pause.isChecked():
+            text = "⏸ " + text
+        self.mode_lbl.setText(text)
+        self._set_mode_style(color)
+
+    def _set_paused(self, on: bool):
+        self.b_pause.blockSignals(True)          # komut göndermeden yalnız butonu güncelle
+        self.b_pause.setChecked(on)
+        self.b_pause.blockSignals(False)
+        self.b_pause.setText("Devam Et" if on else "Duraklat")
+
     def _set_mode_style(self, color: str):
         self.mode_lbl.setStyleSheet(
             f"QLabel{{background:{color};color:white;font-size:20px;font-weight:bold;border-radius:6px}}")
@@ -221,7 +266,11 @@ class LiveTab(QtWidgets.QWidget):
                   self.b_rec):
             b.setEnabled(connected)
         reader = self.state.reader
-        self.b_kick.setEnabled(connected and isinstance(getattr(reader, "transport", None), SimTransport))
+        sim = connected and isinstance(getattr(reader, "transport", None), SimTransport)
+        for w in (self.b_kick, self.b_pause, self.b_reset, self.th0):
+            w.setEnabled(sim)
+        self._stopped = False
+        self._set_paused(False)                  # yeni bağlantıda sanal cihaz duraklatılmamış başlar
         if not connected:
             if self.b_rec.isChecked():
                 self.b_rec.setChecked(False)
