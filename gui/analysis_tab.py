@@ -14,7 +14,7 @@ from pendulum_lab.analysis.summary import compute_trial_summary
 from pendulum_lab.control.supervisor import MODE_CODES, Mode, Supervisor
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
 
-from .widgets import PendulumView, mono_font, spin
+from .widgets import PendulumView, mono_font, spin, setup_mode_axis
 
 
 class AnalysisTab(QtWidgets.QTabWidget):
@@ -90,9 +90,7 @@ class SimulationPage(QtWidgets.QWidget):
         self.c_e = self.p_e.plot(pen=pg.mkPen("#e67e22", width=1.8))
         self.c_m = self.p_m.plot(pen=pg.mkPen("#8e44ad", width=2), stepMode="left")
         self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine)))
-        ax_m = self.p_m.getAxis("left")
-        ax_m.setTicks([[(0, "IDLE"), (1, "HOME"), (2, "WAIT"), (3, "SWING"), (4, "LQR"), (5, "FAULT")]])
-        self.p_m.setYRange(-0.5, 5.5, padding=0)
+        setup_mode_axis(self.p_m)
 
         self.cursor = [pg.InfiniteLine(angle=90, pen=pg.mkPen("#f39c12")) for _ in range(5)]
         for pl, c in zip((self.p_th, self.p_x, self.p_u, self.p_e, self.p_m), self.cursor):

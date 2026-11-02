@@ -111,3 +111,15 @@ def test_live_summary_collects_all_samples_without_drawing_and_while_frozen(qapp
     st.set_reader(None)
     assert "FAULT" in live.summary_lbl.text()
     live.close()
+
+
+def test_mode_axis_lists_every_mode(qapp):
+    """Mod grafiğinin ekseni tüm modları (FRICTION dahil) göstermeli."""
+    import pyqtgraph as pg
+    from gui.widgets import setup_mode_axis
+    from pendulum_lab.control.supervisor import MODE_CODES
+    plot = pg.PlotWidget()
+    setup_mode_axis(plot.getPlotItem())
+    ticks = dict(plot.getPlotItem().getAxis("left")._tickLevels[0])
+    assert set(ticks) == set(MODE_CODES.values()) and ticks[MODE_CODES[max(MODE_CODES, key=MODE_CODES.get)]] == "SÜRT"
+    assert plot.getPlotItem().getViewBox().viewRange()[1][1] >= max(MODE_CODES.values())

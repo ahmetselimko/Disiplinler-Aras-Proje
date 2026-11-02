@@ -16,7 +16,7 @@ from pendulum_lab.comm.reader import COLUMNS
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.recorder import Recorder
 
-from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, push_with_confirm, spin
+from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, push_with_confirm, setup_mode_axis, spin
 
 C = {name: i for i, name in enumerate(COLUMNS)}
 STOPPED_COLOR = "#5d6d7e"   # DURDUR'dan sonraki IDLE ("Durduruldu")
@@ -52,9 +52,7 @@ class LiveTab(QtWidgets.QWidget):
         self.c_m.setDownsampling(ds=1, auto=False)
 
         self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine)))
-        ax_m = self.p_m.getAxis("left")
-        ax_m.setTicks([[(0, "IDLE"), (1, "HOME"), (2, "WAIT"), (3, "SWING"), (4, "LQR"), (5, "FAULT")]])
-        self.p_m.setYRange(-0.5, 5.5, padding=0)
+        setup_mode_axis(self.p_m)
 
         self.catch_lines = [pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine))
                             for _ in range(2)]
