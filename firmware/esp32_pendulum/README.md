@@ -1,17 +1,37 @@
 # ESP32 Referans Firmware
 
-**Durum:** Bilgisayar ekibi tarafından protokolü ve kontrol mantığını tanımlamak için yazılmış bir iskelettir. **Henüz derlenmedi ve kartta denenmedi.** Mekatronik ekibi kendi donanımına göre uyarlamalıdır.
+**Durum:** Bilgisayar ekibi tarafından protokolü ve kontrol mantığını tanımlamak için yazılmış bir iskelettir. **Hatasız derleniyor, ama kartta henüz denenmedi.** Mekatronik ekibi kendi donanımına göre uyarlamalıdır.
 
 ## Gereken
 * Arduino IDE 2.x + "esp32 by Espressif" kart paketi (core 2.x ve 3.x desteklenir)
 * Kütüphane: **ArduinoJson** (v7)
 * Kart: ESP32-WROOM-32 (çift çekirdek)
 
+## Derleme
+Hatasız ve uyarısız (`--warnings all`) derlendiği doğrulanan sürümler:
+
+| Araç | Sürüm |
+|---|---|
+| arduino-cli | 1.5.1 |
+| esp32 by Espressif | **3.3.12** ve **2.0.17** |
+| ArduinoJson | 7.4.3 |
+| Kart seçimi | ESP32 Dev Module (`esp32:esp32:esp32`) |
+
+Komut satırından:
+```bash
+arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli lib install ArduinoJson
+arduino-cli compile --fqbn esp32:esp32:esp32 firmware/esp32_pendulum
+```
+Aynı derleme her push ve PR'da GitHub Actions'ta iki core sürümüyle tekrarlanır (`.github/workflows/test.yml`).
+
 ## Dosyalar
 | Dosya | İçerik |
 |---|---|
 | `esp32_pendulum.ino` | 500 Hz kontrol görevi (çekirdek 1) + iletişim görevi (çekirdek 0) |
-| `gains.h` | LQR kazancı, eşikler ve model sabitleri. PC arayüzünden üretilir (**gains.h Dışa Aktar**) |
+| `gains.h` | LQR kazancı, eşikler, model sabitleri, redüktör oranı ve kasnak yarıçapı. PC arayüzünden üretilir (**gains.h Dışa Aktar**) |
+
+Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`, 37D için 64) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
 
 ## Pinler (varsayılan — düzenleyin)
 | İşlev | Pin |
