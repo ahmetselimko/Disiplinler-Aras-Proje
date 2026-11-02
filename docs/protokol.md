@@ -90,7 +90,7 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 | `x_ref` | ±0.3 | Dengedeyken arabanın hedef konumu [m]. Cihaz ayrıca \|x_ref\| ≤ rail_half − 0.1 şartını arar |
 | `u_max` | 0–48 | Giriş doyumu [V]. Cihaz besleme geriliminden büyük değeri reddeder |
 | `telemetry_hz` | 1–500 | Telemetri hızı |
-| `fc_volt` | 0–6 | Coulomb sürtünme telafisi, **gerilim** olarak [V] (swing-up ve homing'de). Sürtünme ölçümünün sonucu (`v_c`). Cihaz kuvvete fc_volt·α ile çevirip yine α'ya bölerek uyguladığı için motor sabitlerindeki hata etkilemez. Bağlanınca PC, parametrelerdeki T_f'den hesaplayıp gönderir |
+| `fc_volt` | 0–6 | Coulomb sürtünme telafisi, **gerilim** olarak [V] (yalnız swing-up'ta; homing telafi kullanmaz, sürtünmeyi integralle yener). Sürtünme ölçümünün sonucu (`v_c`). Cihaz kuvvete fc_volt·α ile çevirip yine α'ya bölerek uyguladığı için motor sabitlerindeki hata etkilemez. Bağlanınca PC, parametrelerdeki T_f'den hesaplayıp gönderir |
 
 ## 5. Mod makinesi
 
