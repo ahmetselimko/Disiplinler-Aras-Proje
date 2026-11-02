@@ -33,6 +33,7 @@ class Mode(str, Enum):
     SWING_UP = "SWING_UP"
     BALANCE = "BALANCE"    # LQR
     FAULT = "FAULT"        # ray sınırı / acil durum — motor kapalı
+    FRICTION = "FRICTION"  # sürtünme ölçümü (control/friction.py; firmware/sanal cihaz)
 
 
 MODE_CODES = {m: i for i, m in enumerate(Mode)}
@@ -91,7 +92,7 @@ class Supervisor:
     def update(self, s) -> tuple[float, Mode]:
         """Bir kontrol adımı. s = [x, dx, th, dth] (ölçülen/kestirilen). (u, mod) döndürür."""
         p = self.p
-        if self.mode in (Mode.IDLE, Mode.HOMING, Mode.FAULT):
+        if self.mode in (Mode.IDLE, Mode.HOMING, Mode.FAULT, Mode.FRICTION):
             return 0.0, self.mode
         if abs(s[0]) > p.rail_half - self.soft_margin:
             self.mode = Mode.FAULT

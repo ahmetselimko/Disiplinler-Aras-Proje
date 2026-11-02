@@ -61,6 +61,7 @@ Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTO
 |---|---|
 | `ctrlTask` mod makinesi | `pendulum_lab/control/supervisor.py` |
 | `swingUpAccel` | `pendulum_lab/control/swingup.py` |
+| `FrictionTest`, `friction` komutu (sürtünme ölçümü) | `pendulum_lab/control/friction.py`, `mock_device.py` (test: `test_firmware_friction_matches_python`) |
 | `accelToVolt` (Coulomb telafisi dahil) | `pendulum_lab/model/dynamics.py::accel_to_input`, `coulomb_compensation` (test: `test_firmware_coulomb_compensation_matches_python`) |
 | `VelEst` (25 Hz) | `pendulum_lab/filters.py::VelocityEstimator` |
 | telemetri `snprintf` biçimi | `pendulum_lab/comm/protocol.py::encode_telemetry` |
@@ -75,7 +76,7 @@ Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı t
 |---|---|---|
 | `#ifndef P_FC … #define P_FC 0.0f` (derleme anı denetimlerinde) | Eski `gains.h`'de `P_FC` yoksa telafiyi kapatır, derleme bozulmaz | — |
 | `FC_V_COMP = 0.01f` | Bu hızın [m/s] altında araba duruyor sayılır | `dynamics.V_COMP` |
-| `accelToVolt` içindeki `F += / -= P_FC` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde | `dynamics.coulomb_compensation` |
+| `accelToVolt` içindeki `F += / -= fc_N` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde. `fc_N` başta `P_FC`'dir; `set_param fc_volt` gelince `fc_volt·MOTOR_ALPHA` olur | `dynamics.coulomb_compensation` |
 | `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (`motor.T_f` = 0 iken 0) | `export.gains_header` |
 | `gains.h` → `P_B` | Artık motor mili viskoz sürtünmesini de (B_m·N²/r²) içerir | `PendulumParams.b_cart` |
 

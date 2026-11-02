@@ -10,6 +10,8 @@ from pendulum_lab.comm.mock_device import MockDevice
 from pendulum_lab.comm.reader import TelemetryReader
 from pendulum_lab.comm.transport import SerialTransport, SimTransport
 
+from .widgets import PLACEHOLDER_WARNING
+
 SIM_LABEL = "★ Sanal ESP32 (simülasyon)"
 BAUDS = ["115200", "230400", "460800", "921600", "2000000"]
 
@@ -73,6 +75,9 @@ class ConnectionPanel(QtWidgets.QWidget):
         self.state.log.emit(f"Bağlandı: {transport.name}")
         # cihaz bilgisini iste; yanıt (Ts) gelince K ve ayarlar otomatik yüklenir (AppState.on_device_info)
         self.state.send("ping")
+        if self.state.placeholder_on_real_device:
+            QtWidgets.QMessageBox.warning(self, "Yer tutucu parametreler", PLACEHOLDER_WARNING +
+                                          "\n\nK ve ayarlar karta otomatik gönderilmeyecek.")
 
     def disconnect(self):
         reader = self.state.reader

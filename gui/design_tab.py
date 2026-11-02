@@ -14,7 +14,7 @@ from pendulum_lab.model.motor import max_cart_force, max_cart_speed
 from pendulum_lab.model.params import (INPUT_MODES, MotorParams, PendulumParams, load_params,
                                        pendulum_from_geometry, save_params)
 
-from .widgets import mono_font, spin
+from .widgets import mono_font, push_with_confirm, spin
 
 PARAM_FIELDS = [  # alan, etiket, birim, min, max, ondalık
     ("M", "Araba kütlesi M", "kg", 0.01, 50, 3),
@@ -74,6 +74,11 @@ class DesignTab(QtWidgets.QWidget):
         self.w_mode.setCurrentText(p.input_mode)
         self.w_mode.setToolTip("voltage: DC motor (BTS7960)  ·  force: ideal kuvvet  ·  acceleration: step motor")
         f.addRow("Giriş türü", self.w_mode)
+        self.w_measured = QtWidgets.QCheckBox("Ölçülmüş gerçek değerler (yer tutucu değil)")
+        self.w_measured.setChecked(not p.placeholder)
+        self.w_measured.setToolTip("İşaretli değilken arayüz gerçek karta K'yı onay almadan göndermez "
+                                   "ve gains.h derlenirken uyarı verir")
+        f.addRow(self.w_measured)
         left.addWidget(g_par)
 
         g_mot = QtWidgets.QGroupBox("DC motor (giriş türü = voltage)")
@@ -165,12 +170,14 @@ class DesignTab(QtWidgets.QWidget):
         right.addWidget(self.pz, 2)
 
         self.b_calc.clicked.connect(self.calculate)
+        self.w_measured.toggled.connect(self.calculate)
         self.b_send.clicked.connect(self.send)
         self.b_export.clicked.connect(self.export)
         self.b_load.clicked.connect(self.load)
         self.b_save.clicked.connect(self.save)
         self.g_btn.clicked.connect(self.apply_geometry)
         state.connection_changed.connect(self.b_send.setEnabled)
+        state.params_replaced.connect(lambda: (self._params_to_widgets(state.p), self.calculate()))
         self.b_send.setEnabled(False)
         self.calculate()
 
@@ -178,7 +185,8 @@ class DesignTab(QtWidgets.QWidget):
     def _params_from_widgets(self) -> PendulumParams:
         motor = MotorParams(**{k: w.value() for k, w in self.w_mot.items()})
         return PendulumParams(**{k: w.value() for k, w in self.w_par.items()},
-                              input_mode=self.w_mode.currentText(), motor=motor, note=self.state.p.note)
+                              input_mode=self.w_mode.currentText(), motor=motor, note=self.state.p.note,
+                              placeholder=not self.w_measured.isChecked())
 
     def _params_to_widgets(self, p: PendulumParams):
         for k, w in self.w_par.items():
@@ -186,6 +194,7 @@ class DesignTab(QtWidgets.QWidget):
         for k, w in self.w_mot.items():
             w.setValue(getattr(p.motor, k))
         self.w_mode.setCurrentText(p.input_mode)
+        self.w_measured.setChecked(not p.placeholder)
 
     def apply_geometry(self):
         m, l, I = pendulum_from_geometry(self.g_rod_m.value(), self.g_rod_l.value(), self.g_bob_m.value(),
@@ -221,6 +230,9 @@ class DesignTab(QtWidgets.QWidget):
         lines = [
             f"Giriş türü: {p.input_mode}    J = I + m l² = {p.J:.6f} kg·m²    ω_n = {p.omega_n:.2f} rad/s",
         ]
+        if p.placeholder:
+            lines.insert(0, "UYARI: YER TUTUCU parametreler — K yalnız simülasyon içindir; gerçek karta "
+                            "ölçülmüş değerler girilmeden gönderilmemeli.")
         if p.input_mode == "voltage":
             lines.append(f"Motor: α = {p.motor.alpha:.3f} N/V, β = {p.motor.beta:.3f} N·s/m, "
                          f"en yüksek araba hızı ≈ {max_cart_speed(p):.2f} m/s, kuvvet ≈ {max_cart_force(p):.1f} N")
@@ -248,7 +260,7 @@ class DesignTab(QtWidgets.QWidget):
     # ------------------------------------------------------------ dosya / cihaz
     def send(self):
         self.calculate()
-        self.state.push_to_device()
+        push_with_confirm(self, self.state)
 
     def export(self):
         self.calculate()

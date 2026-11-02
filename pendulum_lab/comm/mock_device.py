@@ -6,6 +6,8 @@
 - fiziksel ray sonları (limit switch olayı + FAULT)
 - protokoldeki tüm komutlar, firmware ile AYNI kabul/ret kurallarıyla; ek olarak yalnız
   simülasyonda "kick" (sarkacı dürt), "pause" (fiziği dondur/sürdür) ve "reset" (başlangıç durumuna dön)
+- "friction": sürtünme ölçümü (control/friction.py). Ölçülen telafi (set_param fc_volt) yalnız
+  kontrolcünün modelini (sup.p) değiştirir; fiziği (self.p) değiştirmez
 
 Arayüz ve okuyucu, gerçek kart gelmeden bu cihazla uçtan uca geliştirilir/test edilir.
 """
@@ -19,6 +21,9 @@ import time
 
 import numpy as np
 
+import copy
+
+from ..control import friction as FR
 from ..control.lqr import design_lqr
 from ..control.supervisor import Mode, Supervisor
 from ..filters import VelocityEstimator
@@ -66,6 +71,8 @@ class MockDevice:
         self._at_limit = False
         self.paused = False                       # yalnız simülasyon: fizik ve kontrol donuk
         self._last_tel: tuple | None = None       # duraklatmada tekrar gönderilen son ölçüm (x, ẋ, θ, θ̇, u)
+        self._friction: FR.FrictionTest | None = None
+        self._s_hat = [0.0, 0.0, math.pi, 0.0]    # son ölçülen/kestirilen durum (komut kabul kuralları için)
 
     # ------------------------------------------------------------ yaşam döngüsü
     def start(self):
@@ -157,6 +164,16 @@ class MockDevice:
                     return P.encode_ack("start", False, blocked)
             ok, msg = sup.start()
             return P.encode_ack("start", ok, msg)
+        if cmd == "friction":
+            if not self.homed:
+                return P.encode_ack("friction", False, "önce home (kalibrasyon) yapılmalı")
+            if mode != Mode.IDLE:
+                return P.encode_ack("friction", False, "yalnız IDLE modunda")
+            blocked = FR.start_block_reason(self.p, *self._s_hat)
+            if blocked:
+                return P.encode_ack("friction", False, blocked)
+            sup.mode, self._friction = Mode.FRICTION, FR.FrictionTest(self._s_hat[0])
+            return P.encode_ack("friction")
         if cmd == "stop":
             sup.stop()
             self._home_phase = 0
@@ -219,6 +236,11 @@ class MockDevice:
             self.p.u_max = val
         elif key == "telemetry_hz":
             self.telemetry_hz = int(val)
+        elif key == "fc_volt":
+            # telafi kontrolcünün modelinde: F_c = α·V_c → T_f = F_c·r/N (firmware: P_FC yerine fc_volt·α)
+            m = self.p.motor
+            sup.p = copy.deepcopy(sup.p)
+            sup.p.motor.T_f = val * m.alpha * m.r_pulley / m.gear
 
     # ------------------------------------------------------------ 500 Hz döngü
     def _switch(self, side: str) -> bool:
@@ -264,8 +286,11 @@ class MockDevice:
         xm, thm = self.sensor.measure([self.s[0] - self.x_offset, 0, self.s[2], 0])
         s_hat = [xm, self.vx.update(xm), thm, self.vth.update(thm)]
 
+        self._s_hat = s_hat
         if sup.mode == Mode.HOMING:
             u = self._homing_input(s_hat)
+        elif sup.mode == Mode.FRICTION:
+            u = self._friction_input(s_hat)
         elif not self.homed:
             u = 0.0                           # kalibrasyonsuz konum güvenilmez → yalnız IDLE/FAULT
         else:
@@ -289,6 +314,17 @@ class MockDevice:
         self.k += 1
         self._last_tel = (xm, s_hat[1], thm, s_hat[3], u)
         self._telemetry(*self._last_tel, mode)
+
+    def _friction_input(self, s_hat) -> float:
+        p = self.p
+        if abs(s_hat[0]) > p.rail_half - self.sup.soft_margin:
+            self._fault("rail")
+            return 0.0
+        u, result = self._friction.step(*s_hat, self.Ts)
+        if result is not None:
+            self.sup.mode, self._friction = Mode.IDLE, None
+            self._emit(P.encode_event("friction", **result))
+        return max(-p.u_max, min(p.u_max, u))
 
     def _paused_step(self):
         """Duraklatılmışken: fizik, sensör ve kontrol donar; saat ve telemetri (son değerlerle) sürer."""

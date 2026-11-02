@@ -3,8 +3,10 @@
 // Q = [10, 1, 100, 1]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage
 #pragma once
+// UYARI: YER TUTUCU parametrelerle üretildi — gerçek ölçüler girilip yeniden üretilmeli.
+#warning "gains.h YER TUTUCU parametrelerle uretildi: olculmus degerleri girip arayuzden yeniden disa aktarin"
 
-#define CTRL_TS_S          0.002000f
+#define CTRL_TS_S         0.002000f
 #define CTRL_PERIOD_MS     2
 #define CTRL_RATE_HZ       500
 // u = -(K0*(x - x_ref) + K1*dx + K2*th + K3*dth)

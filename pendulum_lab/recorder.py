@@ -42,9 +42,9 @@ class Recorder:
                 self._f.close()
 
     @staticmethod
-    def default_path(folder: str | Path = "kayitlar") -> Path:
-        """Zaman damgalı, var olan bir dosyanın üzerine asla yazmayan yol."""
-        base = Path(folder) / time.strftime("oturum_%Y%m%d_%H%M%S")
+    def default_path(folder: str | Path = "kayitlar", prefix: str = "oturum") -> Path:
+        """Zaman damgalı, var olan bir dosyanın üzerine asla yazmayan yol. prefix: ör. "sim" / "gercek"."""
+        base = Path(folder) / time.strftime(f"{prefix}_%Y%m%d_%H%M%S")
         path, i = base.with_suffix(".csv"), 1
         while path.exists():
             path, i = Path(f"{base}_{i}.csv"), i + 1

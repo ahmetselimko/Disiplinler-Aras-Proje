@@ -147,7 +147,9 @@ def test_firmware_coulomb_compensation_matches_python():
     assert m and float(m.group(1)) == V_COMP
     body = src[src.index("static float accelToVolt"):src.index("static float swingUpAccel")]
     assert "fabsf(dx) > FC_V_COMP ? dx : a" in body
-    assert "F += P_FC" in body and "F -= P_FC" in body
+    assert "F += fc_N" in body and "F -= fc_N" in body
+    assert "static float fc_N = P_FC;" in src                      # başta gains.h'deki telafi
+    assert "fc_N = p.fc_volt * MOTOR_ALPHA;" in src                # sürtünme ölçümü / set_param fc_volt
     assert "#define P_FC 0.0f" in src                              # eski gains.h ile de derlenir
 
 
