@@ -13,7 +13,7 @@ from pendulum_lab.comm.reader import COLUMNS
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.recorder import Recorder
 
-from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, spin
+from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, push_with_confirm, spin
 
 C = {name: i for i, name in enumerate(COLUMNS)}
 STOPPED_COLOR = "#5d6d7e"   # DURDUR'dan sonraki IDLE ("Durduruldu")
@@ -124,7 +124,7 @@ class LiveTab(QtWidgets.QWidget):
         self._stopped = False      # son mod komutu DURDUR muydu (IDLE "Durduruldu" gösterilir)
         self.b_home.clicked.connect(lambda: self.send_mode_cmd("home"))
         self.b_calib.clicked.connect(lambda: state.send("calib"))
-        self.b_push.clicked.connect(state.push_to_device)
+        self.b_push.clicked.connect(lambda: push_with_confirm(self, state))
         self.b_start.clicked.connect(lambda: self.send_mode_cmd("start"))
         self.b_stop.clicked.connect(lambda: self.send_mode_cmd("stop"))
         self.b_estop.clicked.connect(self.estop)
@@ -177,8 +177,10 @@ class LiveTab(QtWidgets.QWidget):
                 self.b_rec.setChecked(False)
                 st.log.emit("Kayıt için önce bağlanın.")
                 return
-            path = Recorder.default_path(st.base_dir / "kayitlar")
-            st.recorder = Recorder(path, meta={"K": st.K.tolist(), "params": st.p.to_dict()})
+            real = st.real_device              # kaynak dosya adında ve başlıkta: kayıtlar karışmasın
+            path = Recorder.default_path(st.base_dir / "kayitlar", prefix="gercek" if real else "sim")
+            source = f"gerçek kart ({st.reader.transport.name})" if real else "simülasyon (sanal ESP32)"
+            st.recorder = Recorder(path, meta={"kaynak": source, "K": st.K.tolist(), "params": st.p.to_dict()})
             st.reader.sinks.append(st.recorder)
             self.b_rec.setText("■ Kaydı Durdur")
             st.log.emit(f"Kayıt başladı: {path}")

@@ -34,7 +34,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | **ACİL STOP** / **Esc** | Motor hemen kapanır (FAULT). Esc tuşu açık bir pencere varken de çalışır |
 | **K'yı Cihaza Gönder** | Tasarım sekmesindeki güncel K ve ayarları gönderir |
 | **Açı Sıfırla (calib)** | Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur. Açılışta sarkaç sallanıyorduysa kullanılır |
-| **Kaydı Başlat** | Telemetriyi `kayitlar/oturum_….csv` dosyasına yazar (Excel/Matlab ile açılır) |
+| **Kaydı Başlat** | Telemetriyi `kayitlar/` klasörüne yazar: sanal ESP32'de `sim_….csv`, gerçek kartta `gercek_….csv`. Kaynak dosyanın başında da yazar (Excel/Matlab ile açılır) |
 | **Sarkacı Dürt** | Yalnız simülasyonda: sarkaca darbe verir, LQR'ın toparlamasını görmek için |
 | **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
 | **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik) durağan koyar. Homing yapıldıysa araba rayın ortasına gelir, homing'in tekrarı gerekmez |
@@ -97,6 +97,7 @@ Yalnız θ'ya oransal geri besleme verilseydi köklerin nasıl hareket edeceğin
 | "✗ start: araba ray ucuna çok yakın" | **KALİBRE ET** ile arabayı ortaya alın |
 | "✗ start: araba hâlâ hareket ediyor" | Arabanın durmasını bekleyip tekrar **BAŞLAT** |
 | "✗ start: açı kalibrasyonu başarısız" | Sarkacı aşağıda durdurup **Açı Sıfırla (calib)** |
+| Gerçek karta bağlanınca "Yer tutucu parametreler" uyarısı, K gönderilmiyor | `config/params.json` hâlâ yer tutucu. Tasarım sekmesinde ölçülmüş değerleri girip **Ölçülmüş gerçek değerler** kutusunu işaretleyin, **Parametre Kaydet**. Kart o zamana kadar derlendiği `gains.h` ile çalışır |
 | "UYARI: cihaz Ts = … ms, tasarım Ts = … ms" | Tasarım sekmesinde Ts'yi cihazınkiyle aynı yapıp K Hesapla → Cihaza Gönder |
 | "olay: fault reason=homing_wrong_side" | Homing'de araba sağa gitti: motor veya enkoder yönü ters (protokol.md §2) |
 | Veri hızı 0 / "Bağlantı koptu" | Kablo, port, baud (921600) kontrolü; ESP32'nin seri monitörü açıksa kapatın |

@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 from PyQt5 import QtCore
 
+from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.control.swingup import EnergySwingUp
 from pendulum_lab.model.params import PendulumParams, load_params
@@ -55,6 +56,16 @@ class AppState(QtCore.QObject):
     def connected(self) -> bool:
         return self.reader is not None
 
+    @property
+    def real_device(self) -> bool:
+        """Gerçek karta (seri port) bağlı mı; sanal ESP32'de False."""
+        return self.reader is not None and not isinstance(self.reader.transport, SimTransport)
+
+    @property
+    def placeholder_on_real_device(self) -> bool:
+        """Yer tutucu parametrelerle hesaplanmış K gerçek motoru sürebilir mi (uyarı gerekir)."""
+        return self.real_device and self.p.placeholder
+
     def set_reader(self, reader):
         self.reader = reader
         self.device_Ts = None
@@ -72,6 +83,11 @@ class AppState(QtCore.QObject):
         self._last_info = now
         ts = f"  Ts={self.device_Ts * 1000:g} ms" if self.device_Ts else "  (Ts bildirilmedi)"
         self.log.emit(f"Cihaz: fw={data.get('fw', '?')}{ts}")
+        if self.placeholder_on_real_device:
+            self.log.emit("UYARI: parametreler YER TUTUCU — K ve ayarlar gerçek karta otomatik GÖNDERİLMEDİ; "
+                          "kart derlendiği gains.h ile çalışır. Ölçülmüş değerleri girin ya da "
+                          "'K'yı Cihaza Gönder' ile onaylayarak gönderin.")
+            return
         self.push_to_device()
 
     def send(self, cmd: str, **fields) -> bool:
@@ -85,9 +101,13 @@ class AppState(QtCore.QObject):
             self.log.emit(f"Gönderilemedi ({cmd}): {e}")
             return False
 
-    def push_to_device(self) -> bool:
+    def push_to_device(self, force: bool = False) -> bool:
         """Güncel K ve tüm swing-up/geçiş ayarlarını (swing-up açık/kapalı ve x_ref dahil) cihaza yükler.
-        K, cihazın kontrol periyodu için tasarlanmamışsa GÖNDERİLMEZ."""
+        K, cihazın kontrol periyodu için tasarlanmamışsa GÖNDERİLMEZ. Yer tutucu parametrelerle gerçek
+        karta yalnız force=True ile (kullanıcı onayıyla) gönderilir."""
+        if self.placeholder_on_real_device and not force:
+            self.log.emit("K gönderilmedi: parametreler yer tutucu ve gerçek karta bağlısınız.")
+            return False
         if self.device_Ts is not None and abs(self.device_Ts - self.Ts) > 1e-9:
             self.log.emit(f"UYARI: cihaz Ts = {self.device_Ts * 1000:g} ms, tasarım Ts = {self.Ts * 1000:g} ms. "
                           "K gönderilmedi — Tasarım sekmesinde Ts'yi cihazla aynı yapıp tekrar hesaplayın.")
