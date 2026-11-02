@@ -262,8 +262,10 @@ struct FrictionTest {
     v_neg = (sums[1][2] - slope * sums[1][1]) / sums[1][0];
     v_c = (v_pos + v_neg) / 2; ok = true; u = 0; return true;
   }
-  // bir kontrol adımı; ölçüm bitince true döner (sonuç ok/reason/v_* alanlarında)
-  bool step(float x, float th, float dt, float &u) {
+  // bir kontrol adımı; ölçüm bitince true döner (sonuç ok/reason/v_* alanlarında).
+  // vmax: giriş sınırı (u_max); rampa bunu aşmaz, yoksa kaydedilen gerilim uygulanandan yüksek olurdu
+  bool step(float x, float th, float dt, float vmax, float &u) {
+    const float cap = fminf(FR_MAX_VOLT, vmax);
     if (!started) { started = true; beginRamp(x); }
     if (fabsf(PI - fabsf(wrapAngle(th))) > FR_SWING_MAX) return fail(FR_ERR_SWING, u);
     t += dt;
@@ -291,13 +293,13 @@ struct FrictionTest {
       }
       window(x);
     }
-    if ((done_w && speed >= FR_V_HI) || fabsf(x - x0) > FR_TRAVEL || volt >= FR_MAX_VOLT || t > FR_TIMEOUT) {
+    if ((done_w && speed >= FR_V_HI) || fabsf(x - x0) > FR_TRAVEL || volt >= cap || t > FR_TIMEOUT) {
       if (n < FR_MIN_SAMPLES || vmax - vmin < FR_MIN_SPAN) return fail(FR_ERR_SPEED, u);
       float *s = sums[nd++];
       s[0] = n; s[1] = sv; s[2] = sV; s[3] = svv; s[4] = svV;
       phase = 1; u = dir * volt; return false;
     }
-    volt = fminf(volt + FR_RATE * dt, FR_MAX_VOLT);
+    volt = fminf(volt + FR_RATE * dt, cap);
     w_t += dt; w_V += volt * dt;                       // bu adımda uygulanan gerilim penceredeki ortalamaya girer
     u = dir * volt; return false;
   }
@@ -388,7 +390,7 @@ void ctrlTask(void *) {
     } else if (mode == FRICTION) {
       if (limL || limR)                              mode = raiseFault(mode, "limit");
       else if (fabsf(x) > RAIL_HALF_M - SOFT_MARGIN) mode = raiseFault(mode, "rail");
-      else if (fr.step(x, th, dt, u)) {
+      else if (fr.step(x, th, dt, p.u_max, u)) {
         mode = IDLE;
         portENTER_CRITICAL(&mux);
         S.ev_friction = true; S.fr_ok = fr.ok; S.fr_reason = fr.reason;

@@ -320,7 +320,7 @@ class MockDevice:
         if abs(s_hat[0]) > p.rail_half - self.sup.soft_margin:
             self._fault("rail")
             return 0.0
-        u, result = self._friction.step(*s_hat, self.Ts)
+        u, result = self._friction.step(*s_hat, self.Ts, p.u_max)
         if result is not None:
             self.sup.mode, self._friction = Mode.IDLE, None
             self._emit(P.encode_event("friction", **result))

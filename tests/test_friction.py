@@ -107,6 +107,22 @@ def test_stop_aborts_measurement_and_estop_faults():
     assert dev.sup.mode == Mode.FAULT
 
 
+def test_ramp_never_exceeds_device_input_limit():
+    """u_max < FR_MAX_VOLT iken rampa kırpılmamalı: kaydedilen gerilim uygulananla aynı kalsın."""
+    dev, out = _device(0.0018)
+    dev.p.u_max = 0.3                                               # sürtünmeyi yenmeye yetmez
+    dev.feed(P.encode_command("friction"))
+    us = []
+    for _ in range(int(20 / dev.Ts)):
+        dev.step()
+        us.append(abs(dev._last_tel[4]))
+        if _events(out, "friction"):
+            break
+    assert max(us) <= 0.3 + 1e-9
+    res = _events(out, "friction")[-1]
+    assert not res["ok"] and "yeterli hıza" in res["reason"]       # yanlış sonuç yerine açık hata
+
+
 def test_fc_volt_changes_controller_compensation_not_physics():
     dev, out = _device(0.0018)
     dev.feed(P.encode_command("set_param", fc_volt=0.5))

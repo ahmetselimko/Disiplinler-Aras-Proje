@@ -89,7 +89,10 @@ class FrictionTest:
         vp, vn = ((sV - k * sv) / n for n, sv, sV, _, _ in self.sums)
         return {"ok": True, "v_pos": vp, "v_neg": vn, "v_c": (vp + vn) / 2, "slope": k}
 
-    def step(self, x: float, dx: float, th: float, dth: float, dt: float):
+    def step(self, x: float, dx: float, th: float, dth: float, dt: float, v_max: float = FR_MAX_VOLT):
+        """v_max: cihazın giriş sınırı (u_max). Rampa bunu aşmaz; aşsaydı kaydedilen gerilim, kırpılıp
+        motora gerçekte uygulanandan yüksek olurdu."""
+        cap = min(FR_MAX_VOLT, v_max)
         if abs(math.pi - abs(wrap_angle(th))) > FR_SWING_MAX:
             return 0.0, {"ok": False, "reason": "sarkaç sallandı"}
         self.t += dt
@@ -127,13 +130,13 @@ class FrictionTest:
                 self.v_min, self.v_max = min(self.v_min, speed), max(self.v_max, speed)
             self._window(x)
         if ((speed is not None and speed >= FR_V_HI) or abs(x - self.x0) > FR_TRAVEL
-                or self.volt >= FR_MAX_VOLT or self.t > FR_TIMEOUT):
+                or self.volt >= cap or self.t > FR_TIMEOUT):
             if not self._enough():
                 return 0.0, {"ok": False, "reason": "yeterli hıza ulaşılamadı (gerilim/yol/süre sınırı)"}
             self.sums.append((self.n, self.sv, self.sV, self.svv, self.svV))
             self.phase = "stop"
             return self.direction * self.volt, None
-        self.volt = min(self.volt + FR_RATE * dt, FR_MAX_VOLT)
+        self.volt = min(self.volt + FR_RATE * dt, cap)
         self.w_t += dt                           # bu adımda uygulanan gerilim penceredeki ortalamaya girer
         self.w_V += self.volt * dt
         return self.direction * self.volt, None
