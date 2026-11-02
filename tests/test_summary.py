@@ -218,3 +218,11 @@ def test_design_changes_during_recording_keep_new_qr_and_ts(tmp_path):
     assert events[-1]["settings"]["Q"] == st.Q
     assert events[-1]["settings"]["Ts"] == .004
     assert events[-1]["settings"]["K"] == st.K.tolist()
+
+
+def test_end_reason_not_repeated_when_same_as_final_mode():
+    from pendulum_lab.analysis.summary import TrialSummary
+    lines = TrialSummary(final_mode="IDLE", end_reason="IDLE").format_lines()
+    assert sum(line.startswith(("Son mod", "Bitiş")) for line in lines) == 1
+    lines = TrialSummary(final_mode="IDLE", end_reason="Simülasyon sıfırlandı").format_lines()
+    assert "Bitiş: Simülasyon sıfırlandı" in lines

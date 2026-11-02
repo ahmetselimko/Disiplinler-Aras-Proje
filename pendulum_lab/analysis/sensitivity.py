@@ -1,4 +1,4 @@
-"""One-at-a-time physical mismatch experiments with a fixed nominal controller."""
+"""Tek seferde bir fiziksel parametrenin saptırıldığı deneyler; nominal kontrolcü sabit kalır."""
 from __future__ import annotations
 
 import copy
@@ -15,6 +15,7 @@ from ..sim.simulator import SensorModel, simulate_closed_loop
 from .summary import find_settling_time, input_saturation_time
 
 DEFAULT_VARIATIONS = (-.30, -.20, -.10, .10, .20, .30)
+I0_37D = 0.2     # Pololu 37D boşta akımı [A] (motor belgesi): kuru sürtünme tahmini T_f ≈ Kt·I₀ (#30)
 DEFAULT_PARAMS_TO_TEST = (
     ("l", "Pivot–ağırlık merkezi mesafesi", "m"),
     ("m", "Sarkaç kütlesi", "kg"),
@@ -86,7 +87,7 @@ class ParamSensitivity:
 
 
 class SensitivitySweep(list):
-    """List-compatible results plus all inputs needed to reproduce the report."""
+    """Liste gibi kullanılan sonuçlar; raporu yeniden üretmek için gereken tüm girdilerle birlikte."""
     def __init__(self, nominal, settings, baseline):
         super().__init__()
         self.nominal, self.settings, self.baseline = nominal, settings, baseline
@@ -111,7 +112,7 @@ def get_nested_attr(obj, attr_path):
 
 
 def evaluate_result(r, p, threshold_deg=2.0, hold_s=1.0):
-    """Require BALANCE and the angle band throughout the final hold window."""
+    """Son bekleme penceresi boyunca BALANCE modu ve açı bandı şartını arar."""
     angle = np.abs(np.degrees(np.arctan2(np.sin(r.th), np.cos(r.th))))
     max_x = float(np.max(np.abs(r.x)))
     settle = find_settling_time(r.t, r.th, threshold_deg, hold_s)
@@ -143,16 +144,17 @@ def _run_case(nominal, real, K, sim_time, dt, initial_deg, threshold_deg, hold_s
 
 
 def run_single_simulation(nominal, real, K, sim_time=12.0, dt=.002):
-    """Compatibility wrapper for the swing-up experiment."""
+    """Swing-up deneyi için uyumluluk sarmalayıcısı."""
     case = _run_case(nominal, real, K, sim_time, dt, 180., 2., 1.)
     return (case.balanced, case.settling_time, case.max_x, case.sat_time, case.final_mode, case.status)
 
 
 def _zero_scales(p):
-    """Exploratory absolute scales, not measurements or nominal replacements."""
+    """Sıfır nominalli parametreler için keşif amaçlı mutlak ölçekler; ölçüm ya da nominal değer değildir."""
     return {"I": p.m * p.l**2, "b": .1, "c": .0005,
             "motor.J_rotor": p.M * (p.motor.r_pulley / p.motor.gear)**2,
-            "motor.T_f": p.motor.r_pulley / p.motor.gear,  # reflected force = 1 N
+            # 37D tahmininin 5 katı: +%10/20/30 sütunları tahminin 0.5/1/1.5 katı (kontrolcü T_f'yi bilmez)
+            "motor.T_f": 5 * p.motor.Kt * I0_37D,
             "motor.B_m": max(p.b, .1) * (p.motor.r_pulley / p.motor.gear)**2}
 
 
@@ -161,10 +163,10 @@ def run_sensitivity_sweep(nominal=None, K=None, params_to_test=DEFAULT_PARAMS_TO
                           threshold_deg=2.0, hold_s=1.0, Q=(10., 1., 100., 1.), R=.1,
                           swingup=None, catch_deg=15., release_deg=30., zero_scales=None,
                           progress=None):
-    """Fixed nominal K/model, independent swing-up and 5° balance experiments.
+    """Sabit nominal K/model ile birbirinden bağımsız swing-up ve 5° denge deneyleri.
 
-    Zero nominal parameters use positive fractions of documented absolute scales.
-    Negative values are skipped, never silently clamped or called tolerant.
+    Sıfır nominalli parametrelerde belgelenmiş mutlak ölçeklerin pozitif oranları kullanılır.
+    Negatif değerler atlanır; sessizce kırpılmaz ve toleranslı sayılmaz.
     """
     nominal = copy.deepcopy(nominal or PendulumParams())
     if not all(math.isfinite(v) and v > 0 for v in (dt, sim_time, threshold_deg, hold_s)) or sim_time < hold_s:
@@ -238,7 +240,7 @@ def run_sensitivity_sweep(nominal=None, K=None, params_to_test=DEFAULT_PARAMS_TO
 
 
 def generate_markdown_report(results):
-    """Render only conclusions supported by the supplied experiments."""
+    """Yalnız verilen deneylerin desteklediği sonuçları yazar."""
     lines = ["# Parametre Hassasiyet Analizi Raporu", "",
              "Issue #13 — Tek seferde bir fiziksel parametre değiştirilir; nominal model ve K sabit kalır.",
              "Gerçek donanım doğrulaması değildir. Parametreler yer tutucu olabilir; sonuçlar yalnız bu modele,",
@@ -299,7 +301,10 @@ def generate_markdown_report(results):
                 lines.append(f"\n{r.variation:+.0%}: {r.note}.\n")
     lines += ["", "## Sınırlar ve yeniden çalıştırma", "",
               "- Sıfır nominal referansları keşif ölçekleridir; ölçülmüş motor verisi değildir.",
-              "- I için referans m·l²; rotor için arabaya yansıması M olan atalet; T_f için arabada 1 N; B_m için max(b, 0.1) N·s/m kullanılır.",
+              "- I için referans m·l²; rotor için arabaya yansıması M olan atalet; B_m için max(b, 0.1) N·s/m kullanılır.",
+              "- T_f için referans, Pololu 37D tahmininin (Kt·I₀, I₀ = 0.2 A) 5 katıdır: +%10/20/30 sütunları tahminin "
+              "0.5/1/1.5 katıdır. Kontrolcü T_f'yi bilmez (telafi kapalı, #30); arayüzdeki Sürtünme Ölç ile ölçülüp "
+              "telafi açılırsa bu sonuç değişir. Sürtünme ölçülmeden gerçek denemeye geçilmemelidir.",
               "- Gerçek I / motor kayıpları ölçüldüğünde params.json güncellenmeli; ardından ±% taraması yeniden çalıştırılmalı.",
               "- Motor parametreleri yalnız voltage modunda değerlendirilir. V_max tek başına kuvvet modelini değiştirmediğinden taranmaz; giriş sınırı u_max sabittir.",
               "- Kontrolcü yeniden tasarlanmaz; fiziksel parametre uyumsuzluğu ölçülür. Ölçüm ölçek hataları, gecikme ve birleşik sapmalar bu deneyin dışında kalır.",

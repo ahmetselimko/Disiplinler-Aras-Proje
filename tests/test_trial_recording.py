@@ -1,4 +1,4 @@
-"""Trial summaries and recording settings follow the full serial stream."""
+"""Deneme özetleri ve kayıttaki ayarlar seri akışın tamamını izler."""
 import json
 from types import SimpleNamespace
 

@@ -151,3 +151,13 @@ def test_generate_markdown_report():
     report = generate_markdown_report([ps])
     assert "# Parametre Hassasiyet Analizi Raporu" in report
     assert "Sarkaç boyu" in report
+
+
+def test_coulomb_sweep_covers_37d_estimate():
+    """T_f taraması 37D tahminini (Kt·I₀) kapsamalı: +%20 sütunu tahminin kendisi, +%30 1.5 katı (#30)."""
+    from pendulum_lab.analysis.sensitivity import I0_37D, _zero_scales
+    p = PendulumParams()
+    estimate = p.motor.Kt * I0_37D
+    scale = _zero_scales(p)["motor.T_f"]
+    assert 0.2 * scale == pytest.approx(estimate)
+    assert 0.3 * scale == pytest.approx(1.5 * estimate)

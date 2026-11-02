@@ -48,7 +48,7 @@ class LiveTab(QtWidgets.QWidget):
         self.c_u = self.p_u.plot(pen=pg.mkPen("#c0392b", width=1.5))
         self.c_e = self.p_e.plot(pen=pg.mkPen("#e67e22", width=1.8))
         self.c_m = self.p_m.plot(pen=pg.mkPen("#8e44ad", width=2), stepMode="left")
-        # Peak downsampling may invent intermediate values for a discrete mode.
+        # "peak" seyreltme kesikli mod değerleri arasında olmayan ara değerler üretebilir
         self.c_m.setDownsampling(ds=1, auto=False)
 
         self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine)))
@@ -150,6 +150,7 @@ class LiveTab(QtWidgets.QWidget):
         self.log.setReadOnly(True)
         self.log.setMaximumBlockCount(500)
         self.log.setFont(mono_font())
+        self.log.setMinimumHeight(120)           # özet kutusu eklenince kayıt alanı birkaç satıra inmesin
         right.addWidget(self.log, 1)
 
         self._stopped = False      # son mod komutu DURDUR muydu (IDLE "Durduruldu" gösterilir)
@@ -365,7 +366,7 @@ class LiveTab(QtWidgets.QWidget):
             self.summary_lbl.setText("Deneme bekleniyor (BAŞLAT ile başlar)")
 
     def refresh_summary(self, reader, force=False):
-        """Render a thread-safe O(1) snapshot; collection never depends on drawing."""
+        """Thread-güvenli O(1) anlık görüntüyü yazar; veri toplama çizime hiç bağlı değildir."""
         if reader is None or not hasattr(reader, "trials"):
             return
         now = time.monotonic()

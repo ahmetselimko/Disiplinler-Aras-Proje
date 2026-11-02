@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproduce issue #13 experiments and save the report plus raw JSON results."""
+"""#13 deneylerini yeniden üretir; raporu ve ham JSON sonuçlarını kaydeder."""
 from __future__ import annotations
 
 import argparse
@@ -31,7 +31,7 @@ def main():
                                     dt=args.dt, progress=progress)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(generate_markdown_report(results), encoding="utf-8")
-    # Divergence is null plus an explicit error/status, never invalid JSON NaN.
+    # Iraksama: geçersiz JSON NaN yerine null ve açık bir hata/durum
     def clean(value):
         import math
         if isinstance(value, float) and not math.isfinite(value):

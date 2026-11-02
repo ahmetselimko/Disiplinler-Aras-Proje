@@ -1,4 +1,4 @@
-"""Batch and constant-memory streaming trial metrics; angles are in radians."""
+"""Deneme metrikleri: toplu hesap ve sabit bellekli akış hesabı; açılar radyan."""
 from __future__ import annotations
 
 import math
@@ -18,10 +18,10 @@ def _arrays(t, *values):
 
 
 def find_settling_time(t, th, threshold_deg=2.0, min_duration=1.0, max_gap=None):
-    """First band entry confirmed by continuous observations for min_duration.
+    """Banda ilk giriş; min_duration boyunca kesintisiz gözlemle doğrulanır.
 
-    This is first stabilization, not a promise that the pendulum never falls again.
-    max_gap breaks continuity across missing telemetry.
+    Bu ilk dengelemedir; sarkacın bir daha düşmeyeceği anlamına gelmez.
+    max_gap, eksik telemetride sürekliliği keser.
     """
     t, th = _arrays(t, th)
     acc = TrialAccumulator(threshold_deg=threshold_deg, min_duration=min_duration, max_gap=max_gap)
@@ -31,7 +31,7 @@ def find_settling_time(t, th, threshold_deg=2.0, min_duration=1.0, max_gap=None)
 
 
 def input_saturation_time(t, u, u_max, tol=1e-3):
-    """Left-held input integral: u[i] applies on [t[i], t[i+1])."""
+    """Soldan tutulan giriş integrali: u[i], [t[i], t[i+1]) aralığında geçerlidir."""
     t, u = _arrays(t, u)
     if not math.isfinite(u_max) or u_max <= 0 or not 0 <= tol < u_max:
         raise ValueError("u_max pozitif, 0 <= tol < u_max olmalı")
@@ -61,7 +61,7 @@ class TrialSummary:
         lines = []
         if self.final_mode is not None:
             lines.append(f"Son mod: {self.final_mode}")
-        if self.end_reason:
+        if self.end_reason and self.end_reason != self.final_mode:     # ör. "Son mod: IDLE" + "Bitiş: IDLE" olmasın
             lines.append(f"Bitiş: {self.end_reason}")
         if self.first_lqr_time is not None:
             lines.append(f"LQR ilk devreye giriş: t = {self.first_lqr_time:.2f} s")
@@ -88,7 +88,7 @@ class TrialSummary:
 
 
 class TrialAccumulator:
-    """O(1) memory, O(1) work/sample. Input is held until the next sample."""
+    """O(1) bellek, örnek başına O(1) iş. Giriş bir sonraki örneğe kadar sabit tutulur."""
     def __init__(self, u_max=12.0, threshold_deg=2.0, min_duration=1.0, max_gap=None):
         if not math.isfinite(u_max) or u_max <= 0:
             raise ValueError("u_max pozitif olmalı")
@@ -153,10 +153,10 @@ def compute_trial_summary(t, x, th, u, modes=None, u_max=12.0, rail_half=0.4,
 
 
 class LiveTrialTracker:
-    """Thread-safe trial lifecycle; retains only current/last trial in O(1) memory.
+    """Thread-güvenli deneme yaşam döngüsü; yalnız güncel/son denemeyi O(1) bellekte tutar.
 
-    WAIT belongs to the same trial as BALANCE. Times start at the first active
-    telemetry sample. Missing sequence numbers break metric continuity.
+    WAIT, BALANCE ile aynı denemeye aittir. Süreler ilk etkin telemetri örneğinde başlar.
+    Eksik sıra numaraları metriklerin sürekliliğini keser.
     """
     ACTIVE = ("WAIT", "SWING_UP", "BALANCE")
 
