@@ -12,6 +12,7 @@ from pendulum_lab.control.supervisor import START_MAX_SPEED, START_X_MARGIN
 from pendulum_lab.recorder import Recorder
 from pendulum_lab.export import gains_header
 from pendulum_lab import PendulumParams
+from pendulum_lab.model.params import MotorParams
 
 
 # ------------------------------------------------------------------ protokol
@@ -476,3 +477,20 @@ def test_firmware_handles_every_protocol_command():
     src = FIRMWARE.read_text(encoding="utf-8")
     handled = set(re.findall(r'strcmp\(cmd, "(\w+)"\)', src))
     assert set(P.COMMANDS) - set(P.SIM_ONLY_COMMANDS) == handled          # kick/pause/reset yalnız simülasyonda
+
+
+def test_gains_header_exports_gear_and_pulley():
+    p = PendulumParams(motor=MotorParams(gear=30.0, r_pulley=0.00637))
+    h = gains_header(p, [0, 0, 0, 0], 0.002)
+    assert "#define MOTOR_GEAR         30.0000f" in h
+    assert "#define PULLEY_R_M         0.006370f" in h
+
+
+def test_firmware_takes_gear_and_pulley_from_gains_h():
+    """Motor/kasnak değişince araba konumu ölçeği sessizce yanlış kalmasın: değerler yalnız gains.h'den gelir."""
+    src = FIRMWARE.read_text(encoding="utf-8")
+    assert "* MOTOR_GEAR" in src and "PULLEY_R_M /" in src
+    assert not re.search(r"\bPULLEY_R\s*=", src)                            # firmware'de elle yazılmış kasnak yok
+    assert not re.search(r"ENC_COUNTS_PER_REV\s*=\s*[\d.]+f?\s*\*\s*[\d.]+", src)   # elle yazılmış redüktör yok
+    gains = (FIRMWARE.parent / "gains.h").read_text(encoding="utf-8")
+    assert "#define MOTOR_GEAR" in gains and "#define PULLEY_R_M" in gains

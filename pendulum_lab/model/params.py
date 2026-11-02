@@ -83,6 +83,7 @@ class PendulumParams:
     input_mode: str = "voltage"
     motor: MotorParams = field(default_factory=MotorParams)
     note: str = "YER TUTUCU DEĞERLER — mekatronik ekibinden gerçek değerler gelince güncellenecek"
+    placeholder: bool = True  # ölçülmüş değerler girilince False; True iken arayüz gerçek karta K'yı onaysız göndermez
 
     def __post_init__(self):
         if self.input_mode not in INPUT_MODES:

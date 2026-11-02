@@ -13,6 +13,11 @@ from pathlib import Path
 import numpy as np
 
 
+PLACEHOLDER_COMMENT = "// UYARI: YER TUTUCU parametrelerle üretildi — gerçek ölçüler girilip yeniden üretilmeli."
+PLACEHOLDER_WARNING = ('#warning "gains.h YER TUTUCU parametrelerle uretildi: olculmus degerleri girip '
+                       'arayuzden yeniden disa aktarin"')
+
+
 def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float = 15.0,
                  release_deg: float = 30.0) -> str:
     K = np.asarray(K, dtype=float).ravel()
@@ -27,6 +32,7 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
         f"// Parametreler: M={p.M} m={p.m} l={p.l} I={p.I} b={p.b} c={p.c} giriş={p.input_mode}"
         f" T_f={p.motor.T_f} B_m={p.motor.B_m}",
         "#pragma once",
+        *([PLACEHOLDER_COMMENT, PLACEHOLDER_WARNING] if p.placeholder else []),
         "",
         f"#define CTRL_TS_S          {Ts:.6f}f",
         f"#define CTRL_PERIOD_MS     {round(period_ms)}",
@@ -50,6 +56,8 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
         f"#define MOTOR_ALPHA        {p.motor.alpha:.6f}f   // N/V",
         f"#define MOTOR_BETA         {p.motor.beta:.6f}f   // N·s/m",
         f"#define MOTOR_V_MAX        {p.motor.V_max:.3f}f   // besleme gerilimi [V] (PWM ölçeği)",
+        f"#define MOTOR_GEAR         {p.motor.gear:.4f}f   // redüktör oranı (enkoder sayımı → araba konumu)",
+        f"#define PULLEY_R_M         {p.motor.r_pulley:.6f}f   // kasnak yarıçapı [m]",
         f"#define INPUT_MODE_{p.input_mode.upper()} 1",
     ]
     if swingup is not None:

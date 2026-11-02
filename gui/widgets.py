@@ -9,11 +9,12 @@ from PyQt5 import QtGui, QtWidgets
 
 MODE_COLORS = {
     "IDLE": "#7f8c8d", "HOMING": "#8e44ad", "WAIT": "#2980b9",
-    "SWING_UP": "#e67e22", "BALANCE": "#27ae60", "FAULT": "#c0392b",
+    "SWING_UP": "#e67e22", "BALANCE": "#27ae60", "FAULT": "#c0392b", "FRICTION": "#16a085",
 }
 MODE_TR = {
     "IDLE": "BEKLEMEDE", "HOMING": "KALİBRASYON", "WAIT": "ELLE KALDIRIN",
     "SWING_UP": "SWING-UP", "BALANCE": "DENGE (LQR)", "FAULT": "HATA / STOP",
+    "FRICTION": "SÜRTÜNME ÖLÇÜMÜ",
 }
 
 
@@ -81,3 +82,19 @@ def mono_font() -> QtGui.QFont:
     f.setStyleHint(QtGui.QFont.Monospace)
     f.setPointSize(9)
     return f
+
+
+PLACEHOLDER_WARNING = ("Parametreler hâlâ YER TUTUCU (config/params.json, \"placeholder\": true) ve gerçek "
+                       "karta bağlısınız.\n\nBu değerlerle hesaplanan K gerçek motoru sürer. Önce mekatronik "
+                       "ekibinin ölçtüğü değerleri girip \"Ölçülmüş gerçek değerler\" kutusunu işaretleyin.")
+
+
+def push_with_confirm(parent, state) -> bool:
+    """K'yı cihaza gönderir; yer tutucu parametrelerle gerçek karta göndermeden önce onay ister."""
+    if not state.placeholder_on_real_device:
+        return state.push_to_device()
+    ans = QtWidgets.QMessageBox.warning(parent, "Yer tutucu parametreler", PLACEHOLDER_WARNING +
+                                        "\n\nYine de gönderilsin mi?",
+                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                        QtWidgets.QMessageBox.No)
+    return ans == QtWidgets.QMessageBox.Yes and state.push_to_device(force=True)

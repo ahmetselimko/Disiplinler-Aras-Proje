@@ -1,17 +1,37 @@
 # ESP32 Referans Firmware
 
-**Durum:** Bilgisayar ekibi tarafından protokolü ve kontrol mantığını tanımlamak için yazılmış bir iskelettir. **Henüz derlenmedi ve kartta denenmedi.** Mekatronik ekibi kendi donanımına göre uyarlamalıdır.
+**Durum:** Bilgisayar ekibi tarafından protokolü ve kontrol mantığını tanımlamak için yazılmış bir iskelettir. **Hatasız derleniyor, ama kartta henüz denenmedi.** Mekatronik ekibi kendi donanımına göre uyarlamalıdır.
 
 ## Gereken
 * Arduino IDE 2.x + "esp32 by Espressif" kart paketi (core 2.x ve 3.x desteklenir)
 * Kütüphane: **ArduinoJson** (v7)
 * Kart: ESP32-WROOM-32 (çift çekirdek)
 
+## Derleme
+Hatasız ve uyarısız (`--warnings all`) derlendiği doğrulanan sürümler:
+
+| Araç | Sürüm |
+|---|---|
+| arduino-cli | 1.5.1 |
+| esp32 by Espressif | **3.3.12** ve **2.0.17** |
+| ArduinoJson | 7.4.3 |
+| Kart seçimi | ESP32 Dev Module (`esp32:esp32:esp32`) |
+
+Komut satırından:
+```bash
+arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli lib install ArduinoJson
+arduino-cli compile --fqbn esp32:esp32:esp32 firmware/esp32_pendulum
+```
+Aynı derleme her push ve PR'da GitHub Actions'ta iki core sürümüyle tekrarlanır (`.github/workflows/test.yml`).
+
 ## Dosyalar
 | Dosya | İçerik |
 |---|---|
 | `esp32_pendulum.ino` | 500 Hz kontrol görevi (çekirdek 1) + iletişim görevi (çekirdek 0) |
-| `gains.h` | LQR kazancı, eşikler ve model sabitleri. PC arayüzünden üretilir (**gains.h Dışa Aktar**) |
+| `gains.h` | LQR kazancı, eşikler, model sabitleri, redüktör oranı ve kasnak yarıçapı. PC arayüzünden üretilir (**gains.h Dışa Aktar**) |
+
+Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`, 37D için 64) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
 
 ## Pinler (varsayılan — düzenleyin)
 | İşlev | Pin |
@@ -41,6 +61,7 @@
 |---|---|
 | `ctrlTask` mod makinesi | `pendulum_lab/control/supervisor.py` |
 | `swingUpAccel` | `pendulum_lab/control/swingup.py` |
+| `FrictionTest`, `friction` komutu (sürtünme ölçümü) | `pendulum_lab/control/friction.py`, `mock_device.py` (test: `test_firmware_friction_matches_python`) |
 | `accelToVolt` (Coulomb telafisi dahil) | `pendulum_lab/model/dynamics.py::accel_to_input`, `coulomb_compensation` (test: `test_firmware_coulomb_compensation_matches_python`) |
 | `VelEst` (25 Hz) | `pendulum_lab/filters.py::VelocityEstimator` |
 | telemetri `snprintf` biçimi | `pendulum_lab/comm/protocol.py::encode_telemetry` |
@@ -55,7 +76,7 @@ Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı t
 |---|---|---|
 | `#ifndef P_FC … #define P_FC 0.0f` (derleme anı denetimlerinde) | Eski `gains.h`'de `P_FC` yoksa telafiyi kapatır, derleme bozulmaz | — |
 | `FC_V_COMP = 0.01f` | Bu hızın [m/s] altında araba duruyor sayılır | `dynamics.V_COMP` |
-| `accelToVolt` içindeki `F += / -= P_FC` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde | `dynamics.coulomb_compensation` |
+| `accelToVolt` içindeki `F += / -= fc_N` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde. `fc_N` başta `P_FC`'dir; `set_param fc_volt` gelince `fc_volt·MOTOR_ALPHA` olur | `dynamics.coulomb_compensation` |
 | `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (`motor.T_f` = 0 iken 0) | `export.gains_header` |
 | `gains.h` → `P_B` | Artık motor mili viskoz sürtünmesini de (B_m·N²/r²) içerir | `PendulumParams.b_cart` |
 

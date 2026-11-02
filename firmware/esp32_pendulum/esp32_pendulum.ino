@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Bilgisayar ekibi tarafından protokolü ve kontrol mantığını tanımlamak için yazıldı.
  * Mekatronik ekibi pinleri, motor sürücüsünü ve sensör yönlerini kendi donanımına göre
- * düzenlemelidir. BU DOSYA HENÜZ GERÇEK KARTTA DERLENİP DENENMEDİ.
+ * düzenlemelidir. BU DOSYA HATASIZ DERLENİYOR (sürümler: README) AMA HENÜZ GERÇEK KARTTA DENENMEDİ.
  *
  * Mantık, Python tarafındaki pendulum_lab/control/supervisor.py, swingup.py ve
  * comm/mock_device.py (komut kabul/ret kuralları) ile BİREBİR aynıdır — birinde değişiklik
@@ -24,8 +24,8 @@
 #include "gains.h"
 
 // ============================================================ DERLEME ANI DENETİMLERİ
-#if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX)
-#error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX yok. Arayüzden yeniden dışa aktarın."
+#if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX) || !defined(MOTOR_GEAR) || !defined(PULLEY_R_M)
+#error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX / MOTOR_GEAR / PULLEY_R_M yok. Arayüzden yeniden dışa aktarın."
 #endif
 #ifndef P_FC
 #define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
@@ -51,9 +51,10 @@ static const char *FW_NAME = "ref-1.1";
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
-static const float ENC_COUNTS_PER_REV = 64.0f * 10.0f; // 37D: 64 CPR (4x) × redüktör
-static const float PULLEY_R = 0.0127f;                // [m]
-static const float X_PER_COUNT = 2.0f * PI * PULLEY_R / ENC_COUNTS_PER_REV;
+static const float ENC_CPR_MOTOR = 64.0f;             // motor milindeki enkoder (37D: 64 CPR, 4x). Motor değişirse düzenleyin
+// redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
+static const float ENC_COUNTS_PER_REV = ENC_CPR_MOTOR * MOTOR_GEAR;
+static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;
 static const float V_SUPPLY = MOTOR_V_MAX;            // arayüzdeki motor.V_max ile aynı (gains.h)
 static const int   PWM_FREQ = 20000, PWM_BITS = 10;   // 20 kHz (duyulmaz), 0..1023
 static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi (Python ile aynı)
@@ -64,6 +65,25 @@ static const float HOME_SPEED = 0.10f;                // homing hızı [m/s]
 static const float HOME_TIMEOUT_S = 20.0f;
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 static const float CALIB_MAX_SPREAD = 0.02f;          // kalibrasyonda izin verilen sapma [rad] (~1.1°)
+
+// sürtünme ölçümü — pendulum_lab/control/friction.py ile AYNI (test denetler)
+static const float FR_RATE = 1.0f;                    // gerilim rampası [V/s]
+static const float FR_STOP_RATE = 2.0f;               // yön sonunda gerilimin indirilme hızı [V/s]
+static const float FR_WINDOW = 0.04f;                 // hızın yer değiştirmeden hesaplandığı pencere [s]
+static const float FR_V_LO = 0.04f;                   // doğru oturtmada en düşük hız [m/s]
+static const float FR_V_HI = 0.10f;                   // bu hızda o yöndeki ölçüm biter [m/s]
+static const float FR_MAX_VOLT = 6.0f;                // [V]
+static const float FR_TRAVEL = 0.08f;                 // yön başına ölçüm yolu [m]
+static const float FR_X_MARGIN = 0.15f;               // başlarken ray ucuna FR_TRAVEL + bu kadar uzaklık [m]
+static const float FR_TIMEOUT = 8.0f;                 // yön başına [s]
+static const float FR_SETTLE = 0.3f;                  // yön değiştirmeden önce durma süresi [s]
+static const float FR_STILL_DIST = 0.002f;            // [m]
+static const float FR_SETTLE_TIMEOUT = 3.0f;          // [s]
+static const float FR_MIN_SAMPLES = 5.0f;             // en az pencere
+static const float FR_MIN_SPAN = 0.03f;               // pencerelerin kapsaması gereken hız aralığı [m/s]
+static const float FR_SWING_MAX = 0.3f;               // sarkaç aşağıdan bu kadar saparsa iptal [rad]
+static const float FR_STILL_DTH = 0.3f;               // başlarken sarkaç açısal hızı sınırı [rad/s]
+static const float FR_STILL_DX = 0.01f;               // başlarken araba hızı sınırı [m/s]
 
 // ============================================================ set_param TABLOSU
 // pendulum_lab/comm/protocol.py::SET_PARAM_LIMITS ile AYNI olmalı (test bunu denetler).
@@ -79,11 +99,12 @@ static const ParamLimit PARAM_LIMITS[] = {
   {"x_ref", -0.3f, 0.3f},
   {"u_max", 0.0f, 48.0f},
   {"telemetry_hz", 1.0f, 500.0f},
+  {"fc_volt", 0.0f, 6.0f},
 };
 
 // ============================================================ MODLAR (Python Mode ile aynı adlar)
-enum Mode : uint8_t { IDLE, HOMING, WAIT, SWING_UP, BALANCE, FAULT };
-static const char *MODE_NAMES[] = {"IDLE", "HOMING", "WAIT", "SWING_UP", "BALANCE", "FAULT"};
+enum Mode : uint8_t { IDLE, HOMING, WAIT, SWING_UP, BALANCE, FAULT, FRICTION };
+static const char *MODE_NAMES[] = {"IDLE", "HOMING", "WAIT", "SWING_UP", "BALANCE", "FAULT", "FRICTION"};
 
 // ============================================================ PAYLAŞILAN DURUM (her erişim mux içinde)
 struct Shared {
@@ -93,9 +114,11 @@ struct Shared {
   // iletişim → kontrol
   float K[4]; float catch_rad, release_rad, x_ref, u_max;
   float su_kE, su_amax, su_kx, su_kv, su_akick; bool swingup_on;
-  bool req_start, req_stop, req_estop, req_home, req_calib;
+  float fc_volt;                                     // sürtünme telafisi [V] (set_param fc_volt)
+  bool req_start, req_stop, req_estop, req_home, req_calib, req_friction;
   // olaylar (kontrol üretir, iletişim gönderir)
-  bool ev_homed, ev_fault, ev_limitL, ev_limitR, ev_calib;
+  bool ev_homed, ev_fault, ev_limitL, ev_limitR, ev_calib, ev_friction;
+  bool fr_ok; const char *fr_reason; float fr_v_pos, fr_v_neg, fr_v_c, fr_slope;   // sürtünme ölçümü sonucu
   const char *fault_reason;
 };
 static Shared S;
@@ -183,13 +206,15 @@ static void motorWrite(float volts) {
 
 // Swing-up ivmesini motor gerilimine çevir (dynamics.accel_to_input ile aynı)
 static const float FC_V_COMP = 0.01f;   // [m/s] altında araba duruyor sayılır (dynamics.V_COMP)
+// Coulomb telafisi [N]: başta gains.h'deki P_FC; set_param fc_volt (sürtünme ölçümü) ile değişir: fc_N = fc_volt·α
+static float fc_N = P_FC;
 static float accelToVolt(float dx, float th, float dth, float a) {
   float s = sinf(th), c = cosf(th), ml = P_M_POLE * P_L;
   float ddth = (ml * P_G * s - P_C * dth - ml * c * a) / P_J;
   float F = (P_M_CART + P_M_POLE) * a + ml * c * ddth - ml * s * dth * dth + P_B * dx;
   // Coulomb sürtünme telafisi (dynamics.coulomb_compensation): hareket yönünde, duruyorsa istenen ivme yönünde
   float d = fabsf(dx) > FC_V_COMP ? dx : a;
-  if (d > 0.0f) F += P_FC; else if (d < 0.0f) F -= P_FC;
+  if (d > 0.0f) F += fc_N; else if (d < 0.0f) F -= fc_N;
   return (F + MOTOR_BETA * dx) / MOTOR_ALPHA;
 }
 
@@ -207,6 +232,77 @@ static float swingUpAccel(const Shared &p, float x, float dx, float th, float dt
 }
 
 // ============================================================ KONTROL GÖREVİ
+// ============================================================ SÜRTÜNME ÖLÇÜMÜ (control/friction.py::FrictionTest ile aynı)
+static const char *FR_ERR_SWING = "sarkaç sallandı";
+static const char *FR_ERR_SETTLE = "araba durmadı";
+static const char *FR_ERR_SPEED = "yeterli hıza ulaşılamadı (gerilim/yol/süre sınırı)";
+struct FrictionTest {
+  int dir = 1, phase = 0, nd = 0;                      // phase: 0 rampa, 1 yumuşak duruş, 2 bekleme
+  bool started = false, ok = false;
+  const char *reason = nullptr;
+  float t = 0, volt = 0, x0 = 0, w_t = 0, w_V = 0, w_x0 = 0, vmin = 0, vmax = 0;
+  float n = 0, sv = 0, sV = 0, svv = 0, svV = 0, sums[2][5] = {};
+  float v_pos = 0, v_neg = 0, v_c = 0, slope = 0;
+
+  void reset() { dir = 1; nd = 0; started = false; ok = false; reason = nullptr; }
+  void window(float x) { w_t = 0; w_V = 0; w_x0 = x; }
+  void beginRamp(float x) {
+    phase = 0; t = 0; volt = 0; x0 = x; n = sv = sV = svv = svV = 0; vmin = 1e9f; vmax = -1e9f; window(x);
+  }
+  bool fail(const char *r, float &u) { ok = false; reason = r; u = 0; return true; }
+  bool finish(float &u) {                              // ortak eğimli en küçük kareler: V = V_c(yön) + k·v
+    float Svv = 0, SvV = 0;
+    for (int i = 0; i < 2; i++) {
+      Svv += sums[i][3] - sums[i][1] * sums[i][1] / sums[i][0];
+      SvV += sums[i][4] - sums[i][1] * sums[i][2] / sums[i][0];
+    }
+    if (Svv <= 0) return fail(FR_ERR_SPEED, u);
+    slope = SvV / Svv;
+    v_pos = (sums[0][2] - slope * sums[0][1]) / sums[0][0];
+    v_neg = (sums[1][2] - slope * sums[1][1]) / sums[1][0];
+    v_c = (v_pos + v_neg) / 2; ok = true; u = 0; return true;
+  }
+  // bir kontrol adımı; ölçüm bitince true döner (sonuç ok/reason/v_* alanlarında)
+  bool step(float x, float th, float dt, float &u) {
+    if (!started) { started = true; beginRamp(x); }
+    if (fabsf(PI - fabsf(wrapAngle(th))) > FR_SWING_MAX) return fail(FR_ERR_SWING, u);
+    t += dt;
+    if (phase == 1) {                                  // gerilimi yavaşça indir
+      volt = fmaxf(0.0f, volt - FR_STOP_RATE * dt);
+      if (volt > 0.0f) { u = dir * volt; return false; }
+      if (nd == 2) return finish(u);
+      phase = 2; t = 0; window(x); u = 0; return false;
+    }
+    if (phase == 2) {                                  // FR_SETTLE boyunca FR_STILL_DIST'ten az hareket
+      w_t += dt; u = 0;
+      if (fabsf(x - w_x0) > FR_STILL_DIST) window(x);
+      else if (w_t >= FR_SETTLE) { dir = -1; beginRamp(x); }
+      else if (t > FR_SETTLE_TIMEOUT) return fail(FR_ERR_SETTLE, u);
+      return false;
+    }
+    bool done_w = w_t >= FR_WINDOW - 1e-6f;
+    float speed = 0;
+    if (done_w) {                                      // pencere: (ortalama gerilim, yer değiştirmeden hız)
+      speed = dir * (x - w_x0) / w_t;
+      float v = w_V / w_t;
+      if (speed >= FR_V_LO && speed <= FR_V_HI) {
+        n += 1; sv += speed; sV += v; svv += speed * speed; svV += speed * v;
+        vmin = fminf(vmin, speed); vmax = fmaxf(vmax, speed);
+      }
+      window(x);
+    }
+    if ((done_w && speed >= FR_V_HI) || fabsf(x - x0) > FR_TRAVEL || volt >= FR_MAX_VOLT || t > FR_TIMEOUT) {
+      if (n < FR_MIN_SAMPLES || vmax - vmin < FR_MIN_SPAN) return fail(FR_ERR_SPEED, u);
+      float *s = sums[nd++];
+      s[0] = n; s[1] = sv; s[2] = sV; s[3] = svv; s[4] = svV;
+      phase = 1; u = dir * volt; return false;
+    }
+    volt = fminf(volt + FR_RATE * dt, FR_MAX_VOLT);
+    w_t += dt; w_V += volt * dt;                       // bu adımda uygulanan gerilim penceredeki ortalamaya girer
+    u = dir * volt; return false;
+  }
+};
+
 static Mode raiseFault(Mode m, const char *reason) {
   if (m != FAULT) {
     portENTER_CRITICAL(&mux); S.ev_fault = true; S.fault_reason = reason; portEXIT_CRITICAL(&mux);
@@ -221,6 +317,7 @@ void ctrlTask(void *) {
   Mode mode = IDLE; bool homed = false; int home_phase = 0;
   float x_offset = 0, home_t0 = 0, home_x0 = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
+  FrictionTest fr;
   bool limL_prev = false, limR_prev = false;
   int sensor_fails = 0; uint16_t raw = 0;
 
@@ -237,7 +334,7 @@ void ctrlTask(void *) {
     Shared p;
     portENTER_CRITICAL(&mux);
     p = S;
-    S.req_start = S.req_stop = S.req_estop = S.req_home = S.req_calib = false;
+    S.req_start = S.req_stop = S.req_estop = S.req_home = S.req_calib = S.req_friction = false;
     portEXIT_CRITICAL(&mux);
 
     // sıra önemli: estop EN SON işlenir ve her şeyi ezer
@@ -251,7 +348,9 @@ void ctrlTask(void *) {
       vth.reset(); last = xTaskGetTickCount();
       portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.ev_calib = true; portEXIT_CRITICAL(&mux);
     }
+    if (p.req_friction && mode == IDLE && homed) { mode = FRICTION; fr.reset(); }
     if (p.req_stop) { mode = IDLE; home_phase = 0; }
+    fc_N = p.fc_volt * MOTOR_ALPHA;
     if (p.req_estop) mode = raiseFault(mode, "estop");
 
     // ---------- sensörler
@@ -285,6 +384,16 @@ void ctrlTask(void *) {
         } else {
           u = accelToVolt(dx, th, dth, 20.0f * (v_des - dx));
         }
+      }
+    } else if (mode == FRICTION) {
+      if (limL || limR)                              mode = raiseFault(mode, "limit");
+      else if (fabsf(x) > RAIL_HALF_M - SOFT_MARGIN) mode = raiseFault(mode, "rail");
+      else if (fr.step(x, th, dt, u)) {
+        mode = IDLE;
+        portENTER_CRITICAL(&mux);
+        S.ev_friction = true; S.fr_ok = fr.ok; S.fr_reason = fr.reason;
+        S.fr_v_pos = fr.v_pos; S.fr_v_neg = fr.v_neg; S.fr_v_c = fr.v_c; S.fr_slope = fr.slope;
+        portEXIT_CRITICAL(&mux);
       }
     } else if (mode == SWING_UP || mode == BALANCE || mode == WAIT) {
       float ath = fabsf(th);
@@ -368,6 +477,7 @@ static void handleSetParam(JsonObject d) {
   if (d["k_v"].is<float>())   S.su_kv   = d["k_v"].as<float>();
   if (d["x_ref"].is<float>()) S.x_ref   = d["x_ref"].as<float>();
   if (d["u_max"].is<float>()) S.u_max   = d["u_max"].as<float>();
+  if (d["fc_volt"].is<float>()) S.fc_volt = d["fc_volt"].as<float>();
   portEXIT_CRITICAL(&mux);
   if (d["telemetry_hz"].is<float>()) telemetry_hz = (int)d["telemetry_hz"].as<float>();
   sendAck("set_param", true);
@@ -404,6 +514,17 @@ static void handleCommand(const char *line) {
     if (fabsf(s.dx) > START_MAX_SPEED) { sendAck("start", false, "araba hâlâ hareket ediyor: durmasını bekleyin"); return; }
     SET_SHARED(req_start, true); sendAck("start", true); return;
   }
+  if (!strcmp(cmd, "friction")) {                      // control/friction.py::start_block_reason ile aynı
+    if (!s.homed)          { sendAck("friction", false, "önce home (kalibrasyon) yapılmalı"); return; }
+    if (!s.angle_ok)       { sendAck("friction", false, "açı kalibrasyonu başarısız: sarkacı aşağıda sabit tutup calib gönderin"); return; }
+    if (s.mode != IDLE)    { sendAck("friction", false, "yalnız IDLE modunda"); return; }
+    if (fabsf(s.x) > RAIL_HALF_M - FR_TRAVEL - FR_X_MARGIN) { sendAck("friction", false, "araba ortada değil: önce KALİBRE ET"); return; }
+    if (fabsf(s.dx) > FR_STILL_DX) { sendAck("friction", false, "araba hareket ediyor: durmasını bekleyin"); return; }
+    if (fabsf(PI - fabsf(wrapAngle(s.th))) > FR_SWING_MAX || fabsf(s.dth) > FR_STILL_DTH) {
+      sendAck("friction", false, "sarkaç aşağıda ve hareketsiz olmalı"); return;
+    }
+    SET_SHARED(req_friction, true); sendAck("friction", true); return;
+  }
   if (!strcmp(cmd, "home")) {
     if (s.mode != IDLE && s.mode != FAULT) { sendAck("home", false, "önce stop"); return; }
     SET_SHARED(req_home, true); sendAck("home", true); return;
@@ -433,13 +554,18 @@ void commTask(void *) {
     }
     Shared s;
     portENTER_CRITICAL(&mux);
-    s = S; S.ev_homed = S.ev_fault = S.ev_limitL = S.ev_limitR = S.ev_calib = false;
+    s = S; S.ev_homed = S.ev_fault = S.ev_limitL = S.ev_limitR = S.ev_calib = S.ev_friction = false;
     portEXIT_CRITICAL(&mux);
     if (s.ev_limitL) Serial.print("{\"evt\":\"limit\",\"side\":\"L\"}\n");
     if (s.ev_limitR) Serial.print("{\"evt\":\"limit\",\"side\":\"R\"}\n");
     if (s.ev_homed)  Serial.print("{\"evt\":\"homed\"}\n");
     if (s.ev_calib)  Serial.printf("{\"evt\":\"calib\",\"ok\":%s}\n", s.angle_ok ? "true" : "false");
     if (s.ev_fault)  Serial.printf("{\"evt\":\"fault\",\"reason\":\"%s\"}\n", s.fault_reason ? s.fault_reason : "?");
+    if (s.ev_friction) {
+      if (s.fr_ok) Serial.printf("{\"evt\":\"friction\",\"ok\":true,\"v_pos\":%.4f,\"v_neg\":%.4f,\"v_c\":%.4f,\"slope\":%.4f}\n",
+                                 s.fr_v_pos, s.fr_v_neg, s.fr_v_c, s.fr_slope);
+      else         Serial.printf("{\"evt\":\"friction\",\"ok\":false,\"reason\":\"%s\"}\n", s.fr_reason ? s.fr_reason : "?");
+    }
     if (s.n != last_n) {                                // yeni telemetri
       last_n = s.n;
       int l = snprintf(buf, sizeof buf,
@@ -474,6 +600,7 @@ void setup() {
   memcpy(S.K, LQR_K, sizeof S.K);
   S.catch_rad = CATCH_RAD; S.release_rad = RELEASE_RAD; S.u_max = U_MAX; S.swingup_on = true;
   S.su_kE = SU_K_E; S.su_amax = SU_A_MAX; S.su_kx = SU_K_X; S.su_kv = SU_K_V; S.su_akick = SU_A_KICK;
+  S.fc_volt = P_FC / MOTOR_ALPHA;                     // gains.h'deki telafi, gerilim olarak
   S.mode = IDLE;
 
   Serial.printf("{\"evt\":\"boot\",\"fw\":\"%s\",\"Ts\":%.4f}\n", FW_NAME, CTRL_PERIOD_MS / 1000.0f);

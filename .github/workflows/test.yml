@@ -23,3 +23,27 @@ jobs:
         run: pip install -r requirements.txt
       - name: Testleri çalıştır
         run: python -m pytest -q
+
+  # ESP32 firmware'i iki core sürümüyle derler (kart gerekmez). Sürümler firmware/esp32_pendulum/README.md ile aynı.
+  firmware:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        core: ["3.3.12", "2.0.17"]
+    env:
+      ESP32_URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: arduino/setup-arduino-cli@v2
+      - name: ESP32 kart paketi ve ArduinoJson'u kur
+        run: |
+          pip install pyserial   # core 2.x Linux'ta esptool.py için gerekli
+          arduino-cli core update-index --additional-urls "$ESP32_URL"
+          arduino-cli core install "esp32:esp32@${{ matrix.core }}" --additional-urls "$ESP32_URL"
+          arduino-cli lib install ArduinoJson@7.4.3
+      - name: Firmware'i derle
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 --warnings all firmware/esp32_pendulum

@@ -2,6 +2,7 @@
 
 import json
 import math
+from pathlib import Path
 
 import numpy as np
 
@@ -65,3 +66,64 @@ def test_xref_clamped_to_rail():
     st = AppState("yok/params.json")
     st.p = PendulumParams(rail_half=0.35)
     assert st.clamp_xref(0.3) == 0.25 or abs(st.clamp_xref(0.3) - 0.25) < 1e-12
+
+
+# ------------------------------------------------------------------ yer tutucu parametreler / kayıt kaynağı
+class _FakeReader:
+    """Gerçek karta (SimTransport olmayan) bağlı okuyucu yerine geçer; gönderilen komutları saklar."""
+    def __init__(self, transport):
+        self.transport = transport
+        self.sent = []
+
+    def send(self, cmd, **fields):
+        self.sent.append(cmd)
+
+
+def _state_on(transport, placeholder):
+    from gui.state import AppState
+    st = AppState("yok/params.json")
+    st.p = PendulumParams(placeholder=placeholder)
+    st.set_reader(_FakeReader(transport))
+    return st
+
+
+def test_placeholder_params_not_pushed_to_real_device_without_force():
+    class Serial:
+        name = "COM3 @ 921600"
+    st = _state_on(Serial(), placeholder=True)
+    assert st.placeholder_on_real_device
+    st.on_device_info({"Ts": 0.002})
+    assert st.reader.sent == []                                   # bağlanınca otomatik gönderilmez
+    assert st.push_to_device() is False and st.reader.sent == []
+    assert st.push_to_device(force=True) and "set_gain" in st.reader.sent   # kullanıcı onaylarsa gider
+
+
+def test_measured_params_and_simulator_push_automatically():
+    from pendulum_lab.comm.mock_device import MockDevice
+    from pendulum_lab.comm.transport import SimTransport
+
+    class Serial:
+        name = "COM3 @ 921600"
+    real = _state_on(Serial(), placeholder=False)
+    real.on_device_info({"Ts": 0.002})
+    assert "set_gain" in real.reader.sent
+    sim = _state_on(SimTransport(MockDevice(realtime=False)), placeholder=True)
+    assert not sim.real_device and not sim.placeholder_on_real_device
+    sim.on_device_info({"Ts": 0.002})
+    assert "set_gain" in sim.reader.sent                          # sanal ESP32'de davranış değişmedi
+
+
+def test_config_params_marked_placeholder_and_gains_h_warns():
+    from pendulum_lab.model.params import load_params
+    root = Path(__file__).resolve().parents[1]
+    assert load_params(root / "config" / "params.json").placeholder
+    assert "#warning" in gains_header(PendulumParams(placeholder=True), [0, 0, 0, 0], 0.002)
+    assert "#warning" not in gains_header(PendulumParams(placeholder=False), [0, 0, 0, 0], 0.002)
+    assert "#warning" in (root / "firmware" / "esp32_pendulum" / "gains.h").read_text(encoding="utf-8")
+
+
+def test_recorder_path_prefix_marks_source(tmp_path):
+    from pendulum_lab.recorder import Recorder
+    assert Recorder.default_path(tmp_path, prefix="sim").name.startswith("sim_")
+    assert Recorder.default_path(tmp_path, prefix="gercek").name.startswith("gercek_")
+    assert Recorder.default_path(tmp_path).name.startswith("oturum_")

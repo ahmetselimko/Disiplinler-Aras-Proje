@@ -46,7 +46,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 Donanım olmadan, gerçek kartla **aynı protokol ve aynı komut kurallarıyla** çalışır: homing, limit switch'ler, swing-up, LQR, sensör kusurları. Gerçek karta geçişte arayüzde yalnızca port seçimi değişir.
 
 ### 2.4 Referans ESP32 firmware'i (`firmware/esp32_pendulum/`)
-Mekatronik ekibe başlangıç noktası. İki FreeRTOS görevi var: 500 Hz kontrol çekirdek 1'de, haberleşme çekirdek 0'da çalışır. Python'daki kontrol mantığının birebir karşılığıdır. Güvenlik davranışları: yanlış yöne homing, süre aşımı, sensör kopması, kalibrasyon hatası ve baskın acil stop. **Henüz derlenmedi ve kartta denenmedi.**
+Mekatronik ekibe başlangıç noktası. İki FreeRTOS görevi var: 500 Hz kontrol çekirdek 1'de, haberleşme çekirdek 0'da çalışır. Python'daki kontrol mantığının birebir karşılığıdır. Güvenlik davranışları: yanlış yöne homing, süre aşımı, sensör kopması, kalibrasyon hatası ve baskın acil stop. **Hatasız derleniyor (ESP32 core 3.3.12 ve 2.0.17), ama kartta henüz denenmedi.**
 
 ### 2.5 Belgeler (`docs/`)
 | Belge | Okuyucu | İçerik |
@@ -117,7 +117,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 
 ## 6. Eksiler, sınırlamalar ve riskler
 
-* **Firmware gerçek kartta hiç derlenmedi veya denenmedi.** Derleme hataları ve donanıma özgü sorunlar (pin seçimi, sürücü davranışı, enkoder gürültüsü) olabilir.
+* **Firmware gerçek kartta hiç denenmedi.** Derlendiği doğrulandı; donanıma özgü sorunlar (pin seçimi, sürücü davranışı, enkoder gürültüsü) olabilir.
 * **Parametreler yer tutucu.** Swing-up kazançları ve LQR ağırlıkları gerçek değerlerle yeniden ayarlanmalı.
 * **Motor kararı kritik:** düşük devirli bir redüktörle swing-up fiziksel olarak mümkün olmayabilir.
 * **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. Gerekirse Kalman filtresi (kütüphanede hazır) firmware'e taşınabilir.
@@ -141,7 +141,7 @@ Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutuc
 | # | İş | Nasıl yapılır | Faydası |
 |---|---|---|---|
 | 1 | **Motor karşılaştırması** *(öncelikli)* | Aday motorların datasheet değerleri (Pololu 37D farklı redüktörler, Pololu 35, NEMA17) "Model ve LQR Tasarımı" sekmesine girilir; en yüksek araba hızı ve kuvvet not edilir. "Analiz" sekmesinde θ₀ = 180° ile swing-up denenir | Mekatronik ekibin bekleyen motor kararına doğrudan veri sağlar. Sonuç tablo hâlinde mekatronik ekibe verilir |
-| 2 | **Firmware'i derlemek** *(öncelikli)* | Arduino IDE + "esp32 by Espressif" paketi + ArduinoJson kurulur, `firmware/esp32_pendulum` derlenir (kart gerekmez) | Kod hiç derlenmedi. Hatalar şimdi düzeltilirse kart gelince zaman kaybedilmez |
+| 2 | ~~**Firmware'i derlemek**~~ ✔ *yapıldı* | Core 3.3.12 ve 2.0.17 ile hatasız derleniyor; sürümler `firmware/esp32_pendulum/README.md`'de | Derleme her push'ta GitHub Actions'ta tekrarlanıyor |
 | 3 | **Hassasiyet analizi** | Simülasyonda her parametre (m, M, l, b, c, motor sabitleri) ±%10–30 bozulup swing-up ve dengenin sürüp sürmediği denenir (`tests/test_control.py::test_swing_up_robust_to_model_mismatch` örnek alınabilir) | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
 | 4 | **Kalman filtresi** | `pendulum_lab/filters.py::KalmanFilter` ile hız kestirimi simülasyonda denenir, motor gerilimi titreşimi ölçülür, sonra firmware'e taşınır | Dengedeki ±1–1.5 V titreşimi azaltır. Gerçek değerler gelince yalnızca sayılar değişir |
 | 5 | **Kayıt oynatma sekmesi** | Arayüze CSV kaydını açıp aynı başlangıç koşullu simülasyonla üst üste çizen bir sekme eklenir; sanal cihazdan alınan kayıtla denenir | Gerçek denemeler başlayınca modelin doğrulanmasını kolaylaştırır |

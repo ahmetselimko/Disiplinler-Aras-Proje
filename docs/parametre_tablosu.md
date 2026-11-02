@@ -1,6 +1,6 @@
 # Fiziksel Parametre Tablosu (mekatronik ekibi dolduracak)
 
-Mekanik tasarım bitince bu tablo doldurulup bilgisayar ekibine iletilir. Değerler `config/params.json` dosyasına (aynı alan adlarıyla) yazılır. Şimdilik kullanılan değerler **yer tutucudur**.
+Mekanik tasarım bitince bu tablo doldurulup bilgisayar ekibine iletilir. Değerler `config/params.json` dosyasına (aynı alan adlarıyla) yazılır. Şimdilik kullanılan değerler **yer tutucudur**. Ölçülmüş değerler girilince dosyadaki `"placeholder": true` satırı `false` yapılmalıdır (ya da arayüzün Tasarım sekmesinde **Ölçülmüş gerçek değerler** kutusu işaretlenip **Parametre Kaydet**). O zamana kadar arayüz gerçek karta K'yı onay almadan göndermez ve `gains.h` derlenirken uyarı verir.
 
 | Alan | Açıklama | Birim | Yer tutucu | Gerçek değer | Nasıl ölçülür / bulunur |
 |---|---|---|---|---|---|

@@ -1,5 +1,6 @@
 {
-  "_aciklama": "YER TUTUCU değerler. Mekanik tasarım bitince mekatronik ekibi doldurur (bkz. docs/parametre_tablosu.md). Birimler SI.",
+  "_aciklama": "YER TUTUCU değerler. Mekanik tasarım bitince mekatronik ekibi doldurur (bkz. docs/parametre_tablosu.md). Birimler SI. Gerçek ölçüler girilince \"placeholder\": false yapılmalı.",
+  "placeholder": true,
   "M": 0.5,
   "m": 0.2,
   "l": 0.3,
