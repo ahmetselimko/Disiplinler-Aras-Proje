@@ -61,5 +61,12 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    import os
     sys.path.insert(0, str(ROOT))
-    sys.exit(main())
+    code = main()
+    # Pencere kapanınca bağlantı kesilmiş ve kayıt dosyası kapatılmıştır (MainWindow.closeEvent). Python'un
+    # olağan kapanışı Qt/pyqtgraph nesnelerini silerken ara sıra "access violation" ile çöküyordu
+    # (Windows, ~%25); süreç burada doğrudan sonlandırılır.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(code)
