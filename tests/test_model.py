@@ -8,6 +8,7 @@ from pendulum_lab.model.dynamics import accelerations, energy
 from pendulum_lab.export import gains_header
 from pendulum_lab.model.params import MotorParams, pendulum_from_geometry, bob_inertia, load_params, save_params
 from pendulum_lab.model.linearize import numerical_linearize
+from pendulum_lab.model.motor import MOTOR_CATALOG, max_cart_speed, motor_from_catalog
 from pendulum_lab.sim.simulator import simulate_open_loop
 
 
@@ -150,3 +151,13 @@ def test_firmware_coulomb_compensation_matches_python():
     assert "static float fc_N = P_FC;" in src                      # başta gains.h'deki telafi
     assert "fc_N = p.fc_volt * MOTOR_ALPHA;" in src                # sürtünme ölçümü / set_param fc_volt
     assert "#define P_FC 0.0f" in src                              # eski gains.h ile de derlenir
+
+
+# ------------------------------------------------------------------ motor kataloğu (#7)
+def test_motor_catalog_recommended_motor_is_fast_enough():
+    """#7 önerisi (37D 10:1 + GT2 40 diş) tasarım sekmesinin 0.8 m/s uyarı eşiğini geçmeli; 30:1 geçmemeli."""
+    for name in MOTOR_CATALOG:
+        motor_from_catalog(name)
+    fast = PendulumParams(motor=motor_from_catalog("pololu_37d_12v_10to1"))
+    slow = PendulumParams(motor=motor_from_catalog("pololu_37d_12v_30to1"))
+    assert max_cart_speed(fast) > 0.8 > max_cart_speed(slow)
