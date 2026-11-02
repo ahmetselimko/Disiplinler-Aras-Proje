@@ -6,6 +6,8 @@ import math
 
 import numpy as np
 import pyqtgraph as pg
+import copy
+
 from PyQt5 import QtCore, QtWidgets
 
 from pendulum_lab.comm import protocol as P
@@ -78,6 +80,9 @@ class LiveTab(QtWidgets.QWidget):
         self.b_calib = QtWidgets.QPushButton("Açı Sıfırla (calib)")
         self.b_calib.setToolTip("Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (yalnız IDLE)")
         self.b_kick = QtWidgets.QPushButton("Sarkacı Dürt (yalnız simülasyon)")
+        self.b_friction = QtWidgets.QPushButton("Sürtünme Ölç")
+        self.b_friction.setToolTip("KALİBRE ET'ten sonra, sarkaç aşağıda dururken: araba iki yönde ~8 cm'er "
+                                   "gider, motor + kayış sürtünmesini gerilim olarak ölçer")
         self.b_pause = QtWidgets.QPushButton("Duraklat")
         self.b_pause.setCheckable(True)
         self.b_pause.setToolTip("Yalnız simülasyon: fizik ve kontrol donar, telemetri son değerlerle sürer")
@@ -95,7 +100,8 @@ class LiveTab(QtWidgets.QWidget):
         btns.addWidget(self.b_estop, 2, 0, 1, 2)
         btns.addWidget(self.b_calib, 3, 0)
         btns.addWidget(self.b_rec, 3, 1)
-        btns.addWidget(self.b_kick, 4, 0, 1, 2)
+        btns.addWidget(self.b_kick, 4, 0)
+        btns.addWidget(self.b_friction, 4, 1)
         btns.addWidget(self.b_pause, 5, 0)
         reset_row = QtWidgets.QHBoxLayout()
         for w in (self.b_reset, QtWidgets.QLabel("θ₀:"), self.th0):
@@ -129,6 +135,7 @@ class LiveTab(QtWidgets.QWidget):
         self.b_stop.clicked.connect(lambda: self.send_mode_cmd("stop"))
         self.b_estop.clicked.connect(self.estop)
         self.b_kick.clicked.connect(lambda: state.send("kick", dth=1.0))
+        self.b_friction.clicked.connect(self.measure_friction)
         self.b_pause.toggled.connect(self.toggle_pause)
         self.b_reset.clicked.connect(self.reset_sim)
         self.b_xref.clicked.connect(self.send_xref)
@@ -145,6 +152,42 @@ class LiveTab(QtWidgets.QWidget):
         # start reddedilebilir: kabul edilirse mod zaten IDLE'dan çıkar, "Durduruldu" burada silinmez
         if self.state.send(cmd) and cmd != "start":
             self._stopped = cmd == "stop"
+
+    def measure_friction(self):
+        if self.state.real_device:
+            ans = QtWidgets.QMessageBox.question(
+                self, "Sürtünme ölçümü", "Araba önce sağa, sonra sola yaklaşık 8 cm'er gidecek. Ray boş olmalı, "
+                "sarkaç aşağıda hareketsiz durmalı; elinizi acil stop'ta tutun.\n\nBaşlatılsın mı?")
+            if ans != QtWidgets.QMessageBox.Yes:
+                return
+        self.state.send("friction")
+
+    def on_friction(self, data: dict):
+        """Ölçüm sonucu: göster; onaylanırsa T_f'yi parametrelere yaz ve telafiyi cihaza gönder."""
+        st = self.state
+        if not data.get("ok"):
+            self.append_log(f"✗ sürtünme ölçümü: {data.get('reason', '?')}")
+            return
+        m, p = st.p.motor, st.p
+        v_c = float(data["v_c"])
+        F_c = max(0.0, v_c) * m.alpha
+        T_f = F_c * m.r_pulley / m.gear
+        k_model = (m.beta + p.b_cart) / m.alpha
+        text = (f"Sürtünmeyi yenen gerilim: V_c = {v_c:.3f} V  (+x {data['v_pos']:.3f} V, −x {data['v_neg']:.3f} V)\n"
+                f"Modeldeki motor sabitleriyle: F_c ≈ {F_c:.2f} N arabada, T_f ≈ {T_f:.5f} N·m\n"
+                f"Eğim (β+b)/α: ölçülen {data['slope']:.2f}, model {k_model:.2f} V·s/m "
+                "(fark büyükse motor sabitleri gözden geçirilmeli)")
+        self.append_log("● sürtünme ölçümü: " + text.replace("\n", " | "))
+        ans = QtWidgets.QMessageBox.question(
+            self, "Sürtünme ölçümü", text + "\n\nT_f parametrelere yazılsın ve telafi cihaza gönderilsin mi?")
+        if ans != QtWidgets.QMessageBox.Yes:
+            return
+        st.p = copy.deepcopy(st.p)
+        st.p.motor.T_f = T_f
+        st.params_replaced.emit()
+        st.send("set_param", fc_volt=min(6.0, max(0.0, v_c)))
+        st.log.emit(f"T_f = {T_f:.5f} N·m yazıldı ve telafi gönderildi. Kalıcı olması için Tasarım sekmesinde "
+                    "Parametre Kaydet; firmware'e gömmek için gains.h Dışa Aktar.")
 
     def toggle_pause(self, on: bool):
         if not self.state.send("pause", on=int(on)):
@@ -203,6 +246,9 @@ class LiveTab(QtWidgets.QWidget):
             elif msg.cmd not in ("set_param",):
                 self.append_log(f"✓ {msg.cmd} {msg.msg}".rstrip())
         elif isinstance(msg, P.Event):
+            if msg.name == "friction":
+                self.on_friction(msg.data)
+                return
             if msg.name == "recorder_error":
                 self.append_log(f"!!! Kayıt durduruldu: {msg.data.get('msg')}")
                 self.b_rec.setChecked(False)
@@ -266,7 +312,7 @@ class LiveTab(QtWidgets.QWidget):
 
     def _on_conn(self, connected: bool):
         for b in (self.b_home, self.b_calib, self.b_push, self.b_start, self.b_stop, self.b_estop, self.b_xref,
-                  self.b_rec):
+                  self.b_rec, self.b_friction):
             b.setEnabled(connected)
         reader = self.state.reader
         sim = connected and isinstance(getattr(reader, "transport", None), SimTransport)

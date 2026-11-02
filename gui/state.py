@@ -18,6 +18,7 @@ class AppState(QtCore.QObject):
     params_changed = QtCore.pyqtSignal()
     gains_changed = QtCore.pyqtSignal()
     connection_changed = QtCore.pyqtSignal(bool)
+    params_replaced = QtCore.pyqtSignal()      # parametreler sekme dışından değişti (ör. sürtünme ölçümü)
     log = QtCore.pyqtSignal(str)
 
     def __init__(self, params_path: str | Path):
@@ -121,6 +122,8 @@ class AppState(QtCore.QObject):
         ok = ok and self.send("set_param", catch_deg=self.catch_deg, release_deg=self.release_deg)
         ok = ok and self.send("set_param", k_E=su.k_E, a_max=su.a_max, k_x=su.k_x, k_v=su.k_v)
         ok = ok and self.send("set_param", u_max=self.p.u_max)
+        if self.p.input_mode == "voltage":       # Coulomb telafisi, gerilim olarak (firmware: fc_N = fc_volt·α)
+            ok = ok and self.send("set_param", fc_volt=min(6.0, self.p.F_coulomb / self.p.motor.alpha))
         ok = ok and self.send("set_param", x_ref=self.x_ref)
         if ok:
             self.log.emit("K = [" + ", ".join(f"{k:.3f}" for k in self.K) + "] ve ayarlar gönderildi "
