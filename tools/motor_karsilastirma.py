@@ -4,6 +4,8 @@
 
 Her aday için arayüzdeki adımlar toplu yapılır: K hesapla (varsayılan Q/R/Ts) → θ₀ = 180° ile 20 s
 simülasyon; iki ray boyunda (±0.4 / ±0.2 m), DC motorlarda sürtünmesiz ve sürtünmeli (telafi açık) olarak.
+"Sürtünmeli" denemelerde telafi GERÇEK T_f ile çalışır, yani sürtünmenin doğru bilindiği varsayılır; yazılımda
+T_f = 0 kalırsa sarkaç kalkmaz (#30). Gerçek düzenekte sürtünme arayüzdeki Sürtünme Ölç ile ölçülmelidir.
 Sarkaç/araba değerleri config/params.json'dan gelir (şu an YER TUTUCU). Ölçüler gelince yeniden çalıştırın.
 Sonunda aday × kasnak başına kaç denemenin dengeye geldiğini yazdırır; CSV yolu verilirse tüm satırları kaydeder.
 
@@ -48,7 +50,8 @@ M37D = dc_motor(12.0, 10000, 0.2, 5.5, 0.5 * KGCM, 1)
 J_37D = (0.0, 3e-6)
 DC_ADAYLAR = [  # (ad, motor değerleri, redüktör, motor milinde enkoder CPR, denenecek J_rotor'lar)
     *[(f"37D {N}:1", M37D, N, 64, J_37D) for N in (10, 19, 30)],
-    # "Pololu 35" için model numarası verilmedi; Pololu'nun 35:1 redüktörlü iki motoru (ikisi de üretimden kalktı)
+    # "Pololu 35" için model numarası verilmedi; Pololu'nun 35:1 redüktörlü iki motoru denendi.
+    # DOĞRULANMADI: hangi motorun kastedildiği ve aşağıdaki datasheet değerleri mekatronikle teyit edilmeli.
     ("#1091 35:1 mini 6V", dc_motor(6.0, 350, 0.07, 1.5, 20 * OZIN, 35), 35, 12, (0.0,)),
     ("#1597 35:1 15.5D 6V", dc_motor(6.0, 460, 0.06, 0.8, 13 * OZIN, 35), 35, 12, (0.0,)),
 ]
