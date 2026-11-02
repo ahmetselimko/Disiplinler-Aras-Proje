@@ -83,6 +83,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.tabs.currentWidget() is self.live:
                 self.live.refresh(reader)
                 self._frames += 1
+            else:
+                self.live.refresh_summary(reader)
             self.s_rate.setText(f"  Veri: {reader.rate_hz:6.0f} Hz   kayıp: {reader.dropped}   "
                                 f"hatalı satır: {reader.parse_errors}")
         now = time.perf_counter()

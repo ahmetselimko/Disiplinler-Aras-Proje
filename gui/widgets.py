@@ -84,6 +84,16 @@ def mono_font() -> QtGui.QFont:
     return f
 
 
+MODE_SHORT = {"HOMING": "HOME", "SWING_UP": "SWING", "BALANCE": "LQR", "FRICTION": "SÜRT"}
+
+
+def setup_mode_axis(plot):
+    """Mod grafiğinin eksenini mod listesinden kurar (yeni mod eklenince elle güncellemek gerekmez)."""
+    from pendulum_lab.control.supervisor import MODE_CODES
+    plot.getAxis("left").setTicks([[(c, MODE_SHORT.get(m.value, m.value)) for m, c in MODE_CODES.items()]])
+    plot.setYRange(-0.5, max(MODE_CODES.values()) + 0.5, padding=0)
+
+
 PLACEHOLDER_WARNING = ("Parametreler hâlâ YER TUTUCU (config/params.json, \"placeholder\": true) ve gerçek "
                        "karta bağlısınız.\n\nBu değerlerle hesaplanan K gerçek motoru sürer. Önce mekatronik "
                        "ekibinin ölçtüğü değerleri girip \"Ölçülmüş gerçek değerler\" kutusunu işaretleyin.")

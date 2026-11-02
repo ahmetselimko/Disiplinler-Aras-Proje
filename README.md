@@ -56,6 +56,11 @@ Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kar
 Simülasyondaki kazançlar gerçek sistemde büyük olasılıkla yeniden ayarlanacaktır.
 
 ## Testler
+
+Enerji/mod grafikleri, deneme özeti, CSV ayar kaydı ve parametre hassasiyet
+taramasının tanımları ve çalıştırılması: **[3, 6 ve 13 numaralı görevler](docs/katki_3_6_13.md)**.
+Üretilen sonuçlar: [hassasiyet raporu](docs/hassasiyet_raporu.md).
+
 ```bash
 python -m pytest -q
 ```

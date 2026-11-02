@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 
 import numpy as np
 import pyqtgraph as pg
@@ -15,7 +16,7 @@ from pendulum_lab.comm.reader import COLUMNS
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.recorder import Recorder
 
-from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, push_with_confirm, spin
+from .widgets import MODE_COLORS, MODE_TR, PendulumView, mono_font, push_with_confirm, setup_mode_axis, spin
 
 C = {name: i for i, name in enumerate(COLUMNS)}
 STOPPED_COLOR = "#5d6d7e"   # DURDUR'dan sonraki IDLE ("Durduruldu")
@@ -32,17 +33,27 @@ class LiveTab(QtWidgets.QWidget):
         self.p_th = self.glw.addPlot(row=0, col=0, title="Sarkaç açısı θ [°]  (0 = dik)")
         self.p_x = self.glw.addPlot(row=1, col=0, title="Araba konumu x [m]")
         self.p_u = self.glw.addPlot(row=2, col=0, title="Kontrol girişi u")
-        for pl in (self.p_th, self.p_x, self.p_u):
+        self.p_e = self.glw.addPlot(row=3, col=0, title="Sarkaç enerjisi E [J]  (0 = dik)")
+        self.p_m = self.glw.addPlot(row=4, col=0, title="Kontrolcü modu  (3 = swing-up, 4 = LQR)")
+        for pl in (self.p_th, self.p_x, self.p_u, self.p_e, self.p_m):
             pl.showGrid(x=True, y=True, alpha=0.25)
             pl.setClipToView(True)
             pl.setDownsampling(auto=True, mode="peak")
             pl.enableAutoRange(axis="y")
-        self.p_x.setXLink(self.p_th)
-        self.p_u.setXLink(self.p_th)
-        self.p_u.setLabel("bottom", "zaman [s] (0 = şimdi)")
+        for pl in (self.p_x, self.p_u, self.p_e, self.p_m):
+            pl.setXLink(self.p_th)
+        self.p_m.setLabel("bottom", "zaman [s] (0 = şimdi)")
         self.c_th = self.p_th.plot(pen=pg.mkPen("#2980b9", width=2))
         self.c_x = self.p_x.plot(pen=pg.mkPen("#16a085", width=2))
         self.c_u = self.p_u.plot(pen=pg.mkPen("#c0392b", width=1.5))
+        self.c_e = self.p_e.plot(pen=pg.mkPen("#e67e22", width=1.8))
+        self.c_m = self.p_m.plot(pen=pg.mkPen("#8e44ad", width=2), stepMode="left")
+        # "peak" seyreltme kesikli mod değerleri arasında olmayan ara değerler üretebilir
+        self.c_m.setDownsampling(ds=1, auto=False)
+
+        self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine)))
+        setup_mode_axis(self.p_m)
+
         self.catch_lines = [pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine))
                             for _ in range(2)]
         for ln in self.catch_lines:
@@ -67,6 +78,18 @@ class LiveTab(QtWidgets.QWidget):
         self.values = QtWidgets.QLabel("—")
         self.values.setFont(mono_font())
         right.addWidget(self.values)
+
+        self.summary_box = QtWidgets.QGroupBox("Sonuç Özeti")
+        summary_l = QtWidgets.QVBoxLayout(self.summary_box)
+        summary_l.setContentsMargins(6, 4, 6, 4)
+        self.summary_lbl = QtWidgets.QLabel("Deneme bekleniyor (BAŞLAT ile başlar)")
+        self.summary_lbl.setFont(mono_font())
+        self.summary_lbl.setWordWrap(True)
+        summary_l.addWidget(self.summary_lbl)
+        right.addWidget(self.summary_box)
+
+        self._trial_reader = None
+        self._last_summary_render = 0.0
 
         btns = QtWidgets.QGridLayout()
         self.b_home = QtWidgets.QPushButton("KALİBRE ET (Homing)")
@@ -125,6 +148,7 @@ class LiveTab(QtWidgets.QWidget):
         self.log.setReadOnly(True)
         self.log.setMaximumBlockCount(500)
         self.log.setFont(mono_font())
+        self.log.setMinimumHeight(120)           # özet kutusu eklenince kayıt alanı birkaç satıra inmesin
         right.addWidget(self.log, 1)
 
         self._stopped = False      # son mod komutu DURDUR muydu (IDLE "Durduruldu" gösterilir)
@@ -223,7 +247,7 @@ class LiveTab(QtWidgets.QWidget):
             real = st.real_device              # kaynak dosya adında ve başlıkta: kayıtlar karışmasın
             path = Recorder.default_path(st.base_dir / "kayitlar", prefix="gercek" if real else "sim")
             source = f"gerçek kart ({st.reader.transport.name})" if real else "simülasyon (sanal ESP32)"
-            st.recorder = Recorder(path, meta={"kaynak": source, "K": st.K.tolist(), "params": st.p.to_dict()})
+            st.recorder = Recorder(path, meta={"kaynak": source, **st.get_metadata()})
             st.reader.sinks.append(st.recorder)
             self.b_rec.setText("■ Kaydı Durdur")
             st.log.emit(f"Kayıt başladı: {path}")
@@ -258,6 +282,7 @@ class LiveTab(QtWidgets.QWidget):
 
     # ------------------------------------------------------------ güncelleme (60 FPS)
     def refresh(self, reader):
+        self.refresh_summary(reader)
         if self.pause_cb.isChecked() or reader is None:
             return
         last = reader.last
@@ -274,9 +299,17 @@ class LiveTab(QtWidgets.QWidget):
         t = data[:, C["t"]] - data[-1, C["t"]]
         keep = t >= -self.window.value()
         t = t[keep]
-        self.c_th.setData(t, np.degrees(data[keep, C["th"]]))
+        th = data[keep, C["th"]]
+        dth = data[keep, C["dth"]]
+        self.c_th.setData(t, np.degrees(th))
         self.c_x.setData(t, data[keep, C["x"]])
         self.c_u.setData(t, data[keep, C["u"]])
+
+        p = self.state.p
+        E = 0.5 * p.J * (dth ** 2) + p.m * p.g * p.l * (np.cos(th) - 1.0)
+        self.c_e.setData(t, E)
+
+        self.c_m.setData(t, data[keep, C["mode"]])
         self.p_th.setXRange(-self.window.value(), 0, padding=0)
 
     # ------------------------------------------------------------ yardımcılar
@@ -325,3 +358,23 @@ class LiveTab(QtWidgets.QWidget):
                 self.b_rec.setChecked(False)
             self.mode_lbl.setText("BAĞLI DEĞİL")
             self._set_mode_style("#bdc3c7")
+            self.refresh_summary(self._trial_reader, force=True)
+        else:
+            self._trial_reader = reader
+            self.summary_lbl.setText("Deneme bekleniyor (BAŞLAT ile başlar)")
+
+    def refresh_summary(self, reader, force=False):
+        """Thread-güvenli O(1) anlık görüntüyü yazar; veri toplama çizime hiç bağlı değildir."""
+        if reader is None or not hasattr(reader, "trials"):
+            return
+        now = time.monotonic()
+        if not force and now - self._last_summary_render < 0.25:
+            return
+        self._last_summary_render = now
+        summary, active = reader.trials.snapshot()
+        if summary is None:
+            return
+        p = self.state.p
+        title = "Canlı Deneme Sürüyor:" if active else "Son Deneme Özeti:"
+        lines = summary.format_lines(rail_half=p.rail_half, u_max=reader.trials.u_max)
+        self.summary_lbl.setText(title + "\n" + "\n".join(lines))
