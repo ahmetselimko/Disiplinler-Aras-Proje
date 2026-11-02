@@ -34,6 +34,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | **ACİL STOP** / **Esc** | Motor hemen kapanır (FAULT). Esc tuşu açık bir pencere varken de çalışır |
 | **K'yı Cihaza Gönder** | Tasarım sekmesindeki güncel K ve ayarları gönderir |
 | **Açı Sıfırla (calib)** | Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur. Açılışta sarkaç sallanıyorduysa kullanılır |
+| **Sürtünme Ölç** | KALİBRE ET'ten sonra, sarkaç aşağıda dururken. Araba önce sağa sonra sola ~8 cm'er gider ve motor + kayış sürtünmesini gerilim olarak ölçer (gösterge: SÜRTÜNME ÖLÇÜMÜ, ~5 s). Sonuç penceresinde onaylanırsa T_f parametrelere yazılır ve telafi karta gönderilir; kalıcı olması için Tasarım sekmesinde **Parametre Kaydet**. Eğim satırı motor sabitlerinin kontrolüdür: ölçülen ile model çok farklıysa motor değerleri gözden geçirilmeli |
 | **Kaydı Başlat** | Telemetriyi `kayitlar/` klasörüne yazar: sanal ESP32'de `sim_….csv`, gerçek kartta `gercek_….csv`. Kaynak dosyanın başında da yazar (Excel/Matlab ile açılır) |
 | **Sarkacı Dürt** | Yalnız simülasyonda: sarkaca darbe verir, LQR'ın toparlamasını görmek için |
 | **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
@@ -96,6 +97,7 @@ Yalnız θ'ya oransal geri besleme verilseydi köklerin nasıl hareket edeceğin
 | "✗ start: hata modunda: önce stop" | Hata (FAULT) sonrası önce DURDUR |
 | "✗ start: araba ray ucuna çok yakın" | **KALİBRE ET** ile arabayı ortaya alın |
 | "✗ start: araba hâlâ hareket ediyor" | Arabanın durmasını bekleyip tekrar **BAŞLAT** |
+| "✗ sürtünme ölçümü: yeterli hıza ulaşılamadı" | Gerilim (6 V), yol (8 cm) veya süre sınırına takıldı: sürtünme çok yüksek ya da araba sıkışıyor. Mekanizmayı elle itip kontrol edin |
 | "✗ start: açı kalibrasyonu başarısız" | Sarkacı aşağıda durdurup **Açı Sıfırla (calib)** |
 | Gerçek karta bağlanınca "Yer tutucu parametreler" uyarısı, K gönderilmiyor | `config/params.json` hâlâ yer tutucu. Tasarım sekmesinde ölçülmüş değerleri girip **Ölçülmüş gerçek değerler** kutusunu işaretleyin, **Parametre Kaydet**. Kart o zamana kadar derlendiği `gains.h` ile çalışır |
 | "UYARI: cihaz Ts = … ms, tasarım Ts = … ms" | Tasarım sekmesinde Ts'yi cihazınkiyle aynı yapıp K Hesapla → Cihaza Gönder |

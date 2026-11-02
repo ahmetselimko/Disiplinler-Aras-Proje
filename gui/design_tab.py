@@ -177,6 +177,7 @@ class DesignTab(QtWidgets.QWidget):
         self.b_save.clicked.connect(self.save)
         self.g_btn.clicked.connect(self.apply_geometry)
         state.connection_changed.connect(self.b_send.setEnabled)
+        state.params_replaced.connect(lambda: (self._params_to_widgets(state.p), self.calculate()))
         self.b_send.setEnabled(False)
         self.calculate()
 

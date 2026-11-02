@@ -9,11 +9,12 @@ from PyQt5 import QtGui, QtWidgets
 
 MODE_COLORS = {
     "IDLE": "#7f8c8d", "HOMING": "#8e44ad", "WAIT": "#2980b9",
-    "SWING_UP": "#e67e22", "BALANCE": "#27ae60", "FAULT": "#c0392b",
+    "SWING_UP": "#e67e22", "BALANCE": "#27ae60", "FAULT": "#c0392b", "FRICTION": "#16a085",
 }
 MODE_TR = {
     "IDLE": "BEKLEMEDE", "HOMING": "KALİBRASYON", "WAIT": "ELLE KALDIRIN",
     "SWING_UP": "SWING-UP", "BALANCE": "DENGE (LQR)", "FAULT": "HATA / STOP",
+    "FRICTION": "SÜRTÜNME ÖLÇÜMÜ",
 }
 
 
