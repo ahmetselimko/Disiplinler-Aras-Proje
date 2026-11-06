@@ -36,6 +36,9 @@ DEFAULT_Q = (10.0, 1.0, 100.0, 1.0)
 DEFAULT_R = 0.1
 HOME_SPEED = 0.10        # [m/s]
 HOME_TIMEOUT = 20.0      # [s]
+HOME_KP = 20.0           # homing hız döngüsü oransal kazancı [1/s]
+HOME_KI = 30.0           # integral kazancı [1/s²]: araba hedef hıza ulaşamadıkça itme artar → sürtünmeyi yener (#30)
+HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
 FW_NAME = "mock-1.1"
 
 
@@ -64,6 +67,7 @@ class MockDevice:
         self._home_phase = 0
         self._home_t0 = 0.0
         self._home_r0 = False
+        self._home_i = 0.0                        # homing hız döngüsünün integrali [m/s²]
         self._rx = bytearray()
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -149,7 +153,7 @@ class MockDevice:
             if mode not in (Mode.IDLE, Mode.FAULT):
                 return P.encode_ack("home", False, "önce stop")
             sup.mode, self._home_phase, self._home_t0 = Mode.HOMING, 1, self.k * self.Ts
-            self._home_r0 = self._switch("R")
+            self._home_r0, self._home_i = self._switch("R"), 0.0
             return P.encode_ack("home")
         if cmd == "calib":
             if mode != Mode.IDLE:
@@ -262,7 +266,7 @@ class MockDevice:
         if self._home_phase == 1:
             if self._switch("L"):             # switch SEVİYESİ (zaten basılıysa da çalışır)
                 self.x_offset = self.s[0] + p.rail_half   # ölçülen konum artık −rail_half
-                self._home_phase = 2
+                self._home_phase, self._home_i = 2, 0.0
                 self.vx.prev = None
                 return 0.0
             v_des = -HOME_SPEED
@@ -274,8 +278,12 @@ class MockDevice:
                 self.homed = True
                 self._emit(P.encode_event("homed"))
                 return 0.0
-        a = 20.0 * (v_des - s_hat[1])
-        return max(-p.u_max, min(p.u_max, accel_to_input(p, s_hat, a)))
+        e = v_des - s_hat[1]
+        self._home_i = max(-HOME_I_MAX, min(HOME_I_MAX, self._home_i + HOME_KI * e * self.Ts))
+        # Coulomb telafisi yok: sürtünmeyi integral karşılar, T_f tahmini yanlış olsa da homing biter (#30).
+        # Firmware gibi kontrolcünün modeli (sup.p) kullanılır, fiziğin gerçek sürtünmesi (self.p) değil.
+        u = accel_to_input(self.sup.p, s_hat, HOME_KP * e + self._home_i, coulomb=False)
+        return max(-p.u_max, min(p.u_max, u))
 
     def step(self):
         self._process_commands()

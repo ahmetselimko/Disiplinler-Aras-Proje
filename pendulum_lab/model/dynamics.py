@@ -7,8 +7,8 @@
 (DC motorda motor mili viskoz sürtünmesi B_m dahil). F_c = T_f·N/r motorun Coulomb sürtünmesidir;
 doğrusallaştırmada ihmal edilir. sgn(ẋ) yerine tanh(ẋ / v_s) kullanılır: sıfır hız çevresindeki
 eğim FRICTION_RATE ile sınırlanır, böylece sabit adımlı RK4 sürtünme yüzünden titremez/ıraksamaz.
-accel_to_input (swing-up ve homing) F_c'yi telafi eder; firmware'deki accelToVolt da aynısını yapar.
-LQR (dengede) telafi kullanmaz.
+accel_to_input (swing-up) F_c'yi telafi eder; firmware'deki accelToVolt da aynısını yapar.
+LQR (dengede) ve homing telafi kullanmaz; homing sürtünmeyi hız döngüsünün integraliyle karşılar (#30).
 Bu fonksiyonlar simülasyonda (ode45 / solve_ivp) "gerçek dünya" olarak kullanılır; LQR tasarımı ise linearize.py'deki doğrusallaştırılmış modelle yapılır.
 Skaler `math` kullanılır: 500 Hz × RK4 alt adımlarda NumPy'den ~10 kat hızlıdır.
 """
@@ -82,10 +82,11 @@ def dynamics(s, u: float, p: PendulumParams) -> np.ndarray:
     return np.array([s[1], ddx, s[3], ddth])
 
 
-def accel_to_input(p: PendulumParams, s, a: float) -> float:
+def accel_to_input(p: PendulumParams, s, a: float, coulomb: bool = True) -> float:
     """İstenen araba ivmesi a'yı sağlayacak girişi hesaplar (geri besleme doğrusallaştırma).
 
     Swing-up kontrolcüsü ivme cinsinden çalışır; bu fonksiyon onu motor girişine çevirir.
+    coulomb=False: Coulomb telafisi eklenmez (homing; yanlış T_f tahmini homing'i bitirmez, bkz. #30).
     """
     if p.input_mode == "acceleration":
         return a
@@ -94,7 +95,7 @@ def accel_to_input(p: PendulumParams, s, a: float) -> float:
     ml = p.m * p.l
     ddth = (ml * p.g * sin - p.c * dth - ml * cos * a) / p.J
     F = (p.M_eff + p.m) * a + ml * cos * ddth - ml * sin * dth * dth + p.b_cart * dx \
-        + coulomb_compensation(p, dx, a)
+        + (coulomb_compensation(p, dx, a) if coulomb else 0.0)
     if p.input_mode == "force":
         return F
     return (F + p.motor.beta * dx) / p.motor.alpha

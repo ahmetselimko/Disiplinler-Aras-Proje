@@ -80,7 +80,7 @@ Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı t
 | `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (`motor.T_f` = 0 iken 0) | `export.gains_header` |
 | `gains.h` → `P_B` | Artık motor mili viskoz sürtünmesini de (B_m·N²/r²) içerir | `PendulumParams.b_cart` |
 
-**Neden:** Simülasyonda Pololu 37D'nin tahmini kuru sürtünmesi (arabada ≈1.3 N) swing-up'ın ilk dürtmesini (≈1.4 N) yutuyor, sarkaç aşağıdan kalkamıyordu; telafiyle sürtünmesiz durumdaki gibi ~3.6 s'de kalkıyor. Telafi yalnız `accelToVolt`'u kullanan swing-up ve homing'de çalışır, LQR'da yoktur. `motor.T_f` ölçülene kadar 0 olduğundan davranış değişmez.
+**Neden:** Simülasyonda Pololu 37D'nin tahmini kuru sürtünmesi (arabada ≈1.3 N) swing-up'ın ilk dürtmesini (≈1.4 N) yutuyor, sarkaç aşağıdan kalkamıyordu; telafiyle sürtünmesiz durumdaki gibi ~3.6 s'de kalkıyor. Telafi yalnız swing-up'ta çalışır; LQR'da ve homing'de yoktur. Homing sürtünmeyi hız döngüsünün integraliyle (PI, `HOME_KI`) yener; böylece T_f yanlış tahmin edilse ya da hiç ölçülmese de KALİBRE ET biter (#30). `motor.T_f` ölçülene kadar 0 olduğundan davranış değişmez.
 
 ## İlk açılış kontrol listesi
 1. Motor sürücüsünün EN pini bağlı değilken yükleyin, Seri Monitör'de (921600) telemetrinin geldiğini görün.

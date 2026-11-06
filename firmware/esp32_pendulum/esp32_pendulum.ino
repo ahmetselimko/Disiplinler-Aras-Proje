@@ -63,6 +63,10 @@ static const float START_X_MARGIN = 0.10f;            // BAŞLAT için rayın uc
 static const float START_MAX_SPEED = 0.2f;            // BAŞLAT için araba hızı bundan düşük [m/s]
 static const float HOME_SPEED = 0.10f;                // homing hızı [m/s]
 static const float HOME_TIMEOUT_S = 20.0f;
+// homing hız döngüsü PI (mock_device.HOME_KP/KI/I_MAX ile aynı): integral sürtünmeyi yener, telafi kullanılmaz (#30)
+static const float HOME_KP = 20.0f;                   // [1/s]
+static const float HOME_KI = 30.0f;                   // [1/s²]
+static const float HOME_I_MAX = 10.0f;                // integral sınırı [m/s²]
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 static const float CALIB_MAX_SPREAD = 0.02f;          // kalibrasyonda izin verilen sapma [rad] (~1.1°)
 
@@ -208,13 +212,16 @@ static void motorWrite(float volts) {
 static const float FC_V_COMP = 0.01f;   // [m/s] altında araba duruyor sayılır (dynamics.V_COMP)
 // Coulomb telafisi [N]: başta gains.h'deki P_FC; set_param fc_volt (sürtünme ölçümü) ile değişir: fc_N = fc_volt·α
 static float fc_N = P_FC;
-static float accelToVolt(float dx, float th, float dth, float a) {
+static float accelToVolt(float dx, float th, float dth, float a, bool coulomb) {
   float s = sinf(th), c = cosf(th), ml = P_M_POLE * P_L;
   float ddth = (ml * P_G * s - P_C * dth - ml * c * a) / P_J;
   float F = (P_M_CART + P_M_POLE) * a + ml * c * ddth - ml * s * dth * dth + P_B * dx;
-  // Coulomb sürtünme telafisi (dynamics.coulomb_compensation): hareket yönünde, duruyorsa istenen ivme yönünde
-  float d = fabsf(dx) > FC_V_COMP ? dx : a;
-  if (d > 0.0f) F += fc_N; else if (d < 0.0f) F -= fc_N;
+  // Coulomb sürtünme telafisi (dynamics.coulomb_compensation): hareket yönünde, duruyorsa istenen ivme yönünde.
+  // Yalnız swing-up'ta; homing'de kapalı (coulomb = false)
+  if (coulomb) {
+    float d = fabsf(dx) > FC_V_COMP ? dx : a;
+    if (d > 0.0f) F += fc_N; else if (d < 0.0f) F -= fc_N;
+  }
   return (F + MOTOR_BETA * dx) / MOTOR_ALPHA;
 }
 
@@ -317,7 +324,7 @@ void ctrlTask(void *) {
   const TickType_t period = pdMS_TO_TICKS(CTRL_PERIOD_MS);
   VelEst vx, vth; vx.setup(dt, VEL_FC_HZ, false); vth.setup(dt, VEL_FC_HZ, true);
   Mode mode = IDLE; bool homed = false; int home_phase = 0;
-  float x_offset = 0, home_t0 = 0, home_x0 = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
+  float x_offset = 0, home_t0 = 0, home_x0 = 0, home_i = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
   FrictionTest fr;
   bool limL_prev = false, limR_prev = false;
@@ -342,7 +349,7 @@ void ctrlTask(void *) {
     // sıra önemli: estop EN SON işlenir ve her şeyi ezer
     if (p.req_start && mode == IDLE && homed && angle_ok) mode = p.swingup_on ? SWING_UP : WAIT;
     if (p.req_home && (mode == IDLE || mode == FAULT)) {
-      mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT;
+      mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT; home_i = 0;
       home_r0 = digitalRead(PIN_LIM_R) == LIM_PRESSED;
     }
     if (p.req_calib && mode == IDLE) {
@@ -377,14 +384,16 @@ void ctrlTask(void *) {
       else if (limR && (!home_r0 || k * dt - home_t0 > 1.0f))  mode = raiseFault(mode, "homing_wrong_side");
       else if (fabsf(x_enc - home_x0) > 2 * RAIL_HALF_M + 0.1f) mode = raiseFault(mode, "homing_travel");
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
-        x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); home_phase = 2;
+        x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); home_phase = 2; home_i = 0;
       } else {
         float v_des = home_phase == 1 ? -HOME_SPEED : clampf(-2.0f * x, -0.15f, 0.15f);
         if (home_phase == 2 && fabsf(x) < 0.002f && fabsf(dx) < 0.02f) {
           mode = IDLE; home_phase = 0; homed = true;
           portENTER_CRITICAL(&mux); S.ev_homed = true; S.homed = true; portEXIT_CRITICAL(&mux);
         } else {
-          u = accelToVolt(dx, th, dth, 20.0f * (v_des - dx));
+          float e = v_des - dx;
+          home_i = clampf(home_i + HOME_KI * e * dt, -HOME_I_MAX, HOME_I_MAX);
+          u = accelToVolt(dx, th, dth, HOME_KP * e + home_i, false);   // sürtünmeyi integral karşılar (#30)
         }
       }
     } else if (mode == FRICTION) {
@@ -407,7 +416,7 @@ void ctrlTask(void *) {
         if (mode == BALANCE)
           u = -(p.K[0] * (x - p.x_ref) + p.K[1] * dx + p.K[2] * th + p.K[3] * dth);
         else if (mode == SWING_UP)
-          u = accelToVolt(dx, th, dth, swingUpAccel(p, x, dx, th, dth));
+          u = accelToVolt(dx, th, dth, swingUpAccel(p, x, dx, th, dth), true);
       }
     }
     if (mode == IDLE || mode == FAULT) u = 0;
