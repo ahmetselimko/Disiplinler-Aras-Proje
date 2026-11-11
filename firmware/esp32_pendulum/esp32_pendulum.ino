@@ -270,9 +270,10 @@ struct FrictionTest {
     v_c = (v_pos + v_neg) / 2; ok = true; u = 0; return true;
   }
   // bir kontrol adımı; ölçüm bitince true döner (sonuç ok/reason/v_* alanlarında).
-  // vmax: giriş sınırı (u_max); rampa bunu aşmaz, yoksa kaydedilen gerilim uygulanandan yüksek olurdu
-  bool step(float x, float th, float dt, float vmax, float &u) {
-    const float cap = fminf(FR_MAX_VOLT, vmax);
+  // u_lim: giriş sınırı (u_max); rampa bunu aşmaz, yoksa kaydedilen gerilim uygulanandan yüksek olurdu.
+  // (Adı vmax olmamalı: o ad, ölçülen en yüksek hızı tutan üye değişkeni gölgeler.)
+  bool step(float x, float th, float dt, float u_lim, float &u) {
+    const float cap = fminf(FR_MAX_VOLT, u_lim);
     if (!started) { started = true; beginRamp(x); }
     if (fabsf(PI - fabsf(wrapAngle(th))) > FR_SWING_MAX) return fail(FR_ERR_SWING, u);
     t += dt;
