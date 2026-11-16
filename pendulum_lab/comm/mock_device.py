@@ -4,6 +4,9 @@
 - homing: sol limit switch'e yavaşça gider, sıfırı ayarlar, rayın ortasına döner (süre sınırlı;
   yanlış taraftaki switch'e çarparsa FAULT)
 - fiziksel ray sonları (limit switch olayı + FAULT)
+- limit_switches=False: switch'siz donanım (firmware LIMIT_SWITCHES 0). "home" aracı hareket ettirmez;
+  araba durağansa bulunduğu nokta x = 0 olur ("elle ortalama"). Ray uçları yalnız mekanik durdurucudur
+  (olay/FAULT yok); güvenliği yazılımsal ray sınırı sağlar
 - protokoldeki tüm komutlar, firmware ile AYNI kabul/ret kurallarıyla; ek olarak yalnız
   simülasyonda "kick" (sarkacı dürt), "pause" (fiziği dondur/sürdür) ve "reset" (başlangıç durumuna dön)
 - "friction": sürtünme ölçümü (control/friction.py). Ölçülen telafi (set_param fc_volt) yalnız
@@ -39,12 +42,15 @@ HOME_TIMEOUT = 20.0      # [s]
 HOME_KP = 20.0           # homing hız döngüsü oransal kazancı [1/s]
 HOME_KI = 30.0           # integral kazancı [1/s²]: araba hedef hıza ulaşamadıkça itme artar → sürtünmeyi yener (#30)
 HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
+HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı [m/s] (firmware ile aynı)
 FW_NAME = "mock-1.1"
 
 
 class MockDevice:
     def __init__(self, params: PendulumParams | None = None, Ts: float = 0.002, telemetry_hz: int = 200,
-                 seed: int | None = None, realtime: bool = True, x0: float | None = None):
+                 seed: int | None = None, realtime: bool = True, x0: float | None = None,
+                 limit_switches: bool = True):
+        self.limit_switches = limit_switches
         self.p = params or PendulumParams()
         self.Ts = Ts
         self.telemetry_hz = telemetry_hz
@@ -68,6 +74,7 @@ class MockDevice:
         self._home_t0 = 0.0
         self._home_r0 = False
         self._home_i = 0.0                        # homing hız döngüsünün integrali [m/s²]
+        self._manual_home = False                 # switch'siz: bir sonraki adımda bulunulan yer x = 0
         self._rx = bytearray()
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -152,6 +159,12 @@ class MockDevice:
         if cmd == "home":
             if mode not in (Mode.IDLE, Mode.FAULT):
                 return P.encode_ack("home", False, "önce stop")
+            if not self.limit_switches:
+                if abs(self._s_hat[1]) > HOME_STILL_DX:
+                    return P.encode_ack("home", False,
+                                        "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin")
+                self._manual_home = True          # firmware gibi: ACK önce, sıfırlama ve "homed" olayı kontrol adımında
+                return P.encode_ack("home")
             sup.mode, self._home_phase, self._home_t0 = Mode.HOMING, 1, self.k * self.Ts
             self._home_r0, self._home_i = self._switch("R"), 0.0
             return P.encode_ack("home")
@@ -287,6 +300,12 @@ class MockDevice:
 
     def step(self):
         self._process_commands()
+        if self._manual_home:
+            self._manual_home = False
+            self.x_offset = self.s[0]             # enkoderin şu anki okuması x = 0
+            self.vx.prev = None
+            self.sup.mode, self._home_phase, self.homed = Mode.IDLE, 0, True
+            self._emit(P.encode_event("homed"))
         if self.paused:
             self._paused_step()
             return
@@ -360,7 +379,7 @@ class MockDevice:
         side = "L" if self.s[0] < 0 else "R"
         self.s[0] = math.copysign(lim, self.s[0])
         self.s[1] = 0.0
-        if self._at_limit:
+        if self._at_limit or not self.limit_switches:   # switch yoksa yalnız mekanik durdurucu
             return
         self._at_limit = True
         self._emit(P.encode_event("limit", side=side))

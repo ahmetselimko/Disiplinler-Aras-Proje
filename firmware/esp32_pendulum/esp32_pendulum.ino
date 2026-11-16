@@ -42,7 +42,13 @@ static const int PIN_SDA = 21, PIN_SCL = 22;          // AS5600
 static const int PIN_ENC_A = 32, PIN_ENC_B = 33;      // motor enkoderi (10k pull-up harici)
 static const int PIN_RPWM = 25, PIN_LPWM = 26;        // BTS7960
 static const int PIN_EN = 27;                         // BTS7960 R_EN + L_EN birlikte
-static const int PIN_LIM_L = 18, PIN_LIM_R = 19;      // limit switch. NC (normalde kapalı) önerilir:
+// Limit switch'ler takılı mı? 0: switch yok (şu anki donanım). Homing yerine "elle ortalama": araba elle
+// ray ortasına konur, KALİBRE ET (home) o noktayı x = 0 yapar; ray güvenliğini yalnız enkoderle yazılımsal
+// sınır (SOFT_MARGIN) sağlar → ray uçlarına mekanik durdurucu/tampon konmalı. 1: switch'le otomatik homing.
+#ifndef LIMIT_SWITCHES
+#define LIMIT_SWITCHES 0
+#endif
+static const int PIN_LIM_L = 18, PIN_LIM_R = 19;      // limit switch (LIMIT_SWITCHES 1). NC (normalde kapalı) önerilir:
 static const int LIM_PRESSED = HIGH;                  //   NC + INPUT_PULLUP → basılı/kopuk kablo = HIGH (güvenli)
                                                       //   NO kullanılırsa LOW yapın (kopuk kablo fark edilmez!)
 
@@ -67,6 +73,7 @@ static const float HOME_TIMEOUT_S = 20.0f;
 static const float HOME_KP = 20.0f;                   // [1/s]
 static const float HOME_KI = 30.0f;                   // [1/s²]
 static const float HOME_I_MAX = 10.0f;                // integral sınırı [m/s²]
+static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba hızı bundan düşük olmalı [m/s] (mock ile aynı)
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 static const float CALIB_MAX_SPREAD = 0.02f;          // kalibrasyonda izin verilen sapma [rad] (~1.1°)
 
@@ -350,8 +357,15 @@ void ctrlTask(void *) {
     // sıra önemli: estop EN SON işlenir ve her şeyi ezer
     if (p.req_start && mode == IDLE && homed && angle_ok) mode = p.swingup_on ? SWING_UP : WAIT;
     if (p.req_home && (mode == IDLE || mode == FAULT)) {
+#if LIMIT_SWITCHES
       mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT; home_i = 0;
       home_r0 = digitalRead(PIN_LIM_R) == LIM_PRESSED;
+#else
+      // elle ortalama: araba elle ortaya konmuş ve durağan (iletişim görevi denetledi) → bu nokta x = 0
+      int32_t c0; portENTER_CRITICAL(&mux); c0 = enc_count; portEXIT_CRITICAL(&mux);
+      x_offset = X_SIGN * c0 * X_PER_COUNT; vx.reset(); mode = IDLE; homed = true;
+      portENTER_CRITICAL(&mux); S.ev_homed = true; S.homed = true; portEXIT_CRITICAL(&mux);
+#endif
     }
     if (p.req_calib && mode == IDLE) {
       angle_ok = calibrateAngle(raw_hang);              // motor kapalıyken ~130 ms bloklar
@@ -371,7 +385,11 @@ void ctrlTask(void *) {
     float x_enc = X_SIGN * cnt * X_PER_COUNT;
     float x = x_enc - x_offset;
     float dx = vx.update(x, dt), dth = vth.update(th, dt);
+#if LIMIT_SWITCHES
     bool limL = digitalRead(PIN_LIM_L) == LIM_PRESSED, limR = digitalRead(PIN_LIM_R) == LIM_PRESSED;
+#else
+    const bool limL = false, limR = false;               // switch yok: takılı olmayan pin "basılı" okunurdu
+#endif
     if (limL && !limL_prev) SET_SHARED(ev_limitL, true);
     if (limR && !limR_prev) SET_SHARED(ev_limitR, true);
     if (!limR) home_r0 = false;                          // sağ switch bırakıldı; artık basılması yön hatasıdır
@@ -539,6 +557,9 @@ static void handleCommand(const char *line) {
   }
   if (!strcmp(cmd, "home")) {
     if (s.mode != IDLE && s.mode != FAULT) { sendAck("home", false, "önce stop"); return; }
+#if !LIMIT_SWITCHES
+    if (fabsf(s.dx) > HOME_STILL_DX) { sendAck("home", false, "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin"); return; }
+#endif
     SET_SHARED(req_home, true); sendAck("home", true); return;
   }
   if (!strcmp(cmd, "calib")) {
@@ -596,7 +617,9 @@ void setup() {
   Wire.begin(PIN_SDA, PIN_SCL, 400000);
   Wire.setTimeOut(2);                                   // ms — takılan I2C döngüyü bekletmesin
   pinMode(PIN_ENC_A, INPUT); pinMode(PIN_ENC_B, INPUT);
+#if LIMIT_SWITCHES
   pinMode(PIN_LIM_L, INPUT_PULLUP); pinMode(PIN_LIM_R, INPUT_PULLUP);
+#endif
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcAttach(PIN_RPWM, PWM_FREQ, PWM_BITS); ledcAttach(PIN_LPWM, PWM_FREQ, PWM_BITS);
 #else

@@ -67,3 +67,61 @@ def test_firmware_homing_matches_python():
     assert "home_i = clampf(home_i + HOME_KI * e * dt, -HOME_I_MAX, HOME_I_MAX);" in src
     assert "accelToVolt(dx, th, dth, HOME_KP * e + home_i, false)" in src          # homing: telafi yok
     assert "accelToVolt(dx, th, dth, swingUpAccel(p, x, dx, th, dth), true)" in src  # swing-up: telafi var
+
+
+# ---------------------------------------------------------------- limit switch'siz donanım: elle ortalama
+def _manual_dev(x0, **kw):
+    out = []
+    dev = MockDevice(seed=4, realtime=False, x0=x0, limit_switches=False, **kw)
+    dev.output = out.append
+    dev.start()
+    for _ in range(50):                       # hız kestirimi otursun
+        dev.step()
+    return dev, out
+
+
+def test_manual_home_zeroes_current_position_without_moving():
+    dev, out = _manual_dev(0.07)
+    dev.feed(P.encode_command("home"))
+    for _ in range(5):
+        dev.step()
+    assert dev.homed and dev.sup.mode == Mode.IDLE
+    assert dev.true_state[0] == pytest.approx(0.07, abs=0.002)     # araba sürülmedi (yalnız serbest kayma)
+    assert abs(dev._s_hat[0]) < 0.002                               # ölçülen konum artık ≈ 0
+    msgs = [P.parse_line(o) for o in out]
+    ack = next(i for i, m in enumerate(msgs) if isinstance(m, P.Ack) and m.cmd == "home")
+    evt = next(i for i, m in enumerate(msgs) if isinstance(m, P.Event) and m.name == "homed")
+    assert msgs[ack].ok and ack < evt                               # firmware gibi: ACK önce, olay sonra
+
+
+def test_manual_home_rejected_while_cart_moves():
+    dev, out = _manual_dev(0.0)
+    dev.s[1] = 0.1                                                  # araba elle itiliyor
+    for _ in range(30):
+        dev.step()
+    dev.feed(P.encode_command("home"))
+    dev.step()
+    acks = [m for m in map(P.parse_line, out) if isinstance(m, P.Ack) and m.cmd == "home"]
+    assert acks and not acks[-1].ok and "hareket" in acks[-1].msg
+    assert not dev.homed
+
+
+def test_no_switch_rail_end_is_mechanical_stop_only():
+    dev, out = _manual_dev(-0.39)
+    dev.s[1] = -1.0                                                 # IDLE'da uca kayıyor
+    x_min = 0.0
+    for _ in range(100):
+        dev.step()
+        x_min = min(x_min, dev.true_state[0])
+    assert x_min == pytest.approx(-dev.p.rail_half)                 # uca dayandı, öteye geçmedi
+    assert not any(b'"evt":"limit"' in o or b'"evt":"fault"' in o for o in out)
+
+
+def test_firmware_manual_home_matches_python():
+    src = FIRMWARE.read_text(encoding="utf-8")
+    m = re.search(r"static const float HOME_STILL_DX = ([\d.]+)f;", src)
+    assert m and float(m.group(1)) == MD.HOME_STILL_DX
+    assert re.search(r"#ifndef LIMIT_SWITCHES\s*\n#define LIMIT_SWITCHES 0", src)   # şu anki donanım: switch yok
+    assert "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin" in src
+    mock = Path(MD.__file__).read_text(encoding="utf-8")
+    assert "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin" in mock

@@ -39,14 +39,21 @@ Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTO
 | AS5600 SDA / SCL | 21 / 22 (400 kHz) |
 | Enkoder A / B | 32 / 33 (harici 10k pull-up) |
 | BTS7960 RPWM / LPWM / EN | 25 / 26 / 27 |
-| Limit switch sol / sağ | 18 / 19 (INPUT_PULLUP). **NC (normalde kapalı) switch önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez |
+| Limit switch sol / sağ | **Varsayılan: kullanılmıyor** (`LIMIT_SWITCHES 0`, şu anki donanımda switch yok; bkz. aşağıdaki not). Takılırsa `LIMIT_SWITCHES 1` ve 18 / 19 (INPUT_PULLUP). **NC (normalde kapalı) switch önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez |
+
+### Limit switch'siz çalışma (`LIMIT_SWITCHES 0`, varsayılan)
+Switch takılı değilken NC ayarındaki pinler "basılı" okunur ve kart hemen `limit` hatasına düşerdi; bu yüzden switch okuması derleme ayarıyla kapatıldı. Bu modda:
+* **KALİBRE ET = elle ortalama:** araba elle ray ortasına konur, durağanken `home` gönderilir; enkoderin o anki okuması x = 0 olur. Motor hareket etmez. Araba hareket ediyorsa (> 0.01 m/s) reddedilir.
+* Ray güvenliğini **yalnız enkoder** sağlar: |x| > rail_half − 3 cm → FAULT `rail`. Araba ortaya yanlış konursa sınırlar o kadar kayar; enkoder sayım kaçırırsa araba uca çarpabilir. **Ray uçlarına mekanik durdurucu/tampon konmalıdır.**
+* Switch takılınca `.ino`'nun başındaki `#define LIMIT_SWITCHES 0` → `1` yapılır; otomatik homing ve switch korumaları geri gelir.
 
 **Donanımsal acil stop** (motor beslemesini kesen mantar buton) yazılımdan bağımsız olarak mutlaka eklenmelidir. Yazılımdaki `estop` bunun yerine geçmez.
 
 ## Güvenlik davranışları (inceleme sonrası eklendi)
 | Durum | Davranış |
 |---|---|
-| Homing'de sağ switch'e basıldı | FAULT `homing_wrong_side` (motor veya enkoder yönü ters) |
+| Switch'siz (`LIMIT_SWITCHES 0`): `home` gelirken araba hareket ediyor | `home` reddedilir; araba durunca tekrar |
+| Homing'de sağ switch'e basıldı (yalnız `LIMIT_SWITCHES 1`) | FAULT `homing_wrong_side` (motor veya enkoder yönü ters) |
 | Homing 20 s'yi aştı / rayın 2 katından fazla yol gidildi | FAULT `homing_timeout` / `homing_travel` |
 | Homing başlarken sol switch zaten basılı | Hemen sıfırlanır (switch seviyesine bakılır) |
 | AS5600 art arda 3 kez okunamadı | FAULT `sensor`; I2C zaman aşımı 2 ms (döngü takılmaz) |
