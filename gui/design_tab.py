@@ -23,6 +23,7 @@ PARAM_FIELDS = [  # alan, etiket, birim, min, max, ondalık
     ("I", "Ağırlık merkezi ataleti I", "kg·m²", 0, 1, 6),
     ("b", "Araba sürtünmesi b", "N·s/m", 0, 200, 4),
     ("c", "Pivot sürtünmesi c", "N·m·s/rad", 0, 1, 5),
+    ("g", "Yerçekimi ivmesi g", "m/s²", 1, 20, 3),
     ("rail_half", "Ray yarı boyu", "m", 0.05, 5, 3),
     ("u_max", "Giriş sınırı u_max", "", 0.1, 200, 2),
 ]
