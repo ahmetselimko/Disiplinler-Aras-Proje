@@ -12,6 +12,49 @@ import math
 
 import numpy as np
 from scipy import signal
+from scipy.linalg import solve_discrete_are
+
+
+KALMAN_QN = (1e-9, 1e-5, 1e-9, 1e-4)       # [x, dx, th, dth] süreç gürültüsü kovaryans köşegeni
+KALMAN_ENC_RES = 1.25e-4                   # varsayılan enkoder çözünürlüğü [m]
+KALMAN_TH_RES = 2 * math.pi / 4096         # 12-bit AS5600 açı çözünürlüğü [rad]
+
+
+def _wrap_angle(a: float) -> float:
+    return math.atan2(math.sin(a), math.cos(a))
+
+
+def _kalman_noise_matrices(p, Qn, Rn) -> tuple[np.ndarray, np.ndarray]:
+    """Süreç (Qn) ve ölçüm (Rn) kovaryans matrislerini hazırlar."""
+    Qn_mat = np.diag(Qn) if np.ndim(Qn) == 1 else np.atleast_2d(np.asarray(Qn, float))
+    if Rn is None:
+        x_res = (
+            2 * math.pi * p.motor.r_pulley / (64.0 * p.motor.gear)
+            if getattr(p, "input_mode", "") == "voltage"
+            else KALMAN_ENC_RES
+        )
+        Rn_mat = np.diag([(x_res ** 2) / 12.0, (KALMAN_TH_RES ** 2) / 12.0])
+    else:
+        Rn_mat = np.diag(Rn) if np.ndim(Rn) == 1 else np.atleast_2d(np.asarray(Rn, float))
+    return Qn_mat, Rn_mat
+
+
+def design_kalman(p, dt: float = 0.002, Qn=KALMAN_QN, Rn=None) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Dik konum etrafındaki ayrık model için kararlı hal Kalman kazancını hesaplar.
+
+    Dönüş: (Ad, Bd, L, P_post). L: 4x2 kararlı hal Kalman kazancı.
+    """
+    from .control.lqr import c2d
+    from .model.linearize import linearize
+
+    Ad, Bd = c2d(*linearize(p), dt)
+    C = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]])
+    Qn_mat, Rn_mat = _kalman_noise_matrices(p, Qn, Rn)
+    P_prior = solve_discrete_are(Ad.T, C.T, Qn_mat, Rn_mat)
+    S = C @ P_prior @ C.T + Rn_mat
+    L = P_prior @ C.T @ np.linalg.inv(S)
+    P_post = (np.eye(4) - L @ C) @ P_prior
+    return Ad, Bd, L, P_post
 
 
 class LowPass:
@@ -35,6 +78,15 @@ class VelocityEstimator:
         self.lp = LowPass(fc_hz, dt)
         self.prev: float | None = None
 
+    def prime(self, pos: float, vel: float) -> None:
+        """Kestiriciyi bilinen bir hızla başlatır: bir sonraki update(pos) tam olarak vel döndürür.
+
+        Kayıttan başlatılan simülasyonda başlangıç hızı ilk adımda sıfırlanmasın diye kullanılır;
+        vel = 0 iken davranış başlatılmamış kestiriciyle aynıdır.
+        """
+        self.prev = pos - vel * self.dt
+        self.lp.y = float(vel)
+
     def update(self, pos: float) -> float:
         if self.prev is None:
             self.prev = pos
@@ -53,25 +105,52 @@ def butter_lowpass(data, fc_hz: float, fs_hz: float, order: int = 2):
 
 
 class KalmanFilter:
-    """Ayrık lineer Kalman filtresi (opsiyonel). Model: s⁺ = Ad s + Bd u + w,  y = C s + v.
+    """Ayrık lineer Kalman filtresi. Model: s⁺ = Ad s + Bd u + w,  y = C s + v.
 
     Qn: süreç gürültüsü kovaryansı, Rn: ölçüm gürültüsü kovaryansı.
     """
 
-    def __init__(self, Ad, Bd, C, Qn, Rn, s0=None, P0=None):
+    def __init__(self, Ad, Bd, C, Qn, Rn, s0=None, P0=None, angular_index: int | None = 2):
         self.Ad, self.Bd, self.C = map(np.asarray, (Ad, Bd, C))
         n = self.Ad.shape[0]
         self.Qn, self.Rn = np.atleast_2d(Qn), np.atleast_2d(Rn)
         self.s = np.zeros(n) if s0 is None else np.asarray(s0, float)
         self.P = np.eye(n) if P0 is None else np.asarray(P0, float)
+        self.angular_index = angular_index
+        self._P0 = self.P.copy()
+        self.L: np.ndarray | None = None
+
+    @classmethod
+    def from_params(cls, p, dt: float = 0.002, Qn=KALMAN_QN, Rn=None, s0=None) -> "KalmanFilter":
+        """Fiziksel parametrelerden ayrık lineer Kalman filtresi kurar."""
+        Ad, Bd, L, P_post = design_kalman(p, dt, Qn=Qn, Rn=Rn)
+        C = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0]])
+        Qn_mat, Rn_mat = _kalman_noise_matrices(p, Qn, Rn)
+        kf = cls(Ad, Bd, C, Qn_mat, Rn_mat, s0=s0, P0=P_post)
+        kf.L = L
+        return kf
+
+    def reset(self, s0=None):
+        """Filtre durumunu ve kovaryansını başlangıca döndürür."""
+        self.s = np.zeros(len(self.s)) if s0 is None else np.asarray(s0, float).copy()
+        if self.angular_index is not None and self.angular_index < len(self.s):
+            self.s[self.angular_index] = _wrap_angle(float(self.s[self.angular_index]))
+        self.P = self._P0.copy()
 
     def step(self, y, u: float = 0.0) -> np.ndarray:
         # tahmin
         self.s = self.Ad @ self.s + (self.Bd * u).ravel()
+        if self.angular_index is not None and self.angular_index < len(self.s):
+            self.s[self.angular_index] = _wrap_angle(float(self.s[self.angular_index]))
         self.P = self.Ad @ self.P @ self.Ad.T + self.Qn
         # düzeltme
         S = self.C @ self.P @ self.C.T + self.Rn
         Kk = self.P @ self.C.T @ np.linalg.inv(S)
-        self.s = self.s + Kk @ (np.asarray(y, float) - self.C @ self.s)
+        inn = np.asarray(y, float) - self.C @ self.s
+        if self.angular_index == 2 and inn.size >= 2:
+            inn[1] = _wrap_angle(float(inn[1]))
+        self.s = self.s + Kk @ inn
+        if self.angular_index is not None and self.angular_index < len(self.s):
+            self.s[self.angular_index] = _wrap_angle(float(self.s[self.angular_index]))
         self.P = (np.eye(len(self.s)) - Kk @ self.C) @ self.P
         return self.s

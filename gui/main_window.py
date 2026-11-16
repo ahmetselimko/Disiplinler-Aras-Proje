@@ -13,6 +13,7 @@ from .analysis_tab import AnalysisTab
 from .connection_panel import ConnectionPanel
 from .design_tab import DesignTab
 from .live_tab import LiveTab
+from .playback_tab import PlaybackTab
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -31,9 +32,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.live = LiveTab(state)
         self.design = DesignTab(state)
         self.analysis = AnalysisTab(state)
+        self.playback = PlaybackTab(state)
         self.tabs.addTab(self.live, "Canlı İzleme")
         self.tabs.addTab(self.design, "Model ve LQR Tasarımı")
         self.tabs.addTab(self.analysis, "Analiz ve Simülasyon")
+        self.tabs.addTab(self.playback, "Kayıt Oynatma")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tabs)
         self.setCentralWidget(central)
 
@@ -99,6 +103,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_gains(self):
         self.s_K.setText("K = [" + ", ".join(f"{k:.2f}" for k in self.state.K) + "]  ")
+
+    def _on_tab_changed(self, idx: int):
+        if self.tabs.widget(idx) is self.playback:
+            self.playback.refresh_file_list()
 
     def _on_conn(self, connected: bool):
         r = self.state.reader

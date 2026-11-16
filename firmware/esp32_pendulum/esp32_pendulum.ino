@@ -64,6 +64,14 @@ static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;
 static const float V_SUPPLY = MOTOR_V_MAX;            // arayüzdeki motor.V_max ile aynı (gains.h)
 static const int   PWM_FREQ = 20000, PWM_BITS = 10;   // 20 kHz (duyulmaz), 0..1023
 static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi (Python ile aynı)
+#ifndef USE_KALMAN
+#define USE_KALMAN 1                                   // 0: dik bölgede de yalnız 25 Hz türev filtresi (Kalman kapalı)
+#endif
+#if USE_KALMAN && !defined(KALMAN_AVAILABLE)          // eski gains.h: KALMAN_* matrisleri yok → filtresiz derle
+#warning "gains.h Kalman matrislerini icermiyor: Kalman KAPALI derleniyor. Arayuzden gains.h'yi yeniden uretin."
+#undef USE_KALMAN
+#define USE_KALMAN 0
+#endif
 static const float SOFT_MARGIN = 0.03f;               // rayın ucundan bu kadar önce FAULT [m]
 static const float START_X_MARGIN = 0.10f;            // BAŞLAT için rayın ucuna en az bu kadar uzak [m]
 static const float START_MAX_SPEED = 0.2f;            // BAŞLAT için araba hızı bundan düşük [m/s]
@@ -160,6 +168,32 @@ struct VelEst {               // geri fark + 1. derece alçak geçiren (filters.
     y += a * (d / dt - y); return y;
   }
   void reset() { init = false; y = 0; }
+};
+
+struct KalmanEst {            // ayrık kararlı hal Kalman filtresi (filters.KalmanFilter ile aynı)
+  float s[4] = {0, 0, 0, 0}; bool active = false;
+  void reset() { active = false; s[0] = s[1] = s[2] = s[3] = 0; }
+  void update(float xm, float dx_lp, float thm, float dth_lp, float u_prev, bool enable, float &dx, float &dth) {
+    if (!enable) { active = false; dx = dx_lp; dth = dth_lp; return; }
+#if !USE_KALMAN                                        // KALMAN_* sabitlerine hiç başvurma (eski gains.h derlensin)
+    (void)xm; (void)thm; (void)u_prev; dx = dx_lp; dth = dth_lp;
+#else
+    if (!active) {
+      s[0] = xm; s[1] = dx_lp; s[2] = wrapAngle(thm); s[3] = dth_lp;
+      active = true; dx = dx_lp; dth = dth_lp; return;
+    }
+    float sp[4];
+    for (int i = 0; i < 4; i++) {
+      sp[i] = KALMAN_BD[i] * u_prev;
+      for (int j = 0; j < 4; j++) sp[i] += KALMAN_AD[i][j] * s[j];
+    }
+    sp[2] = wrapAngle(sp[2]);
+    float ex = xm - sp[0], eth = wrapAngle(thm - sp[2]);
+    for (int i = 0; i < 4; i++) s[i] = sp[i] + KALMAN_L[i][0] * ex + KALMAN_L[i][1] * eth;
+    s[2] = wrapAngle(s[2]);
+    dx = s[1]; dth = s[3];
+#endif
+  }
 };
 
 static bool i2cRead(uint8_t reg, uint8_t *buf, uint8_t n) {
@@ -331,6 +365,7 @@ void ctrlTask(void *) {
   const float dt = CTRL_PERIOD_MS / 1000.0f;
   const TickType_t period = pdMS_TO_TICKS(CTRL_PERIOD_MS);
   VelEst vx, vth; vx.setup(dt, VEL_FC_HZ, false); vth.setup(dt, VEL_FC_HZ, true);
+  KalmanEst kf; float u_prev = 0.0f;
   Mode mode = IDLE; bool homed = false; int home_phase = 0;
   float x_offset = 0, home_t0 = 0, home_x0 = 0, home_i = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
@@ -369,7 +404,7 @@ void ctrlTask(void *) {
     }
     if (p.req_calib && mode == IDLE) {
       angle_ok = calibrateAngle(raw_hang);              // motor kapalıyken ~130 ms bloklar
-      vth.reset(); last = xTaskGetTickCount();
+      vth.reset(); kf.reset(); last = xTaskGetTickCount();
       portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.ev_calib = true; portEXIT_CRITICAL(&mux);
     }
     if (p.req_friction && mode == IDLE && homed) { mode = FRICTION; fr.reset(); }
@@ -385,6 +420,8 @@ void ctrlTask(void *) {
     float x_enc = X_SIGN * cnt * X_PER_COUNT;
     float x = x_enc - x_offset;
     float dx = vx.update(x, dt), dth = vth.update(th, dt);
+    bool kf_en = USE_KALMAN && homed && (mode == SWING_UP || mode == WAIT || mode == BALANCE) && (fabsf(th) < p.release_rad);
+    kf.update(x, dx, th, dth, u_prev, kf_en, dx, dth);
 #if LIMIT_SWITCHES
     bool limL = digitalRead(PIN_LIM_L) == LIM_PRESSED, limR = digitalRead(PIN_LIM_R) == LIM_PRESSED;
 #else
@@ -403,7 +440,7 @@ void ctrlTask(void *) {
       else if (limR && (!home_r0 || k * dt - home_t0 > 1.0f))  mode = raiseFault(mode, "homing_wrong_side");
       else if (fabsf(x_enc - home_x0) > 2 * RAIL_HALF_M + 0.1f) mode = raiseFault(mode, "homing_travel");
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
-        x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); home_phase = 2; home_i = 0;
+        x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
       } else {
         float v_des = home_phase == 1 ? -HOME_SPEED : clampf(-2.0f * x, -0.15f, 0.15f);
         if (home_phase == 2 && fabsf(x) < 0.002f && fabsf(dx) < 0.02f) {
@@ -443,6 +480,7 @@ void ctrlTask(void *) {
     // sürücü yalnız hareket modlarında etkin; IDLE'da araba elle itilebilir (işaret kontrolü için)
     digitalWrite(PIN_EN, (mode == IDLE || mode == FAULT) ? LOW : HIGH);
     motorWrite(u);
+    u_prev = u;
 
     // ---------- telemetri anlık görüntüsü
     k++;

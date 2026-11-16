@@ -1,5 +1,5 @@
 // Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin
-// 2026-11-02 17:10:13
+// 2026-11-16 17:52:37
 // Q = [10.0, 1.0, 100.0, 1.0]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage T_f=0.0 B_m=0.0
 #pragma once
@@ -37,3 +37,19 @@ static const float LQR_K[4] = {-9.545742f, -22.272552f, -56.221807f, -8.686515f}
 #define SU_K_X             10.0000f
 #define SU_K_V             6.0000f
 #define SU_A_KICK          2.0000f
+
+// Ayrık kararlı hal Kalman filtresi (dik konum etrafında: s+ = Ad*s + Bd*u, s += L*(y - C*s))
+#define KALMAN_AVAILABLE 1
+static const float KALMAN_AD[4][4] = {
+  {1.00000000e+00f, 1.89166905e-03f, -7.56189039e-06f, 1.33548753e-09f},
+  {0.00000000e+00f, 8.93661137e-01f, -7.42284820e-03f, -1.25637884e-06f},
+  {0.00000000e+00f, 3.61100428e-04f, 1.00009061e+00f, 1.99998359e-03f},
+  {0.00000000e+00f, 3.54460792e-01f, 9.01422908e-02f, 1.00001403e+00f},
+};
+static const float KALMAN_BD[4] = {1.24176475e-05f, 1.21893001e-02f, -4.13918426e-05f, -4.06307614e-02f};
+static const float KALMAN_L[4][2] = {
+  {6.13831911e-01f, 9.76193541e-04f},
+  {2.77232680e+01f, 5.72607512e-01f},
+  {1.47763966e-01f, 2.76787530e-01f},
+  {4.31392119e+01f, 2.12698513e+01f},
+};
