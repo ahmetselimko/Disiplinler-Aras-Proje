@@ -142,6 +142,7 @@ class SimulationPage(QtWidgets.QWidget):
         k = 1 + self.mismatch.value() / 100
         real.m, real.l = real.m * k, real.l * k
         sup = Supervisor(st.p, st.K, swingup=copy.deepcopy(st.swingup), catch_deg=st.catch_deg,
+                         catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
         sup.start()
         sensor = SensorModel(th_noise_std=math.radians(self.noise.value())) if self.real_cb.isChecked() else None

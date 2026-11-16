@@ -126,12 +126,24 @@ class DesignTab(QtWidgets.QWidget):
         self.w_su = {
             "k_E": spin(su.k_E, 0, 1e4, 2), "a_max": spin(su.a_max, 0, 50, 2, suffix="m/s²"),
             "k_x": spin(su.k_x, 0, 1e3, 2), "k_v": spin(su.k_v, 0, 1e3, 2),
+            "E_ratio": spin(su.E_ratio, 0.5, 1.5, 3, 0.01),
         }
+        self.w_su["E_ratio"].setToolTip("Swing-up'ın hedeflediği enerji / dik konum enerjisi (2mgl, aşağıdan "
+                                        "ölçülen). 1 = tam dik konum; 1'den büyükse sarkaç daha hızlı gelir")
+        su_labels = {"E_ratio": "Hedef enerji oranı"}
         for k, w in self.w_su.items():
-            f.addRow(k, w)
+            f.addRow(su_labels.get(k, k), w)
         self.w_catch = spin(state.catch_deg, 1, 45, 1, suffix="°")
         self.w_release = spin(state.release_deg, 2, 90, 1, suffix="°")
-        f.addRow("LQR devreye girme |θ| <", self.w_catch)
+        self.w_catch_dth = spin(state.catch_dth, 0.5, 50, 2, 0.5, "rad/s")
+        self.w_catch_x = spin(state.catch_x, 0.01, 1.0, 3, 0.01, "m")
+        self.w_catch_dx = spin(state.catch_dx, 0.01, 5.0, 2, 0.1, "m/s")
+        self.w_catch_x.setToolTip("Araba bu konum sınırının dışındaysa LQR devreye girmez (swing-up sürer)")
+        self.w_catch_dx.setToolTip("Araba bundan hızlıysa LQR devreye girmez (swing-up sürer)")
+        f.addRow("LQR devreye girme: açı |θ| <", self.w_catch)
+        f.addRow("  ve açısal hız <", self.w_catch_dth)
+        f.addRow("  ve araba konumu |x| <", self.w_catch_x)
+        f.addRow("  ve araba hızı <", self.w_catch_dx)
         f.addRow("LQR bırakma |θ| >", self.w_release)
         left.addWidget(g_su)
 
@@ -222,6 +234,7 @@ class DesignTab(QtWidgets.QWidget):
         st.p, st.Q, st.R, st.Ts = p, Q, R, Ts
         st.swingup = EnergySwingUp(**{k: w.value() for k, w in self.w_su.items()})
         st.catch_deg, st.release_deg = self.w_catch.value(), self.w_release.value()
+        st.catch_dth, st.catch_x, st.catch_dx = self.w_catch_dth.value(), self.w_catch_x.value(), self.w_catch_dx.value()
         st.K, st.cl_poles = Kd.ravel(), evd
         st.params_changed.emit()
         st.gains_changed.emit()
@@ -270,7 +283,8 @@ class DesignTab(QtWidgets.QWidget):
             self, "gains.h kaydet", str(st.base_dir / "firmware" / "esp32_pendulum" / "gains.h"), "C header (*.h)", options=NO_NATIVE)
         if path:
             write_gains_header(path, st.p, st.K, st.Ts, Q=st.Q, R=st.R, swingup=st.swingup,
-                               catch_deg=st.catch_deg, release_deg=st.release_deg)
+                               catch_deg=st.catch_deg, release_deg=st.release_deg,
+                               catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx)
             st.log.emit(f"gains.h yazıldı: {path}")
 
     def load(self):

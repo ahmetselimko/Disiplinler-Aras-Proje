@@ -103,6 +103,12 @@ class LiveTab(QtWidgets.QWidget):
         self.b_calib = QtWidgets.QPushButton("Açı Sıfırla (calib)")
         self.b_calib.setToolTip("Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (yalnız IDLE)")
         self.b_kick = QtWidgets.QPushButton("Sarkacı Dürt (yalnız simülasyon)")
+        self.b_kick.setToolTip("Sarkacın ağırlık merkezine, aşağıdaki kuvveti verilen süre boyunca yatay uygular")
+        # varsayılan 1.2 N × 50 ms: eski sabit dürtmeyle (θ̇'ye +1 rad/s) aynı büyüklükte
+        self.kick_F = spin(1.2, -20.0, 20.0, 2, 0.5, "N")
+        self.kick_F.setToolTip("Dürtme kuvveti (+ : +x yönüne, yani sağa)")
+        self.kick_dur = spin(50.0, 1.0, 2000.0, 0, 10.0, "ms")
+        self.kick_dur.setToolTip("Dürtme süresi")
         self.b_friction = QtWidgets.QPushButton("Sürtünme Ölç")
         self.b_friction.setToolTip("KALİBRE ET'ten sonra, sarkaç aşağıda dururken: araba iki yönde ~8 cm'er "
                                    "gider, motor + kayış sürtünmesini gerilim olarak ölçer")
@@ -130,6 +136,11 @@ class LiveTab(QtWidgets.QWidget):
         for w in (self.b_reset, QtWidgets.QLabel("θ₀:"), self.th0):
             reset_row.addWidget(w)
         btns.addLayout(reset_row, 5, 1)
+        kick_row = QtWidgets.QHBoxLayout()
+        for w in (QtWidgets.QLabel("Dürtme kuvveti:"), self.kick_F, QtWidgets.QLabel("süre:"), self.kick_dur):
+            kick_row.addWidget(w)
+        kick_row.addStretch(1)
+        btns.addLayout(kick_row, 6, 0, 1, 2)
         right.addLayout(btns)
 
         opts = QtWidgets.QHBoxLayout()
@@ -158,7 +169,7 @@ class LiveTab(QtWidgets.QWidget):
         self.b_start.clicked.connect(lambda: self.send_mode_cmd("start"))
         self.b_stop.clicked.connect(lambda: self.send_mode_cmd("stop"))
         self.b_estop.clicked.connect(self.estop)
-        self.b_kick.clicked.connect(lambda: state.send("kick", dth=1.0))
+        self.b_kick.clicked.connect(self.kick)
         self.b_friction.clicked.connect(self.measure_friction)
         self.b_pause.toggled.connect(self.toggle_pause)
         self.b_reset.clicked.connect(self.reset_sim)
@@ -343,13 +354,17 @@ class LiveTab(QtWidgets.QWidget):
         for ln, v in zip(self.catch_lines, (-self.state.catch_deg, self.state.catch_deg)):
             ln.setValue(v)
 
+    def kick(self):
+        """Sanal ESP32'de sarkacı girilen kuvvet [N] ve süreyle dürt (Matlab'daki "Apply push" gibi)."""
+        self.state.send("kick", F=self.kick_F.value(), dur=self.kick_dur.value() / 1000)
+
     def _on_conn(self, connected: bool):
         for b in (self.b_home, self.b_calib, self.b_push, self.b_start, self.b_stop, self.b_estop, self.b_xref,
                   self.b_rec, self.b_friction):
             b.setEnabled(connected)
         reader = self.state.reader
         sim = connected and isinstance(getattr(reader, "transport", None), SimTransport)
-        for w in (self.b_kick, self.b_pause, self.b_reset, self.th0):
+        for w in (self.b_kick, self.kick_F, self.kick_dur, self.b_pause, self.b_reset, self.th0):
             w.setEnabled(sim)
         self._stopped = False
         self._set_paused(False)                  # yeni bağlantıda sanal cihaz duraklatılmamış başlar
