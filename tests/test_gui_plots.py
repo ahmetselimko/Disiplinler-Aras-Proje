@@ -90,6 +90,26 @@ def test_simulation_run_populates_energy_summary_and_playback(qapp):
     page.close()
 
 
+def test_simulation_matlab_compatible_mode(qapp):
+    """'Matlab uyumlu' seçeneği: kuvvet girişli sürekli LQR, Matlab işaretli K bilgisi, ±0.2 m / 90° durma."""
+    st = AppState("config/params.json")
+    page = SimulationPage(st)
+    page.matlab_cb.setChecked(True)
+    assert abs(page.th0.value()) < 90            # 180° varsayılanı Matlab sınırının içine alındı
+    assert not page.swing_cb.isEnabled() and not page.real_cb.isEnabled()
+    page.T.setValue(2.0)
+    page.run()
+    r = page.result
+    assert r is not None and r.stop_reason in ("time", "rail", "angle")
+    assert np.diff(r.t) == pytest.approx(0.0025)
+    text = page.info.text()
+    assert "Matlab uyumlu deneme" in text and "K (Matlab, θ sola +)" in text
+    assert page.slider.maximum() == len(r.t) - 1
+    page.matlab_cb.setChecked(False)
+    assert page.swing_cb.isEnabled()
+    page.close()
+
+
 def test_live_summary_collects_all_samples_without_drawing_and_while_frozen(qapp):
     st = AppState("config/params.json")
     live = LiveTab(st)

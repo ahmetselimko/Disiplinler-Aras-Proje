@@ -11,7 +11,10 @@ from PyQt5 import QtCore, QtWidgets
 
 from pendulum_lab.analysis.linear import StateSpace, rlocus, step_info
 from pendulum_lab.analysis.summary import compute_trial_summary
+from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.control.supervisor import MODE_CODES, Mode, Supervisor
+from pendulum_lab.sim.matlab_compat import (MATLAB_DT, MATLAB_RAIL_LIMIT, force_model, gain_to_matlab,
+                                            simulate_matlab_compatible)
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
 
 from .widgets import PendulumView, mono_font, spin, setup_mode_axis
@@ -52,8 +55,15 @@ class SimulationPage(QtWidgets.QWidget):
         self.dist_F = spin(0.0, -20, 20, 2, 0.5, "N")
         self.mismatch = spin(0.0, -50, 50, 0, 5, "%")
         self.mismatch.setToolTip("Gerçek sistemin m ve l değerleri tasarım modelinden bu kadar farklı olsun")
+        self.matlab_cb = QtWidgets.QCheckBox("Matlab uyumlu (cart_pendulum_application.m)")
+        self.matlab_cb.setToolTip(
+            "Mekatronik ekibinin Matlab denemesiyle aynı: sürekli zamanlı LQR, kuvvet girişi (motor yok),\n"
+            f"ideal sensör, RK4 dt = {MATLAB_DT * 1000:g} ms; araba ±{MATLAB_RAIL_LIMIT:g} m'yi aşınca veya |θ| ≥ 90° "
+            "olunca deneme durur.\nK, Tasarım sekmesindeki Q ve R ile kuvvet girişli model için yeniden hesaplanır. "
+            "Swing-up yoktur.")
         self.run_btn = QtWidgets.QPushButton("▶ Simüle Et")
         self.run_btn.setStyleSheet("QPushButton{font-weight:bold;padding:6px}")
+        f.addRow(self.matlab_cb)
         f.addRow("Başlangıç θ₀", self.th0)
         f.addRow("Başlangıç x₀", self.x0)
         f.addRow("Süre", self.T)
@@ -116,15 +126,52 @@ class SimulationPage(QtWidgets.QWidget):
         self.timer.setInterval(16)
         self.timer.timeout.connect(self._advance)
         self.run_btn.clicked.connect(self.run)
+        self.matlab_cb.toggled.connect(self._on_matlab_toggled)
         self.play_btn.clicked.connect(self.toggle_play)
         self.slider.valueChanged.connect(self._show_frame)
         state.params_changed.connect(lambda: self.view.set_geometry(state.p.rail_half, state.p.l))
+
+    def _on_matlab_toggled(self, on: bool):
+        """Matlab denemesinde olmayan ayarları kapat; θ₀'ı Matlab'ın durma sınırının içine al."""
+        for w in (self.real_cb, self.noise, self.delay, self.swing_cb, self.dist_t, self.dist_F):
+            w.setEnabled(not on)
+        if on and abs(self.th0.value()) >= 90:
+            self.th0.setValue(10.0)
+
+    def _run_matlab(self, real):
+        """Matlab uyumlu deneme: K, kuvvet girişli model için sürekli LQR ile (cart_pendulum_lqr.m gibi)."""
+        st = self.state
+        th0 = self.th0.value()
+        if abs(th0) >= 90:
+            QtWidgets.QMessageBox.warning(self, "Simülasyon",
+                                          "Matlab uyumlu denemede |θ₀| < 90° olmalı (swing-up yok, deneme hemen durur).")
+            return None, None
+        K, _, _ = design_lqr(force_model(st.p), st.Q, [[st.R]])
+        K = K.ravel()
+        r = simulate_matlab_compatible(real, K, [self.x0.value(), 0, math.radians(th0), 0], self.T.value(),
+                                       x_ref=st.x_ref)
+        Km = gain_to_matlab(K)
+        reason = {"time": "süre doldu", "rail": f"|x| > {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
+        head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",
+                "K (proje, θ sağa +)  = [" + ", ".join(f"{v:.2f}" for v in K) + "]",
+                "K (Matlab, θ sola +) = [" + ", ".join(f"{v:.2f}" for v in Km) + "]",
+                "Giriş kuvvettir [N], doyum yoktur."]
+        return r, head
 
     def run(self):
         st = self.state
         real = copy.deepcopy(st.p)
         k = 1 + self.mismatch.value() / 100
         real.m, real.l = real.m * k, real.l * k
+        if self.matlab_cb.isChecked():
+            try:
+                r, head = self._run_matlab(real)
+            except FloatingPointError as e:
+                QtWidgets.QMessageBox.warning(self, "Simülasyon", str(e))
+                return
+            if r is not None:
+                self._show_result(r, real, head, u_max=1e6, rail_half=MATLAB_RAIL_LIMIT)
+            return
         sup = Supervisor(st.p, st.K, swingup=copy.deepcopy(st.swingup), catch_deg=st.catch_deg,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
         sup.start()
@@ -141,6 +188,9 @@ class SimulationPage(QtWidgets.QWidget):
             return
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
+        self._show_result(r, real, [], u_max=st.p.u_max, rail_half=st.p.rail_half)
+
+    def _show_result(self, r, real, head_lines, u_max, rail_half):
         self.result = r
         th_deg = np.degrees(np.arctan2(np.sin(r.th), np.cos(r.th)))
         self.c_th.setData(r.t, th_deg)
@@ -152,9 +202,9 @@ class SimulationPage(QtWidgets.QWidget):
         self.c_m.setData(r.t, codes)
         summary = compute_trial_summary(
             r.t, r.x, r.th, r.u, modes=r.mode,
-            u_max=st.p.u_max, rail_half=st.p.rail_half
+            u_max=u_max, rail_half=rail_half
         )
-        self.info.setText("\n".join(summary.format_lines(rail_half=st.p.rail_half, u_max=st.p.u_max)))
+        self.info.setText("\n".join(head_lines + summary.format_lines(rail_half=rail_half, u_max=u_max)))
         self.slider.setRange(0, len(r.t) - 1)
         self.slider.setValue(0)
         self._show_frame(0)
