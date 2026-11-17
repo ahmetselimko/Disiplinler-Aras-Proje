@@ -110,10 +110,9 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 ```
 FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir.
 
-## 6. Açık karar: Homing'i kim başlatır?
-**Öneri (bu belgedeki ve kodlardaki davranış):** Güç gelince ESP32 IDLE modunda bekler. Homing yalnızca PC'den gelen `home` komutuyla ("KALİBRE ET" butonu) başlar. `start` komutu homing yapılmadan reddedilir.
-Gerekçe: Araba açılışta kendiliğinden hareket etmez (güvenlik), ve kullanıcı rayın boş olduğunu görerek kalibrasyonu başlatır.
-Bu öneri iki ekip tarafından onaylanmalıdır.
+## 6. Homing'i kim başlatır?
+Güç gelince ESP32 IDLE modunda bekler. Homing yalnızca PC'den gelen `home` komutuyla ("KALİBRE ET" butonu) başlar. `start` komutu homing yapılmadan reddedilir. Araba açılışta kendiliğinden hareket etmez.
+Donanımda limit switch olmadığı için (16.11.2026) firmware varsayılan olarak switch'siz derlenir: `home` arabayı hareket ettirmez, kullanıcının elle ortaya koyduğu noktayı x = 0 yapar (bkz. §4 `home`). Switch takılırsa `LIMIT_SWITCHES 1` ile otomatik homing geri gelir.
 
 ## 7. Hız bütçesi
 | Kalem | Değer |
