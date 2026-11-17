@@ -57,7 +57,7 @@ static const char *FW_NAME = "ref-1.1";
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
-static const float ENC_CPR_MOTOR = 64.0f;             // motor milindeki enkoder (37D: 64 CPR, 4x). Motor değişirse düzenleyin
+static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder (Pololu 25D: 48 CPR, 4x; 37D olsaydı 64). Motor değişirse düzenleyin
 // redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
 static const float ENC_COUNTS_PER_REV = ENC_CPR_MOTOR * MOTOR_GEAR;
 static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;

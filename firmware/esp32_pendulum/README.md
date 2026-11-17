@@ -31,7 +31,7 @@ Aynı derleme her push ve PR'da GitHub Actions'ta iki core sürümüyle tekrarla
 | `esp32_pendulum.ino` | 500 Hz kontrol görevi (çekirdek 1) + iletişim görevi (çekirdek 0) |
 | `gains.h` | LQR kazancı, eşikler, model sabitleri, redüktör oranı ve kasnak yarıçapı. PC arayüzünden üretilir (**gains.h Dışa Aktar**) |
 
-Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`, 37D için 64) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
+Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`: seçilen Pololu 25D için 48; 37D'de 64 olurdu) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
 
 ## Pinler (varsayılan — düzenleyin)
 | İşlev | Pin |
