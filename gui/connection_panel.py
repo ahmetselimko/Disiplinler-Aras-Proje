@@ -62,9 +62,7 @@ class ConnectionPanel(QtWidgets.QWidget):
     def connect(self):
         dev = self.port.currentData()
         if dev == "SIM":
-            # gerçek donanım gibi limit switch'siz (firmware LIMIT_SWITCHES 0): KALİBRE ET elle ortalama
-            transport = SimTransport(MockDevice(params=copy.deepcopy(self.state.p), Ts=self.state.Ts,
-                                                limit_switches=False))
+            transport = SimTransport(MockDevice(params=copy.deepcopy(self.state.p), Ts=self.state.Ts))
         else:
             transport = SerialTransport(dev, int(self.baud.currentText()))
         reader = TelemetryReader(transport, u_max=self.state.p.u_max)

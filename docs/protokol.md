@@ -66,7 +66,7 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 | Komut | Örnek | Etki |
 |---|---|---|
 | `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.1","homed":false}`. PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
-| `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. **Limit switch'siz firmware (`LIMIT_SWITCHES 0`, şu anki donanım):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir. `limit` olayı ve `limit`/`homing_*` hataları bu durumda oluşmaz. **Switch'li (`LIMIT_SWITCHES 1`):** araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları |
+| `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları. **Switch'siz derlenmiş firmware'de (`LIMIT_SWITCHES 0`):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir; `limit` olayı ve `limit`/`homing_*` hataları oluşmaz |
 | `calib` | `{"cmd":"calib"}` | Yalnız IDLE modunda. Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (açılıştaki kalibrasyon başarısız olduysa) |
 | `friction` | `{"cmd":"friction"}` | Yalnız **IDLE**'da, homing ve açı kalibrasyonu yapılmışsa; araba ray ucundan en az 0.23 m uzakta ve duruyor, sarkaç aşağıda ve hareketsiz olmalı. Gerilim 1 V/s ile artırılır; araba hızı 4–10 cm/s iken (gerilim, hız) çiftlerine doğru oturtulur, önce +x sonra −x (yön başına ≤ 8 cm + yumuşak duruş). Sonuç `friction` olayıyla gelir. `stop` iptal eder, `estop` FAULT'a geçirir. Ayrıntı: `pendulum_lab/control/friction.py` |
 | `start` | `{"cmd":"start"}` | Yalnız **IDLE** modunda, homing ve açı kalibrasyonu yapılmışsa. FAULT'tan doğrudan başlatılamaz (önce `stop`). Araba ray ucuna 0.10 m'den yakınsa veya 0.2 m/s'den hızlı gidiyorsa reddedilir. Swing-up açıksa SWING_UP, kapalıysa WAIT |
@@ -112,7 +112,7 @@ FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta r
 
 ## 6. Homing'i kim başlatır?
 Güç gelince ESP32 IDLE modunda bekler. Homing yalnızca PC'den gelen `home` komutuyla ("KALİBRE ET" butonu) başlar. `start` komutu homing yapılmadan reddedilir. Araba açılışta kendiliğinden hareket etmez.
-Donanımda limit switch olmadığı için (16.11.2026) firmware varsayılan olarak switch'siz derlenir: `home` arabayı hareket ettirmez, kullanıcının elle ortaya koyduğu noktayı x = 0 yapar (bkz. §4 `home`). Switch takılırsa `LIMIT_SWITCHES 1` ile otomatik homing geri gelir.
+Donanımda limit switch var (17.11.2026); `home` sol switch'i bularak otomatik kalibre eder. Switch'ler takılmadan denenecekse firmware `LIMIT_SWITCHES 0` ile derlenir ve `home` elle ortalamaya döner (bkz. §4 `home`).
 
 ## 7. Hız bütçesi
 | Kalem | Değer |

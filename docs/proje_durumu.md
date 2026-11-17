@@ -70,8 +70,9 @@ Toplantı notları ve tahtadaki plana göre:
 | **Sistem modelleme ve lineerleştirme** (θ = 0'da, parametrik) | Ekip toplantıda yoktu | Kütüphanede hazır ve testli (analitik + sayısal jacobian). Mekatronik ekibin Matlab sonuçlarıyla karşılaştırılması faydalı olur |
 | **Kontrol:** LQR kararı, enerji bazlı swing-up araştırması | LQR seçildi, swing-up araştırılacak | İkisi de uygulandı ve simülasyonda çalışıyor: aşağıdan ~4 s'de kalkış, ±0.2 m ray kullanımı, %20 model hatasında da yakalama. Kazançlar araştırmaya başlangıç noktası olarak kullanılabilir |
 | **Sensör / mikrodenetleyici / sürücü** | **Kesinleşti (16.11.2026):** ESP32, AS5600, BTS7960 | Firmware zaten bunlara göre yazılmıştı; değişiklik gerekmedi |
-| **Limit switch / donanımsal acil stop** | **Yok** (16.11.2026: "limitler aşılınca otomatik durdurulacak") | Firmware switch'siz derlenir (`LIMIT_SWITCHES 0`): KALİBRE ET'te araba elle ortaya konur, ray güvenliği yalnız enkoderle yazılımsal sınır. Switch takılıp takılmayacağı ifadeden kesin anlaşılmıyor; takılırsa tek satır değişir. Ray uçlarına mekanik durdurucu önerilir |
-| **Homing'i kim başlatacak** | Kapandı | Kart açılınca bekler; kalibrasyon yalnızca arayüzdeki KALİBRE ET ile, switch olmadığından elle ortalayarak (`protokol.md` §6) |
+| **Limit switch** | **Takılacak** (17.11.2026). Tipi (NC/NO) ve pinleri teyit edilmeli | Firmware varsayılanı `LIMIT_SWITCHES 1`: switch'le otomatik homing ve switch korumaları. NC önerilir; NO ise `LIM_PRESSED = LOW`. Switch'ler takılmadan denenecekse `LIMIT_SWITCHES 0` (elle ortalama) |
+| **Donanımsal acil stop** | **Yok** (16.11.2026: "limitler aşılınca otomatik durdurulacak") | Durdurma yazılıma (ESP32) bağlı; motor beslemesi elle kolayca kesilebilmeli |
+| **Homing'i kim başlatacak** | Kapandı | Kart açılınca bekler; kalibrasyon yalnızca arayüzdeki KALİBRE ET ile, sol switch'i bularak (`protokol.md` §6) |
 
 ---
 
@@ -124,7 +125,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 * **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. Gerekirse Kalman filtresi (kütüphanede hazır) firmware'e taşınabilir.
 * **Step motor desteği yarım:** modelde ve simülasyonda var, firmware'de yok.
 * **Model sadeleştirmeleri:** kayış esnekliği ve motor endüktansı ihmal ediliyor; motorun kuru (Coulomb) sürtünmesi `T_f`, viskoz sürtünmesi `B_m` ve rotor ataleti simülasyonda var ama değer girilene kadar 0 (Coulomb sürtünmesi LQR tasarımında ihmal edilir). Gerçek sistemde kazançlar biraz farklı çıkabilir.
-* **Donanımsal acil stop ve limit switch yok:** durdurma tamamen yazılıma (ESP32 + enkoder) bağlı. Firmware takılırsa, enkoder kablosu çıkarsa veya sürücü arızalanırsa arabayı hiçbir şey durdurmaz. Ray uçlarına mekanik durdurucu ve motor beslemesine elle kesilebilen bir anahtar/fiş önerilir.
+* **Donanımsal acil stop yok:** limit switch'ler ve yazılımsal ray sınırı motoru ESP32 üzerinden durdurur. Firmware takılırsa veya sürücü arızalanırsa (motoru tam güçte bırakırsa) arabayı hiçbir şey durdurmaz. Motor beslemesine elle kesilebilen bir anahtar/fiş önerilir.
 * Arayüz Windows'ta denendi; Linux/macOS'ta denenmedi (PyQt5 çapraz platform olduğu için sorun beklenmiyor).
 
 ## 7. Yapılması gerekenler
@@ -134,7 +135,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 2. Mekanik tasarım bitince `docs/parametre_tablosu.md`'yi doldurmak (m, M, l, I, sürtünmeler, motor sabitleri, rotor ataleti).
 3. Homing önerisini (`protokol.md` §6) onaylamak veya değiştirmek.
 4. Firmware'i derleyip pinleri donanıma uyarlamak; ilk açılış kontrol listesini uygulamak (`firmware/esp32_pendulum/README.md`): işaret kontrolü → homing → yalnız LQR → swing-up.
-5. Ray uçlarına mekanik durdurucu/tampon; motor beslemesini elle kesmenin kolay bir yolu (limit switch ve acil stop butonu olmayacak).
+5. NC limit switch'ler (takılacak; tip ve pinler teyit edilmeli) ve motor beslemesini elle kesmenin kolay bir yolu (acil stop butonu olmayacak).
 
 ### Şimdi başlanabilecek işler (mekatronik verisi beklemeyen)
 Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutucu değerlerle hemen yapılabilir. Projeye yeni katılanlar için iyi bir başlangıçtır. İlk ikisi önceliklidir.

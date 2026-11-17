@@ -121,7 +121,7 @@ def test_firmware_manual_home_matches_python():
     src = FIRMWARE.read_text(encoding="utf-8")
     m = re.search(r"static const float HOME_STILL_DX = ([\d.]+)f;", src)
     assert m and float(m.group(1)) == MD.HOME_STILL_DX
-    assert re.search(r"#ifndef LIMIT_SWITCHES\s*\n#define LIMIT_SWITCHES 0", src)   # şu anki donanım: switch yok
+    assert re.search(r"#ifndef LIMIT_SWITCHES\s*\n#define LIMIT_SWITCHES 1", src)   # şu anki donanım: switch var
     assert "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin" in src
     mock = Path(MD.__file__).read_text(encoding="utf-8")
     assert "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin" in mock

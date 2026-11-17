@@ -28,7 +28,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | Sol grafikler | Sarkaç açısı θ (0 = dik; yeşil kesikli çizgiler LQR devreye girme sınırı ±15°), araba konumu x (kırmızı kesikli çizgiler ray uçları), kontrol girişi u (volt). Son 10 s kayarak çizilir |
 | Yeşil/turuncu/kırmızı kutu | Mod: BEKLEMEDE · KALİBRASYON · SWING-UP · DENGE (LQR) · DURDURULDU · HATA/STOP. DURDURULDU, DURDUR'dan sonraki BEKLEMEDE'dir (yalnız arayüzde). Simülasyon duraklatılmışsa başında ⏸ görünür |
 | Animasyon | Araba ve sarkacın anlık konumu; yeşil kesikli çizgi hedef konum |
-| **KALİBRE ET (Homing)** | **Şu anki donanımda limit switch yok** (firmware `LIMIT_SWITCHES 0`): arabayı **elle ray ortasına koyun**, durunca basın; o nokta x = 0 olur, araba hareket etmez. Araba hareket ediyorsa reddedilir. Ortaya ne kadar doğru konursa ray sınırı o kadar doğru olur. Switch takılırsa (`LIMIT_SWITCHES 1`): araba yavaşça sol switch'e gider, orayı −ray yarı boyu kabul eder, ortaya döner. Arayüzün simülasyonu da switch'siz çalışır (araba başlangıçta tam ortada olmayabilir). **Bu yapılmadan BAŞLAT kabul edilmez** |
+| **KALİBRE ET (Homing)** | Araba yavaşça sol limit switch'e gider, orayı −ray yarı boyu kabul eder, ortaya döner. (Switch'ler takılmadan denenecekse firmware `LIMIT_SWITCHES 0` ile derlenir; o zaman araba elle ortaya konup durağanken basılır, o nokta x = 0 olur.) **Bu yapılmadan BAŞLAT kabul edilmez** |
 | **BAŞLAT** | Swing-up açıksa sarkacı aşağıdan kaldırır; \|θ\| < 15° olunca LQR devreye girer |
 | **DURDUR** | Motoru durdurur (IDLE). Hata modundan çıkmak için de kullanılır |
 | **ACİL STOP** / **Esc** | Motor hemen kapanır (FAULT). Esc tuşu açık bir pencere varken de çalışır |
@@ -86,7 +86,7 @@ Yalnız θ'ya oransal geri besleme verilseydi köklerin nasıl hareket edeceğin
 ## 5. Gerçek kartla ilk deneme (özet)
 1. Firmware'i yükleyin (`firmware/esp32_pendulum/README.md`), sarkaç aşağıda ve hareketsizken kartı açın.
 2. [protokol.md](protokol.md) §2'deki işaret kontrolünü yapın (θ ve x yönleri, motor yönü).
-3. Arayüzde portu seçip Bağlan → arabayı elle ray ortasına koyun → KALİBRE ET. Donanımsal acil stop olmadığı için bir eliniz Esc'de, motor beslemesinin fişi/anahtarı da erişebileceğiniz yerde olsun (Esc yalnız kart ve bağlantı çalışırken etkilidir).
+3. Arayüzde portu seçip Bağlan → KALİBRE ET. Donanımsal acil stop olmadığı için bir eliniz Esc'de, motor beslemesinin fişi/anahtarı da erişebileceğiniz yerde olsun (Esc yalnız kart ve bağlantı çalışırken etkilidir).
 4. **Swing-up açık** kutusunu kaldırın, BAŞLAT'a basın, sarkacı elle dik tutup bırakın: yalnız LQR'ı deneyin.
 5. Sonra swing-up'ı açıp aşağıdan deneyin. Kayıt alıp simülasyonla karşılaştırın.
 

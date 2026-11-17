@@ -50,7 +50,7 @@ Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kar
 1. Firmware derlenmeli ve karta yüklenmeli.
 2. Pinler gerçek kablolamaya uyarlanmalı. Seçilen donanım (16.11.2026): Pololu 25D 12V 48 CPR enkoderli motor, BTS7960 sürücü, AS5600 açı sensörü; kod bunlara göre yazıldı (enkoder 48 CPR). Motorun redüktör oranı/ürün numarası teyit edilmeli.
 3. `config/params.json` gerçek ölçülerle doldurulmalı, K yeniden hesaplanıp karta gönderilmeli.
-4. Donanımda limit switch ve donanımsal acil stop **yok**: firmware switch'siz derlenir (`LIMIT_SWITCHES 0`), KALİBRE ET'te araba elle ortaya konur ve ray güvenliğini yalnız enkoderle yazılımsal sınır sağlar. Ray uçlarına mekanik durdurucu konmalı; motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc arayüzde acil stop'tur ama kart veya enkoder arızasında işe yaramaz.
+4. Limit switch'ler takılacak (firmware varsayılanı `LIMIT_SWITCHES 1`; switch tipi ve pinleri teyit edilmeli). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
 5. [İlk açılış kontrol listesi](firmware/esp32_pendulum/README.md#i̇lk-açılış-kontrol-listesi) sırayla uygulanmalı: işaret kontrolü → homing → yalnız LQR → swing-up.
 
 Simülasyondaki kazançlar gerçek sistemde büyük olasılıkla yeniden ayarlanacaktır.

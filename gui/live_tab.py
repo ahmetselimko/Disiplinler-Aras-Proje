@@ -92,10 +92,8 @@ class LiveTab(QtWidgets.QWidget):
         self._last_summary_render = 0.0
 
         btns = QtWidgets.QGridLayout()
-        self.b_home = QtWidgets.QPushButton("KALİBRE ET (elle ortala)")
-        self.b_home.setToolTip("Limit switch yok: arabayı elle ray ortasına koyun, durunca basın; o nokta x = 0 olur.\n"
-                               "Araba hareket ederken reddedilir. Simülasyonda araba başlangıçta ortada olmayabilir;\n"
-                               "ray sınırları da o kadar kayar (gerçekte de öyle).")
+        self.b_home = QtWidgets.QPushButton("KALİBRE ET (Homing)")
+        self.b_home.setToolTip("Araba yavaşça sol limit switch'e gider, orayı ray ucu kabul eder ve ortaya döner")
         self.b_push = QtWidgets.QPushButton("K'yı Cihaza Gönder")
         self.b_start = QtWidgets.QPushButton("BAŞLAT")
         self.b_stop = QtWidgets.QPushButton("DURDUR")
