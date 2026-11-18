@@ -53,6 +53,8 @@ class SimulationPage(QtWidgets.QWidget):
         self.T = spin(15.0, 0.5, 120, 1, 1, "s")
         self.real_cb = QtWidgets.QCheckBox("Gerçekçi sensör (AS5600 12-bit, enkoder, türevle hız)")
         self.real_cb.setChecked(True)
+        self.kalman_cb = QtWidgets.QCheckBox("Kalman filtresi ile hız kestirimi")
+        self.kalman_cb.setChecked(True)
         self.noise = spin(0.05, 0, 5, 3, 0.01, "°")
         self.delay = QtWidgets.QSpinBox()
         self.delay.setRange(0, 20)
@@ -73,6 +75,7 @@ class SimulationPage(QtWidgets.QWidget):
         f.addRow("Başl. açısal hız θ̇₀", self.dth0)
         f.addRow("Süre", self.T)
         f.addRow(self.real_cb)
+        f.addRow(self.kalman_cb)
         f.addRow("Açı gürültüsü (σ)", self.noise)
         f.addRow("Giriş gecikmesi", self.delay)
         f.addRow(self.swing_cb)
@@ -152,7 +155,7 @@ class SimulationPage(QtWidgets.QWidget):
         try:
             r = simulate_closed_loop(real, sup, s0,
                                      self.T.value(), dt=st.Ts, sensor=sensor, delay_steps=self.delay.value(),
-                                     disturbance=dist)
+                                     disturbance=dist, use_kalman=self.kalman_cb.isChecked())
         except FloatingPointError as e:
             QtWidgets.QMessageBox.warning(self, "Simülasyon", str(e))
             return
