@@ -1,7 +1,8 @@
 """Mekatronik ekibinin Matlab/Simulink modeliyle uyumluluk.
 
 Matlab dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`)
-bu projeyle aynı denklemleri kullanır. İki fark vardır:
+issue #1'deki ön karşılaştırmaya göre bu projeyle aynı denklemleri kullanır (dosyalar
+repoya eklenince doğrudan doğrulanacak). İki fark vardır:
 
 1. θ işareti: Matlab'da sarkaç SOLA yatınca θ > 0, bu projede (Python, firmware, docs/protokol.md)
    +x yönüne (SAĞA) yatınca θ > 0. Durum dönüşümü s_matlab = T·s, T = diag(1, 1, −1, −1).

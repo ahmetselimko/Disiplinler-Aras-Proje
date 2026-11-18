@@ -25,7 +25,12 @@ Gereksinim belgesindeki "Sadece Ters Sarkaç Sisteminde Kullanılacak Matlab fon
 Fonksiyonların tümü `tests/` altında test edilmiştir. `lqr` ve `dlqr`, `python-control` kütüphanesinin sonuçlarıyla karşılaştırılır.
 
 ## Mekatronik ekibinin Matlab modeliyle karşılaştırma
-Mekatronik ekibinin `cart_pendulum_lqr.m` modeli bu kütüphaneyle aynı denklemleri kullanır. **Tek fark θ işaretidir:** Matlab'da sarkaç sola yatınca θ > 0, burada sağa (+x) yatınca. Bu yüzden K'nın θ ve θ̇ kazançları ters işaretlidir. Dönüşüm `pendulum_lab/sim/matlab_compat.py`'dedir (`gain_from_matlab`, `gain_to_matlab`); ayrıntı [`matlab/README.md`](../matlab/README.md).
+Issue #1'deki ön karşılaştırmaya göre mekatronik ekibinin `cart_pendulum_lqr.m` modeli bu kütüphaneyle aynı denklemleri kullanır (Matlab dosyaları `matlab/` klasörüne eklenince doğrudan doğrulanacak). İki fark vardır:
+
+1. **θ işareti:** Matlab'da sarkaç sola yatınca θ > 0, burada sağa (+x) yatınca. Bu yüzden K'nın θ ve θ̇ kazançları ters işaretlidir.
+2. **Deneme biçimi:** Matlab denemesi sürekli zamanlı kontrolcü, kuvvet girişi (motor yok) ve ideal sensör kullanır; bu projede ESP32'ye giden kontrolcü 2 ms örneklemeli, gerilim girişlidir ve sensör kuantalaması vardır. Aynı Q, R ile bile projenin motorlu modeli için çıkan K, Matlab'ınkinden farklıdır.
+
+Dönüşüm `pendulum_lab/sim/matlab_compat.py`'dedir (`gain_from_matlab`, `gain_to_matlab`); ayrıntı [`matlab/README.md`](../matlab/README.md).
 
 | Matlab | pendulum_lab | Not |
 |---|---|---|

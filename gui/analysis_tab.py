@@ -152,7 +152,8 @@ class SimulationPage(QtWidgets.QWidget):
 
     def _on_matlab_toggled(self, on: bool):
         """Matlab denemesinde olmayan ayarları kapat; θ₀'ı Matlab'ın durma sınırının içine al."""
-        for w in (self.real_cb, self.noise, self.delay, self.swing_cb, self.dist_t, self.dist_F):
+        for w in (self.real_cb, self.kalman_cb, self.noise, self.delay, self.swing_cb,
+                  self.dist_t, self.dist_F, self.dist_dur):
             w.setEnabled(not on)
         if on and abs(self.th0.value()) >= 90:
             self.th0.setValue(10.0)
@@ -167,8 +168,8 @@ class SimulationPage(QtWidgets.QWidget):
             return None, None
         K, _, _ = design_lqr(force_model(st.p), st.Q, [[st.R]])
         K = K.ravel()
-        r = simulate_matlab_compatible(real, K, [self.x0.value(), 0, math.radians(th0), 0], self.T.value(),
-                                       x_ref=st.x_ref)
+        s0 = [self.x0.value(), self.dx0.value(), math.radians(th0), math.radians(self.dth0.value())]
+        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=st.x_ref)
         Km = gain_to_matlab(K)
         reason = {"time": "süre doldu", "rail": f"|x| > {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
         head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",

@@ -25,6 +25,10 @@ from pendulum_lab.sim.matlab_compat import gain_from_matlab
 K = gain_from_matlab([-50, -45.37, 168.66, 33.25])   # → [-50, -45.37, -168.66, -33.25]
 ```
 
+Dönüştürülen K yalnız işaret farkını giderir: Matlab modeli kuvvet girişlidir (motor yok), ESP32 ise motora
+gerilim uygular ve 2 ms örneklemeyle çalışır. Gerçek düzenekte kullanılacak K'yı arayüzün **Model ve LQR Tasarımı**
+sekmesinde, motorlu modelle hesaplayın (aynı Q, R ile bile Matlab'ınkinden farklı çıkar).
+
 ## Karşılaştırma
 * `tests/test_matlab_compat.py`: Matlab'ın A, B formülleriyle kurulan modelden çıkan K'nın Matlab sonucuyla,
   Python kütüphanesinin K'sının da (θ işareti dışında) bununla aynı olduğunu her push'ta denetler.

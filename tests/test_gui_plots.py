@@ -1,5 +1,6 @@
 """Arayüz grafik bileşenleri ve enerji/mod çizim testleri (Issue #3)."""
 
+import math
 import os
 
 import numpy as np
@@ -107,6 +108,24 @@ def test_simulation_matlab_compatible_mode(qapp):
     assert page.slider.maximum() == len(r.t) - 1
     page.matlab_cb.setChecked(False)
     assert page.swing_cb.isEnabled()
+    page.close()
+
+
+def test_matlab_mode_uses_initial_velocities_and_disables_unused_options(qapp):
+    """Matlab modunda ẋ₀ ve θ̇₀ simülasyona girmeli; kullanılmayan ayarlar (Kalman, dürtme süresi) kapanmalı."""
+    st = AppState("config/params.json")
+    page = SimulationPage(st)
+    page.matlab_cb.setChecked(True)
+    assert not page.kalman_cb.isEnabled() and not page.dist_dur.isEnabled()
+    assert page.dx0.isEnabled() and page.dth0.isEnabled()
+    page.th0.setValue(10.0)
+    page.T.setValue(0.5)
+    page.dx0.setValue(0.1)
+    page.dth0.setValue(20.0)
+    page.run()
+    assert page.result.s[0] == pytest.approx([0.0, 0.1, math.radians(10.0), math.radians(20.0)])
+    page.matlab_cb.setChecked(False)
+    assert page.kalman_cb.isEnabled() and page.dist_dur.isEnabled()
     page.close()
 
 
