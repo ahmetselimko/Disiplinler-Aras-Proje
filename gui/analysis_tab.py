@@ -13,7 +13,8 @@ from pendulum_lab.analysis.linear import StateSpace, rlocus, step_info
 from pendulum_lab.analysis.summary import compute_trial_summary
 from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.control.supervisor import MODE_CODES, Mode, Supervisor
-from pendulum_lab.sim.matlab_compat import (MATLAB_DT, MATLAB_RAIL_LIMIT, force_model, gain_to_matlab,
+from pendulum_lab.sim.matlab_compat import (MATLAB_DT, MATLAB_Q, MATLAB_R, MATLAB_RAIL_LIMIT, force_model,
+                                            gain_to_matlab, matlab_reference_params,
                                             simulate_matlab_compatible)
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
 
@@ -74,11 +75,20 @@ class SimulationPage(QtWidgets.QWidget):
         self.matlab_cb.setToolTip(
             "Mekatronik ekibinin Matlab denemesiyle aynı: sürekli zamanlı LQR, kuvvet girişi (motor yok),\n"
             f"ideal sensör, RK4 dt = {MATLAB_DT * 1000:g} ms; araba ±{MATLAB_RAIL_LIMIT:g} m'yi aşınca veya |θ| ≥ 90° "
-            "olunca deneme durur.\nK, Tasarım sekmesindeki Q ve R ile kuvvet girişli model için yeniden hesaplanır. "
-            "Swing-up yoktur.")
+            "olunca deneme durur. Swing-up yoktur.")
+        self.matlab_ref_cb = QtWidgets.QCheckBox("Matlab'ın kendi ayarlarıyla (parametreler, Q, R)")
+        self.matlab_ref_cb.setChecked(True)
+        self.matlab_ref_cb.setEnabled(False)
+        p_ref = matlab_reference_params()
+        self.matlab_ref_cb.setToolTip(
+            f"Açık: cart_pendulum_lqr.m'deki değerler (M={p_ref.M:g}, m={p_ref.m:g}, l={p_ref.l:g}, I={p_ref.I:g}, "
+            f"b={p_ref.b:g}; Q=diag{MATLAB_Q}, R={MATLAB_R:g}). Sonuç Matlab'ın sonucuyla karşılaştırılabilir.\n"
+            "Kapalı: projenin parametreleri ve Tasarım sekmesindeki Q, R; K kuvvet girişli model için yeniden "
+            "hesaplanır.\nBu durumda K Matlab'ınkiyle aynı değildir (yalnız Matlab'ın işaret kuralıyla gösterilir).")
         self.run_btn = QtWidgets.QPushButton("▶ Simüle Et")
         self.run_btn.setStyleSheet("QPushButton{font-weight:bold;padding:6px}")
         f.addRow(self.matlab_cb)
+        f.addRow(self.matlab_ref_cb)
         f.addRow("Başlangıç θ₀", self.th0)
         f.addRow("Başlangıç x₀", self.x0)
         f.addRow("Başlangıç hızı ẋ₀", self.dx0)
@@ -155,43 +165,57 @@ class SimulationPage(QtWidgets.QWidget):
         for w in (self.real_cb, self.kalman_cb, self.noise, self.delay, self.swing_cb,
                   self.dist_t, self.dist_F, self.dist_dur):
             w.setEnabled(not on)
+        self.matlab_ref_cb.setEnabled(on)
         if on and abs(self.th0.value()) >= 90:
             self.th0.setValue(10.0)
 
-    def _run_matlab(self, real):
-        """Matlab uyumlu deneme: K, kuvvet girişli model için sürekli LQR ile (cart_pendulum_lqr.m gibi)."""
+    def _run_matlab(self, mismatch: float):
+        """Matlab uyumlu deneme: K, kuvvet girişli model için sürekli LQR ile (cart_pendulum_lqr.m gibi).
+
+        Matlab ayarları seçiliyse model, Q ve R cart_pendulum_lqr.m'dekilerdir (sonuç Matlab'ınkiyle
+        karşılaştırılabilir); değilse projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır.
+        Dönüş: (sonuç, bilgi satırları, gerçek sistem parametreleri)."""
         st = self.state
         th0 = self.th0.value()
         if abs(th0) >= 90:
             QtWidgets.QMessageBox.warning(self, "Simülasyon",
                                           "Matlab uyumlu denemede |θ₀| < 90° olmalı (swing-up yok, deneme hemen durur).")
-            return None, None
-        K, _, _ = design_lqr(force_model(st.p), st.Q, [[st.R]])
+            return None, None, None
+        if self.matlab_ref_cb.isChecked():
+            design, Q, R, x_ref = matlab_reference_params(), MATLAB_Q, MATLAB_R, 0.0
+            source = "Matlab'ın ayarları (cart_pendulum_lqr.m)"
+        else:
+            design, Q, R, x_ref = force_model(st.p), st.Q, st.R, st.x_ref
+            source = "proje parametreleri + Tasarım Q, R (Matlab'ın K'sı DEĞİL)"
+        real = copy.deepcopy(design)
+        real.m, real.l = real.m * mismatch, real.l * mismatch
+        K, _, _ = design_lqr(design, Q, [[R]])
         K = K.ravel()
         s0 = [self.x0.value(), self.dx0.value(), math.radians(th0), math.radians(self.dth0.value())]
-        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=st.x_ref)
+        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref)
         Km = gain_to_matlab(K)
         reason = {"time": "süre doldu", "rail": f"|x| > {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
         head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",
-                "K (proje, θ sağa +)  = [" + ", ".join(f"{v:.2f}" for v in K) + "]",
-                "K (Matlab, θ sola +) = [" + ", ".join(f"{v:.2f}" for v in Km) + "]",
+                f"Ayarlar: {source}",
+                "K (proje işaretinde, θ sağa +) = [" + ", ".join(f"{v:.2f}" for v in K) + "]",
+                "K (Matlab işaretinde, θ sola +) = [" + ", ".join(f"{v:.2f}" for v in Km) + "]",
                 "Giriş kuvvettir [N], doyum yoktur."]
-        return r, head
+        return r, head, real
 
     def run(self):
         st = self.state
-        real = copy.deepcopy(st.p)
         k = 1 + self.mismatch.value() / 100
-        real.m, real.l = real.m * k, real.l * k
         if self.matlab_cb.isChecked():
             try:
-                r, head = self._run_matlab(real)
+                r, head, real = self._run_matlab(k)
             except FloatingPointError as e:
                 QtWidgets.QMessageBox.warning(self, "Simülasyon", str(e))
                 return
             if r is not None:
                 self._show_result(r, real, head, u_max=1e6, rail_half=MATLAB_RAIL_LIMIT)
             return
+        real = copy.deepcopy(st.p)
+        real.m, real.l = real.m * k, real.l * k
         sup = Supervisor(st.p, st.K, swingup=copy.deepcopy(st.swingup), catch_deg=st.catch_deg,
                          catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())

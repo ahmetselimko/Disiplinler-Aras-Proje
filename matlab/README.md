@@ -33,4 +33,7 @@ sekmesinde, motorlu modelle hesaplayın (aynı Q, R ile bile Matlab'ınkinden fa
 * `tests/test_matlab_compat.py`: Matlab'ın A, B formülleriyle kurulan modelden çıkan K'nın Matlab sonucuyla,
   Python kütüphanesinin K'sının da (θ işareti dışında) bununla aynı olduğunu her push'ta denetler.
 * Arayüz → **Analiz ve Simülasyon** → **Matlab uyumlu** kutusu: `cart_pendulum_application.m`'deki denemeyi
-  Python'da tekrarlar ve K'yı iki işarette de gösterir.
+  Python'da tekrarlar ve K'yı iki işarette de gösterir. **"Matlab'ın kendi ayarlarıyla"** seçiliyken (varsayılan)
+  `cart_pendulum_lqr.m`'nin parametreleri ve Q, R'si kullanılır; sonuç Matlab'ınkiyle karşılaştırılabilir.
+  Seçili değilken projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır; o zaman çıkan K Matlab'ın K'sı
+  değildir, yalnız Matlab'ın işaret kuralıyla gösterilir.
