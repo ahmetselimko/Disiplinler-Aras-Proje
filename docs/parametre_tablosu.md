@@ -13,9 +13,9 @@ Mekanik tasarım bitince bu tablo doldurulup bilgisayar ekibine iletilir. Değer
 | `rail_half` | Ray ortasından limit switch'e uzaklık | m | 0.40 | | Metre |
 | `u_max` | Motor gerilim sınırı | V | 12 | | Güç kaynağı |
 | `input_mode` | `voltage` (DC motor), `acceleration` (step motor), `force` | — | voltage | | Motor seçimi |
-| `motor.R` | Motor sargı direnci | Ω | 2.2 | | Datasheet veya ohmmetre |
-| `motor.Kt` | Tork sabiti (**motor mili**, redüktör öncesi) | N·m/A | 0.0083 | | Datasheet: kilitli tork / kilitli akım / redüktör oranı |
-| `motor.Ke` | Zıt EMK sabiti (motor mili) | V·s/rad | 0.0109 | | Datasheet: (V − I₀R) / boşta hız (rad/s, motor mili) |
+| `motor.R` | Motor sargı direnci | Ω | 2.18 | | Datasheet veya ohmmetre |
+| `motor.Kt` | Tork sabiti (**motor mili**, redüktör öncesi) | N·m/A | 0.00892 | | Datasheet: kilitli tork / kilitli akım / redüktör oranı |
+| `motor.Ke` | Zıt EMK sabiti (motor mili) | V·s/rad | 0.01104 | | Datasheet: (V − I₀R) / boşta hız (rad/s, motor mili) |
 | `motor.gear` | Redüktör oranı | — | 10 | | Ürün adı (ör. 10:1) |
 | `motor.r_pulley` | Kayış kasnağı yarıçapı | m | 0.0127 | | GT2: diş sayısı × 2 mm / 2π |
 | `motor.V_max` | Besleme gerilimi | V | 12 | | `u_max` bundan büyük olamaz |
@@ -26,7 +26,9 @@ Mekanik tasarım bitince bu tablo doldurulup bilgisayar ekibine iletilir. Değer
 **T_f ve B_m için not:** İkisi de aynı boşta akım kaybından (Kt·I₀) hesaplanırsa aynı kayıp iki kez sayılır. Ya biri seçilmeli ya da kayıp ikisine bölünmelidir (ör. iki farklı gerilimde boşta akım ölçülerek: hızla değişmeyen kısım T_f, hızla artan kısım B_m). Kayış-ray sürtünmesi motorun değil arabanın sürtünmesidir, `b`'ye yazılır.
 
 ## Motor seçimi için not
-Tasarım sekmesi, seçilen motorla ulaşılabilecek **en yüksek araba hızını** gösterir. Örnek: Pololu 37D, 30:1 redüktör ve 20 dişli GT2 kasnakla araba en fazla ~0.2 m/s gidebilir. Bu, swing-up için **yetersizdir**. Yer tutucu olarak 10:1 redüktör ve 40 dişli kasnak (~1.4 m/s) kullanıldı.
+**Seçilen motor (16.11.2026): Pololu 25D 12V, 48 CPR enkoderli, "251 RPM".** Ürün numarası ve redüktör oranı teyit edilmedi; o gelene kadar yukarıdaki motor değerleri (R, Kt, Ke, 10:1) eski **37D yer tutucusudur**. Teyit gelince değerler datasheet'ten `tools/motor_karsilastirma.py`'deki formüllerle hesaplanıp girilmeli. Enkoder çözünürlüğü (48 CPR) firmware'de `ENC_CPR_MOTOR`, Python'da `filters.ENC_CPR_MOTOR`'dadır; araba konumunun bir sayımı 2π·r_kasnak / (48 · redüktör)'dür.
+
+Tasarım sekmesi, seçilen motorla ulaşılabilecek **en yüksek araba hızını** gösterir. Örnek (eski aday): Pololu 37D, 30:1 redüktör ve 20 dişli GT2 kasnakla araba en fazla ~0.2 m/s gidebilir. Bu, swing-up için **yetersizdir**. Yer tutucu olarak 10:1 redüktör ve 40 dişli kasnak (~1.4 m/s) kullanıldı.
 Step motor (NEMA17) seçilirse `input_mode = "acceleration"` yapılır. Bu durumda firmware'de motor sürme kısmı ivme → adım frekansı olarak yeniden yazılmalıdır.
 
 ## Küre mi küp mü?

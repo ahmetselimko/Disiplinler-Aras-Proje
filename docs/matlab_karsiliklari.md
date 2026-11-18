@@ -35,7 +35,7 @@ Dönüşüm `pendulum_lab/sim/matlab_compat.py`'dedir (`gain_from_matlab`, `gain
 | Matlab | pendulum_lab | Not |
 |---|---|---|
 | `cart_pendulum_lqr.m` (M=0.5, m=0.2, l=0.3, I=0.006, b=0.1, Q=diag(25,4,32.83,1), R=0.01) | `matlab_reference_params()`, `MATLAB_Q`, `MATLAB_R` | K = [−50, −45.37, ∓168.66, ∓33.25]; `tests/test_matlab_compat.py` denetler |
-| `cart_pendulum_application.m` | `simulate_matlab_compatible(p, K, s0, T)` | Sürekli LQR, kuvvet girişi (±10 N sınırlı), RK4 2.5 ms, ±0.2 m / 90°'de durur. Arayüzde Analiz → **Matlab uyumlu** (varsayılan olarak Matlab'ın parametreleri ve Q, R'siyle) |
+| `cart_pendulum_application.m` | `simulate_matlab_compatible(p, K, s0, T)` | Sürekli LQR, kuvvet girişi, RK4 2.5 ms, ±0.2 m / 90°'de durur; dış itme arabaya. Kuvvet sınırı `f_max` (varsayılan ±10 N, Matlab gibi). Arayüzde Analiz → **Matlab uyumlu**: "Matlab'ın kendi ayarlarıyla" seçiliyse Matlab'ın parametreleri, Q, R'si ve ±10 N sınırı; değilse proje parametreleri, Tasarım Q, R'si, sınırsız |
 
 ## Örnek: Matlab betiğinin Python karşılığı
 ```python

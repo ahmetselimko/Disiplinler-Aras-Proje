@@ -25,7 +25,8 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 
 | Bölge | Ne gösterir / ne yapar |
 |---|---|
-| Sol grafikler | Sarkaç açısı θ (0 = dik; yeşil kesikli çizgiler LQR devreye girme sınırı ±15°), araba konumu x (kırmızı kesikli çizgiler ray uçları), kontrol girişi u (volt). Son 10 s kayarak çizilir |
+| Sol grafikler | Sarkaç açısı θ (0 = dik; yeşil kesikli çizgiler LQR devreye girme sınırı ±15°), araba konumu x (kırmızı kesikli çizgiler ray uçları), kontrol girişi u (volt), sarkacın enerjisi E (0 = dik konum enerjisi) ve mod. Son 10 s kayarak çizilir |
+| Sonuç Özeti | Son denemenin özeti: dengeye geçiş anı, oturma süresi, en büyük \|x\| ve \|u\|, doyumda geçen süre, bitiş modu |
 | Yeşil/turuncu/kırmızı kutu | Mod: BEKLEMEDE · KALİBRASYON · SWING-UP · DENGE (LQR) · DURDURULDU · HATA/STOP. DURDURULDU, DURDUR'dan sonraki BEKLEMEDE'dir (yalnız arayüzde). Simülasyon duraklatılmışsa başında ⏸ görünür |
 | Animasyon | Araba ve sarkacın anlık konumu; yeşil kesikli çizgi hedef konum |
 | **KALİBRE ET (Homing)** | Araba yavaşça sol limit switch'e gider, orayı −ray yarı boyu kabul eder, ortaya döner. (Switch'ler takılmadan denenecekse firmware `LIMIT_SWITCHES 0` ile derlenir; o zaman araba elle ortaya konup durağanken basılır, o nokta x = 0 olur.) **Bu yapılmadan BAŞLAT kabul edilmez** |
@@ -35,8 +36,8 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | **K'yı Cihaza Gönder** | Tasarım sekmesindeki güncel K ve ayarları gönderir |
 | **Açı Sıfırla (calib)** | Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur. Açılışta sarkaç sallanıyorduysa kullanılır |
 | **Sürtünme Ölç** | KALİBRE ET'ten sonra, sarkaç aşağıda dururken. Araba önce sağa sonra sola ~8 cm'er gider ve motor + kayış sürtünmesini gerilim olarak ölçer (gösterge: SÜRTÜNME ÖLÇÜMÜ, ~5 s). Sonuç penceresinde onaylanırsa T_f parametrelere yazılır ve telafi karta gönderilir; kalıcı olması için Tasarım sekmesinde **Parametre Kaydet**. Eğim satırı motor sabitlerinin kontrolüdür: ölçülen ile model çok farklıysa motor değerleri gözden geçirilmeli |
-| **Kaydı Başlat** | Telemetriyi `kayitlar/` klasörüne yazar: sanal ESP32'de `sim_….csv`, gerçek kartta `gercek_….csv`. Kaynak dosyanın başında da yazar (Excel/Matlab ile açılır) |
-| **Sarkacı Dürt** | Yalnız simülasyonda: sarkaca darbe verir, LQR'ın toparlamasını görmek için |
+| **● Kaydı Başlat** | Telemetriyi `kayitlar/` klasörüne yazar: sanal ESP32'de `sim_….csv`, gerçek kartta `gercek_….csv`. Kaynak dosyanın başında da yazar (Excel/Matlab ile açılır) |
+| **Dürt** + kuvvet, süre, yer | Yalnız simülasyonda: girilen yatay kuvveti (N) verilen süre (ms) boyunca uygular, LQR'ın toparlamasını görmek için. Yer **sarkaca** (ağırlık merkezine) veya **arabaya** (Matlab'daki "Apply push" ile aynı). Varsayılan 1.2 N × 50 ms sarkaca: θ̇'yi ~1 rad/s değiştirir |
 | **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
 | **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik) durağan koyar. Kalibre edildiyse araba x = 0 noktasına gelir, kalibrasyonun tekrarı gerekmez |
 | Hedef + x_ref gönder | Dengedeyken arabanın gideceği konum (ray sınırına göre kısıtlanır) |
@@ -64,14 +65,28 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 
 Q[θ]'yı büyütmek açıyı daha sıkı tutar; Q[x]'i büyütmek arabayı hedefe daha hızlı getirir; R'yi büyütmek motoru daha yumuşak kullanır.
 
+**Swing-up ve geçiş** grubu:
+- `k_E`, `a_max`, `k_x`, `k_v`: swing-up enerji kazancı, ivme sınırı ve arabayı ortada tutan kazançlar.
+- **Hedef enerji oranı** (`E_ratio`): swing-up'ın hedeflediği enerji / dik konum enerjisi. 1 = tam dik konum; 1'den büyükse sarkaç dik konuma daha hızlı gelir.
+- **LQR devreye girme** şartları: açı \|θ\| < sınır **ve** açısal hız, araba konumu \|x\| ve araba hızı sınırların altında. Araba konum/hız sınırlarının varsayılanları (0.4 m, 2 m/s) geçişi kısıtlamaz; gerçek denemelerde daraltılabilir.
+- **LQR bırakma**: \|θ\| bu değeri aşınca swing-up'a dönülür (histerezis).
+
+Bu ayarlar **Cihaza Gönder** ile karta gider ve **gains.h Dışa Aktar** ile firmware'e gömülür.
+
 ## 4. Analiz ve Simülasyon sekmesi
 
 ### Lineer olmayan simülasyon
 ![Simülasyon](media/simulasyon.png)
 
-Başlangıç açısı (180° = aşağıda), süre, gerçekçi sensör (AS5600 12-bit, türevle hız), gürültü, gecikme, dürtme anı/kuvveti ve **model uyumsuzluğu** (gerçek sistem tasarımdan %X farklı) seçilip **▶ Simüle Et**'e basılır. Sonuç θ, x, u ve mod grafikleriyle gelir; sağda **▶ Oynat** ile animasyon izlenir (hız 0.25x–2x). Solda özet: LQR'ın ilk devreye girdiği an, en büyük |x| (ray sınırına göre), en büyük |u|.
+Başlangıç açısı (180° = aşağıda), başlangıç konumu x₀ ve hızları ẋ₀, θ̇₀, süre, gerçekçi sensör (AS5600 12-bit, 48 CPR enkoder), **Kalman filtresi** (dik bölgede hız Kalman ile kestirilir; firmware'deki gibi varsayılan açık, kapatılırsa yalnız 25 Hz türev filtresi), gürültü, gecikme, dürtme anı/kuvveti/süresi/yeri (sarkaca veya arabaya) ve **model uyumsuzluğu** (gerçek sistem tasarımdan %X farklı) seçilip **▶ Simüle Et**'e basılır. Sonuç θ, x, u ve mod grafikleriyle gelir; sağda **▶ Oynat** ile animasyon izlenir (hız 0.25x–2x). Solda özet: LQR'ın ilk devreye girdiği an, en büyük |x| (ray sınırına göre), en büyük |u|.
 
 Gerçek parametreler gelince **ilk iş** buradan θ₀ = 180° ile denemektir: son mod BALANCE olmalı ve max |x| ray sınırının altında kalmalı.
+
+**Matlab uyumlu** kutusu, mekatronik ekibinin `cart_pendulum_application.m` denemesini Python'da tekrarlar: sürekli zamanlı LQR, kuvvet girişi (motor yok), ideal sensör, 2.5 ms RK4; araba ±0.2 m'ye ulaşınca veya \|θ\| ≥ 90° olunca deneme durur. Swing-up yoktur (θ₀ 90°'den küçük olmalı); dürtme Matlab'daki gibi arabaya uygulanır.
+- **Matlab'ın kendi ayarlarıyla** (varsayılan): `cart_pendulum_lqr.m`'deki parametreler, Q, R ve ±10 N kuvvet sınırı kullanılır; sonuç ve K Matlab'ınkiyle karşılaştırılabilir.
+- Kapatılırsa projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır, kuvvet sınırı yoktur; o zaman gösterilen K Matlab'ın K'sı değildir.
+
+K iki işarette de gösterilir: Matlab'da θ sola, projede sağa pozitiftir. Ayrıntı: [matlab/README.md](../matlab/README.md).
 
 ### Basamak yanıtı
 ![Basamak yanıtı](media/basamak_yaniti.png)
@@ -83,14 +98,25 @@ Araba hedef konumuna basamak verildiğinde x(t) ve θ(t) çizilir. Araba önce *
 
 Yalnız θ'ya oransal geri besleme verilseydi köklerin nasıl hareket edeceğini gösterir. Bir kök hep s = 0'da kalır (araba kontrol edilmez). Bu yüzden dört durumu da kullanan LQR seçildi.
 
-## 5. Gerçek kartla ilk deneme (özet)
+## 5. Kayıt Oynatma sekmesi
+Gerçek (veya sanal) denemenin kaydını modelle karşılaştırmak için:
+1. Soldaki listeden `kayitlar/` içindeki bir CSV'yi seçin (sekmeye geçince liste yenilenir, ↻ ile elle de) ya da **📂 CSV Seç…** ile başka bir dosya açın.
+2. **▶ Karşılaştır / Yenile**: kaydın BAŞLAT anındaki durumundan (hızlar dahil) aynı ayarlarla simülasyon yapılır.
+   - **Kayıttaki model ve K ayarlarını kullan**: kayıt başlığındaki parametreler ve o ana kadar cihazın onayladığı ayarlar kullanılır; deneme sırasında değişen ayarlar uyarı olarak yazılır. Kapatılırsa arayüzdeki güncel ayarlar kullanılır.
+   - **Yalnız aktif denemeyi hizala**: yalnız BAŞLAT → bitiş aralığı gösterilir; kapatılırsa kaydın tamamı gösterilir, simülasyon BAŞLAT anına hizalanır.
+   - **Gerçekçi sensör** ve **Kalman** kutuları Analiz sekmesindekiyle aynı anlamdadır.
+3. θ, x, u, enerji ve mod grafiklerinde kayıt düz, simülasyon kesikli çizilir; özet kutusunda RMSE(θ, x, u) ve en büyük hatalar yazar. **▶ Oynat** kaydı zaman damgalarına göre 0.25x–2x hızla canlandırır.
+
+RMSE büyükse önce parametreleri (özellikle motor değerleri ve sürtünme) gözden geçirin.
+
+## 6. Gerçek kartla ilk deneme (özet)
 1. Firmware'i yükleyin (`firmware/esp32_pendulum/README.md`), sarkaç aşağıda ve hareketsizken kartı açın.
 2. [protokol.md](protokol.md) §2'deki işaret kontrolünü yapın (θ ve x yönleri, motor yönü).
 3. Arayüzde portu seçip Bağlan → KALİBRE ET. Donanımsal acil stop olmadığı için bir eliniz Esc'de, motor beslemesinin fişi/anahtarı da erişebileceğiniz yerde olsun (Esc yalnız kart ve bağlantı çalışırken etkilidir).
 4. **Swing-up açık** kutusunu kaldırın, BAŞLAT'a basın, sarkacı elle dik tutup bırakın: yalnız LQR'ı deneyin.
-5. Sonra swing-up'ı açıp aşağıdan deneyin. Kayıt alıp simülasyonla karşılaştırın.
+5. Sonra swing-up'ı açıp aşağıdan deneyin. Kayıt alıp **Kayıt Oynatma** sekmesinde simülasyonla karşılaştırın.
 
-## 6. Sık karşılaşılanlar
+## 7. Sık karşılaşılanlar
 | Belirti | Sebep / çözüm |
 |---|---|
 | BAŞLAT'a basınca "✗ start: önce home" | Önce KALİBRE ET |

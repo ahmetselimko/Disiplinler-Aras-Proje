@@ -14,7 +14,7 @@ aşağıda durağan konumda −2mgl J olur. Canlı grafik PC model parametreleri
 uyumsuzluk simülasyonu gerçek tesis parametrelerini kullanır. Gerçek fiziksel
 parametreler ölçülene kadar canlı enerji, modelden hesaplanan bir tahmindir.
 
-Mod grafikleri IDLE, HOMING, WAIT, SWING_UP, BALANCE ve FAULT'u ayrı değerlerle,
+Mod grafikleri IDLE, HOMING, WAIT, SWING_UP, BALANCE, FAULT ve FRICTION'ı (sürtünme ölçümü) ayrı değerlerle,
 basamak biçiminde gösterir. Enerji grafiğindeki kesikli çizgi 0 J hedefidir.
 
 ## #6 — Deneme özeti ve kayıt
@@ -50,7 +50,7 @@ tasarım değerlerinden farklı olabilir; fiziksel parametreler firmware'e otoma
 
 ```python
 import pandas as pd
-data = pd.read_csv("kayitlar/oturum_....csv", comment="#")
+data = pd.read_csv("kayitlar/sim_....csv", comment="#")   # gerçek kartta: gercek_....csv
 ```
 
 ## #13 — Parametre hassasiyeti
