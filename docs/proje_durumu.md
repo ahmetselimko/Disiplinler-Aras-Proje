@@ -122,7 +122,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 * **Firmware gerçek kartta hiç denenmedi.** Derlendiği doğrulandı; donanıma özgü sorunlar (pin seçimi, sürücü davranışı, enkoder gürültüsü) olabilir.
 * **Parametreler yer tutucu.** Swing-up kazançları ve LQR ağırlıkları gerçek değerlerle yeniden ayarlanmalı.
 * **Motor kararı kritik:** düşük devirli bir redüktörle swing-up fiziksel olarak mümkün olmayabilir.
-* **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. Gerekirse Kalman filtresi (kütüphanede hazır) firmware'e taşınabilir.
+* **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. **Çözüldü (#14):** dik bölgede Kalman filtresi kullanılıyor; simülasyonda σ(u) 0.63 V → 0.21 V. Firmware'de `USE_KALMAN 0` ile kapatılabilir (bkz. `docs/katki_14_15.md`).
 * **Step motor desteği yarım:** modelde ve simülasyonda var, firmware'de yok.
 * **Model sadeleştirmeleri:** kayış esnekliği ve motor endüktansı ihmal ediliyor; motorun kuru (Coulomb) sürtünmesi `T_f`, viskoz sürtünmesi `B_m` ve rotor ataleti simülasyonda var ama değer girilene kadar 0 (Coulomb sürtünmesi LQR tasarımında ihmal edilir). Gerçek sistemde kazançlar biraz farklı çıkabilir.
 * **Donanımsal acil stop yok:** limit switch'ler ve yazılımsal ray sınırı motoru ESP32 üzerinden durdurur. Firmware takılırsa veya sürücü arızalanırsa (motoru tam güçte bırakırsa) arabayı hiçbir şey durdurmaz. Motor beslemesine elle kesilebilen bir anahtar/fiş önerilir.
@@ -145,13 +145,13 @@ Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutuc
 | 1 | ~~**Motor karşılaştırması**~~ ✔ *yapıldı* | `python tools/motor_karsilastirma.py` tüm adaylarla θ₀ = 180° swing-up'ı dener; sonuç ve tablo issue #7'de | Gerçek ölçüler gelince aynı betik yeniden çalıştırılır |
 | 2 | ~~**Firmware'i derlemek**~~ ✔ *yapıldı* | Core 3.3.12 ve 2.0.17 ile hatasız derleniyor; sürümler `firmware/esp32_pendulum/README.md`'de | Derleme her push'ta GitHub Actions'ta tekrarlanıyor |
 | 3 | **Hassasiyet analizi** | Simülasyonda her parametre (m, M, l, b, c, motor sabitleri) ±%10–30 bozulup swing-up ve dengenin sürüp sürmediği denenir (`tests/test_control.py::test_swing_up_robust_to_model_mismatch` örnek alınabilir) | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
-| 4 | **Kalman filtresi** | `pendulum_lab/filters.py::KalmanFilter` ile hız kestirimi simülasyonda denenir, motor gerilimi titreşimi ölçülür, sonra firmware'e taşınır | Dengedeki ±1–1.5 V titreşimi azaltır. Gerçek değerler gelince yalnızca sayılar değişir |
-| 5 | **Kayıt oynatma sekmesi** | Arayüze CSV kaydını açıp aynı başlangıç koşullu simülasyonla üst üste çizen bir sekme eklenir; sanal cihazdan alınan kayıtla denenir | Gerçek denemeler başlayınca modelin doğrulanmasını kolaylaştırır |
+| 4 | ~~**Kalman filtresi**~~ ✔ *yapıldı (#14)* | `pendulum_lab/filters.py::KalmanFilter` ile hız kestirimi simülasyonda denenir, motor gerilimi titreşimi ölçülür, sonra firmware'e taşınır | Dengedeki ±1–1.5 V titreşimi azaltır. Gerçek değerler gelince yalnızca sayılar değişir |
+| 5 | ~~**Kayıt oynatma sekmesi**~~ ✔ *yapıldı (#15)* | Arayüze CSV kaydını açıp aynı başlangıç koşullu simülasyonla üst üste çizen bir sekme eklenir; sanal cihazdan alınan kayıtla denenir | Gerçek denemeler başlayınca modelin doğrulanmasını kolaylaştırır |
 | 6 | **Masada sensör testi** *(elde ESP32 + AS5600 varsa)* | Mekanizma olmadan ESP32'ye AS5600 bağlanıp açı okuma ve arayüzle haberleşme gerçek kartla denenir | Firmware'in sensör ve haberleşme kısmı donanım gelmeden doğrulanır |
 
 ### Bilgisayar ekibi (veri geldikten sonra)
 1. Gerçek parametreler gelince: K'yı yeniden hesaplamak, aşağıdan swing-up simülasyonunu tekrarlamak, gerekirse swing-up kazançlarını ayarlamak, `gains.h` üretmek.
 2. İlk donanım denemesinde mekatronik ekiple birlikte olmak; CSV kayıtlarından simülasyonla gerçek davranışı karşılaştırıp modeli düzeltmek (sürtünme vb.).
-3. Titreşim sorun olursa firmware'e Kalman filtresi eklemek.
+3. Kalman filtresinin (#14) gerçek kartta titreşimi azalttığını doğrulamak; model tutmazsa `USE_KALMAN 0` ile kapatıp parametreleri düzeltmek.
 4. Step motor seçilirse firmware'in motor sürme kısmını yazmak.
 5. İsteğe bağlı: Wi-Fi/WebSocket ile kablosuz telemetri (ESP32'de mümkün), otomatik parametre tanılama (kayıttan m, b, c tahmini).

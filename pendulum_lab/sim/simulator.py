@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from ..filters import VelocityEstimator
+from ..filters import KalmanFilter, VelocityEstimator
 from ..model.dynamics import accelerations, dynamics, wrap_angle
 from ..model.params import PendulumParams
 
@@ -78,12 +78,15 @@ def simulate_open_loop(p: PendulumParams, s0, T: float, u_func=None, max_step: f
 def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float = 0.002,
                          substeps: int = 4, sensor: SensorModel | None = None,
                          delay_steps: int = 0, vel_fc_hz: float = 25.0,
-                         disturbance=None, end_stops: bool = True) -> SimResult:
+                         disturbance=None, end_stops: bool = True,
+                         use_kalman: bool = True) -> SimResult:
     """controller.update(s_hat) -> (u, mode)  veya  controller(s_hat) -> u.
 
     sensor=None ise kontrolcü gerçek durumu görür (ideal). disturbance(t) -> ek kuvvet [N]
     (ör. sarkaca dürtme testi); input_mode'dan bağımsız olarak kuvvet eklenir.
     end_stops: araba ±rail_half'teki mekanik uçlarda durur (hız sıfırlanır), rayı aşamaz.
+    use_kalman: True ise (firmware gibi) dik konum bölgesinde (|θ| < release) hız Kalman filtresiyle
+    kestirilir; geniş açıda vel_fc_hz'lik türev filtresi kullanılır. Eski davranış için False verin.
     """
     n = int(round(T / dt))
     t = np.arange(n + 1) * dt
@@ -93,6 +96,10 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
     s = [float(v) for v in s0]
     vx = VelocityEstimator(dt, vel_fc_hz)
     vth = VelocityEstimator(dt, vel_fc_hz, angular=True)
+    ctrl_p = getattr(controller, "p", p)
+    kf = KalmanFilter.from_params(ctrl_p, dt) if (use_kalman and sensor is not None) else None
+    in_kf = False
+    u_prev = 0.0
     pending = [0.0] * delay_steps
     call = controller.update if hasattr(controller, "update") else (lambda z: (controller(z), "CTRL"))
     h = dt / substeps
@@ -103,13 +110,34 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
             s_hat = s
         else:
             xm, thm = sensor.measure(s)
-            s_hat = [xm, vx.update(xm), thm, vth.update(thm)]
+            if k == 0:                       # başlangıç hızı ilk adımda kaybolmasın (kayıttan oynatma)
+                vx.prime(xm, float(s0[1]))
+                vth.prime(thm, float(s0[3]))
+            dx_lp = vx.update(xm)
+            dth_lp = vth.update(thm)
+            if kf is not None:
+                cur_mode = getattr(controller, "mode", "BALANCE")
+                mode_name = getattr(cur_mode, "value", cur_mode)
+                release = getattr(controller, "release", math.radians(30.0))
+                if mode_name in ("SWING_UP", "WAIT", "BALANCE", "CTRL") and abs(wrap_angle(thm)) < release:
+                    if not in_kf:
+                        kf.reset([xm, dx_lp, wrap_angle(thm), dth_lp])
+                        in_kf = True
+                    else:
+                        kf.step([xm, thm], u_prev)
+                    s_hat = [xm, float(kf.s[1]), thm, float(kf.s[3])]
+                else:
+                    in_kf = False
+                    s_hat = [xm, dx_lp, thm, dth_lp]
+            else:
+                s_hat = [xm, dx_lp, thm, dth_lp]
         u, mode = call(s_hat)
         modes[k] = getattr(mode, "value", mode)
         if delay_steps:
             pending.append(u)
             u = pending.pop(0)
         U[k] = u
+        u_prev = 0.0 if modes[k] in ("IDLE", "FAULT") else u
         d = disturbance(t[k]) if disturbance else 0.0
         # firmware IDLE/FAULT'ta sürücüyü kapatır → araba serbest (0 V gibi frenlemez)
         coast = modes[k] in ("IDLE", "FAULT") and p.input_mode == "voltage"

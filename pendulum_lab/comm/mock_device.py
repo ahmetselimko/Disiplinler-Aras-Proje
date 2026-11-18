@@ -29,7 +29,7 @@ import copy
 from ..control import friction as FR
 from ..control.lqr import design_lqr
 from ..control.supervisor import Mode, Supervisor
-from ..filters import VelocityEstimator
+from ..filters import KalmanFilter, VelocityEstimator
 from ..model.dynamics import accel_to_input
 from ..model.params import PendulumParams
 from ..sim.simulator import SensorModel, rk4_step
@@ -67,6 +67,9 @@ class MockDevice:
         self.sensor = SensorModel(seed=seed)
         self.vx = VelocityEstimator(Ts)
         self.vth = VelocityEstimator(Ts, angular=True)
+        self.kf = KalmanFilter.from_params(self.sup.p, Ts)
+        self._in_kf = False
+        self._u_prev = 0.0
         self.k = 0
         self.n = 0
         self._tel_acc = 0.0
@@ -220,6 +223,9 @@ class MockDevice:
         self.s = [self.x_offset if self.homed else self.s[0], 0.0, th0, 0.0]   # ölçülen x = 0 noktası
         for est in (self.vx, self.vth):           # açı sıçraması sahte bir hız tepesi üretmesin
             est.prev, est.lp.y = None, None
+        self.kf.reset()
+        self._in_kf = False
+        self._u_prev = 0.0
 
     def _check_params(self, a: dict) -> str:
         """Firmware'deki doğrulamanın aynısı: protokol aralıkları + cihaza özgü sınırlar."""
@@ -281,6 +287,9 @@ class MockDevice:
                 self.x_offset = self.s[0] + p.rail_half   # ölçülen konum artık −rail_half
                 self._home_phase, self._home_i = 2, 0.0
                 self.vx.prev = None
+                self.kf.reset()
+                self._in_kf = False
+                self._u_prev = 0.0
                 return 0.0
             v_des = -HOME_SPEED
         else:                                 # ortaya dön
@@ -311,7 +320,18 @@ class MockDevice:
             return
         p, sup = self.p, self.sup
         xm, thm = self.sensor.measure([self.s[0] - self.x_offset, 0, self.s[2], 0])
-        s_hat = [xm, self.vx.update(xm), thm, self.vth.update(thm)]
+        dx_lp, dth_lp = self.vx.update(xm), self.vth.update(thm)
+        th_wrap = math.atan2(math.sin(thm), math.cos(thm))
+        if self.homed and sup.mode in (Mode.SWING_UP, Mode.WAIT, Mode.BALANCE) and abs(th_wrap) < sup.release:
+            if not self._in_kf:
+                self.kf.reset([xm, dx_lp, th_wrap, dth_lp])
+                self._in_kf = True
+            else:
+                self.kf.step([xm, thm], self._u_prev)
+            s_hat = [xm, float(self.kf.s[1]), thm, float(self.kf.s[3])]
+        else:
+            self._in_kf = False
+            s_hat = [xm, dx_lp, thm, dth_lp]
 
         self._s_hat = s_hat
         if sup.mode == Mode.HOMING:
@@ -328,6 +348,7 @@ class MockDevice:
         mode = sup.mode
         if mode in (Mode.IDLE, Mode.FAULT):
             u = 0.0
+        self._u_prev = u
         u_phys = u
         if mode in (Mode.IDLE, Mode.FAULT) and p.input_mode == "voltage":
             # firmware sürücüyü (EN) kapatır → motor fren yapmaz, araba serbest; zıt EMK'yı sıfırlayan gerilim
