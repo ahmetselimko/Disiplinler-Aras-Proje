@@ -103,8 +103,14 @@ class LiveTab(QtWidgets.QWidget):
         self.b_start.setStyleSheet("QPushButton{background:#27ae60;color:white;font-weight:bold}")
         self.b_calib = QtWidgets.QPushButton("Açı Sıfırla (calib)")
         self.b_calib.setToolTip("Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (yalnız IDLE)")
-        self.b_kick = QtWidgets.QPushButton("Sarkacı Dürt (yalnız simülasyon)")
-        self.b_kick.setToolTip("Sarkacın ağırlık merkezine, aşağıdaki kuvveti verilen süre boyunca yatay uygular")
+        self.b_kick = QtWidgets.QPushButton("Dürt (yalnız simülasyon)")
+        self.b_kick.setToolTip("Aşağıdaki kuvveti verilen süre boyunca yatay uygular: sarkacın ağırlık merkezine "
+                               "veya arabaya (Matlab'daki \"Apply push\" arabaya uygular)")
+        self.kick_at = QtWidgets.QComboBox()
+        self.kick_at.addItem("sarkaca", "pole")
+        self.kick_at.addItem("arabaya", "cart")
+        self.kick_at.setToolTip("sarkaca: ağırlık merkezine yatay kuvvet\n"
+                                "arabaya: arabaya yatay kuvvet (Matlab'daki \"Apply push\" ile aynı)")
         # varsayılan 1.2 N × 50 ms: eski sabit dürtmeyle (θ̇'ye +1 rad/s) aynı büyüklükte
         self.kick_F = spin(1.2, -20.0, 20.0, 2, 0.5, "N")
         self.kick_F.setToolTip("Dürtme kuvveti (+ : +x yönüne, yani sağa)")
@@ -138,7 +144,8 @@ class LiveTab(QtWidgets.QWidget):
             reset_row.addWidget(w)
         btns.addLayout(reset_row, 5, 1)
         kick_row = QtWidgets.QHBoxLayout()
-        for w in (QtWidgets.QLabel("Dürtme kuvveti:"), self.kick_F, QtWidgets.QLabel("süre:"), self.kick_dur):
+        for w in (QtWidgets.QLabel("Dürtme kuvveti:"), self.kick_F, QtWidgets.QLabel("süre:"), self.kick_dur,
+                  self.kick_at):
             kick_row.addWidget(w)
         kick_row.addStretch(1)
         btns.addLayout(kick_row, 6, 0, 1, 2)
@@ -356,8 +363,9 @@ class LiveTab(QtWidgets.QWidget):
             ln.setValue(v)
 
     def kick(self):
-        """Sanal ESP32'de sarkacı girilen kuvvet [N] ve süreyle dürt (Matlab'daki "Apply push" gibi)."""
-        self.state.send("kick", F=self.kick_F.value(), dur=self.kick_dur.value() / 1000)
+        """Sanal ESP32'de girilen kuvvet [N] ve süreyle dürt; "arabaya" seçiliyse Matlab'daki "Apply push" ile aynı."""
+        self.state.send("kick", F=self.kick_F.value(), dur=self.kick_dur.value() / 1000,
+                        at=self.kick_at.currentData())
 
     def _on_conn(self, connected: bool):
         for b in (self.b_home, self.b_calib, self.b_push, self.b_start, self.b_stop, self.b_estop, self.b_xref,
@@ -365,7 +373,7 @@ class LiveTab(QtWidgets.QWidget):
             b.setEnabled(connected)
         reader = self.state.reader
         sim = connected and isinstance(getattr(reader, "transport", None), SimTransport)
-        for w in (self.b_kick, self.kick_F, self.kick_dur, self.b_pause, self.b_reset, self.th0):
+        for w in (self.b_kick, self.kick_F, self.kick_dur, self.kick_at, self.b_pause, self.b_reset, self.th0):
             w.setEnabled(sim)
         self._stopped = False
         self._set_paused(False)                  # yeni bağlantıda sanal cihaz duraklatılmamış başlar

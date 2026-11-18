@@ -140,9 +140,9 @@ def scenario(win, st, rec: Recorder):
     yield from until(lambda: mode() == "BALANCE", 15, "Swing-up: araba ileri geri giderek sarkaca enerji pompalar", live.view)
     yield from hold(4.0, "4) |θ| < 15° olunca LQR devreye girer ve sarkacı dik tutar", live.mode_lbl)
     rec.still("canli_izleme.png")
-    yield from hold(1.0, "5) Sarkacı Dürt (yalnız simülasyonda): LQR bozulan dengeyi toparlar", live.b_kick)
+    yield from hold(1.0, "5) Dürt (yalnız simülasyonda): LQR bozulan dengeyi toparlar", live.b_kick)
     live.b_kick.click()
-    yield from hold(4.0, "5) Sarkacı Dürt (yalnız simülasyonda): LQR bozulan dengeyi toparlar", live.glw)
+    yield from hold(4.0, "5) Dürt (yalnız simülasyonda): LQR bozulan dengeyi toparlar", live.glw)
     rec.gif_on = False
 
     win.tabs.setCurrentIndex(1)

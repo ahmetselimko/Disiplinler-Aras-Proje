@@ -56,20 +56,26 @@ def cart_force(p: PendulumParams, dx: float, u: float) -> float:
     raise ValueError("acceleration modunda kuvvet tanımlı değil")
 
 
-def accelerations(p: PendulumParams, s, u: float) -> tuple[float, float]:
-    """(ẍ, θ̈) döndürür."""
+def accelerations(p: PendulumParams, s, u: float, f_cart: float = 0.0,
+                  f_pole: float = 0.0) -> tuple[float, float]:
+    """(ẍ, θ̈) döndürür.
+
+    f_cart: arabaya etkiyen ek yatay kuvvet [N] (Matlab'daki "Apply push" gibi dış itme).
+    f_pole: sarkacın ağırlık merkezine etkiyen ek yatay kuvvet [N]. Ağırlık merkezi x + l·sinθ'da
+            olduğundan genelleştirilmiş kuvvetleri: x denklemine f_pole, θ denklemine f_pole·l·cosθ.
+    """
     _, dx, th, dth = s
     sin, cos = math.sin(th), math.cos(th)
     ml = p.m * p.l
     if p.input_mode == "acceleration":
-        ddx = u
-        ddth = (ml * p.g * sin - p.c * dth - ml * cos * ddx) / p.J
+        ddx = u                                  # araba ivmesi dayatılır: araba itmesi etkisiz
+        ddth = (ml * p.g * sin - p.c * dth - ml * cos * ddx + f_pole * p.l * cos) / p.J
         return ddx, ddth
     F = cart_force(p, dx, u)
     # 2x2 kütle matrisini açık formülle çöz
     a11, a12, a22 = p.M_eff + p.m, ml * cos, p.J
-    r1 = F - p.b_cart * dx - coulomb_friction(p, dx) + ml * sin * dth * dth
-    r2 = ml * p.g * sin - p.c * dth
+    r1 = F + f_cart + f_pole - p.b_cart * dx - coulomb_friction(p, dx) + ml * sin * dth * dth
+    r2 = ml * p.g * sin - p.c * dth + f_pole * p.l * cos
     det = a11 * a22 - a12 * a12
     ddx = (a22 * r1 - a12 * r2) / det
     ddth = (a11 * r2 - a12 * r1) / det

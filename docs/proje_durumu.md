@@ -1,6 +1,6 @@
 # Proje Durum Raporu — Bilgisayar Mühendisliği Kısmı
 
-*Ters Sarkaç Disiplinlerarası Projesi · Ekim 2026*
+*Ters Sarkaç Disiplinlerarası Projesi · Ekim–Kasım 2026 (son güncelleme 18.11.2026)*
 
 Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin üzerindeki işleri, çözümün güçlü ve zayıf yönlerini ve sırada ne olduğunu özetler.
 
@@ -10,8 +10,9 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **75 otomatik test** geçiyor. Kod iki tur bağımsız incelemeden geçti: ilk turda bulunan 21 bulgu ve doğrulama turunda çıkan 6 yeni sorun düzeltildi (bkz. §4).
-* Fiziksel parametreler henüz **yer tutucu**. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
+* **217 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki ESP32 core sürümüyle derleniyor. Kod iki tur bağımsız incelemeden geçti: ilk turda bulunan 21 bulgu ve doğrulama turunda çıkan 6 yeni sorun düzeltildi (bkz. §4). 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* Fiziksel parametreler henüz **yer tutucu**. Motor olarak Pololu 25D 48 CPR seçildi ama ürün numarası/redüktör oranı teyit edilmedi; o yüzden motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
+* Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle θ işareti dışında birebir aynı (testle doğrulanıyor).
 
 **En önemli tasarım kararı:** Sarkacı dengede tutan döngü (saniyede 500 kez) **ESP32 üzerinde** çalışır, bilgisayarda değil. USB gecikmesi ve Windows'un düzensiz zamanlaması, döngü PC'de olsaydı hangi dille yazılırsa yazılsın sarkacı düşürürdü. Bilgisayar zaman açısından kritik olmayan işleri yapar: K'yı hesaplamak ve göndermek, izlemek, kaydetmek, simülasyon yapmak.
 
@@ -23,23 +24,27 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 | Modül | Ne yapar | Matlab karşılığı |
 |---|---|---|
 | `model/params.py` | Fiziksel parametreler (JSON'dan okunur). Çubuk + küre/küp uç kütleden m, l, I hesabı. Rotor ataletinin eşdeğer kütlesi | — |
-| `model/dynamics.py` | Lineer olmayan araba-sarkaç denklemleri (Lagrange). DC motor, ideal kuvvet ve step motor (ivme) girişleri | Simulink modeli |
+| `model/dynamics.py` | Lineer olmayan araba-sarkaç denklemleri (Lagrange). DC motor, ideal kuvvet ve step motor (ivme) girişleri; Coulomb sürtünmesi; arabaya veya sarkaca dış itme | Simulink modeli |
 | `model/linearize.py` | Dik konumda (θ = 0) analitik A, B ve sayısal jacobian | `jacobian` |
 | `model/motor.py` | DC motor transfer fonksiyonu, en yüksek araba hızı/kuvveti, step motor ivme sınırı | `tf` |
 | `control/lqr.py` | Sürekli ve ayrık LQR (Riccati çözümü), ZOH ayrıklaştırma | `lqr`, `dlqr`, `c2d` |
 | `control/swingup.py` | Enerji bazlı swing-up (Åström–Furuta) ve araba merkezleme | — |
-| `control/supervisor.py` | Mod makinesi: SWING_UP ↔ LQR geçişi (15°/30° histerezis), ray sınırı güvenliği | — |
+| `control/supervisor.py` | Mod makinesi: SWING_UP ↔ LQR geçişi (15°/30° histerezis; açısal hız, araba konumu ve hızı şartları), ray sınırı güvenliği | — |
+| `control/friction.py` | Sürtünme ölçümü (araba iki yönde sürülür, Coulomb sürtünmesi gerilim olarak bulunur) | — |
 | `control/pid.py` | Anti-windup'lı PID (karşılaştırma için) | `pid` |
 | `analysis/linear.py` | Durum uzayı nesnesi, kutuplar, kontrol edilebilirlik, transfer fonksiyonu, basamak yanıtı, kök eğrisi | `ss`, `eig`, `ctrb`, `step`, `rlocus` |
-| `sim/simulator.py` | Lineer olmayan simülasyon: ESP32 gibi 500 Hz ayrık kontrol, AS5600 12-bit kuantalama, gürültü, gecikme, dürtme, ray uçları | `ode45` |
-| `filters.py` | Türevden hız kestirimi (25 Hz), Butterworth, Kalman | `butter`, `kalman` |
+| `analysis/summary.py`, `analysis/sensitivity.py` | Deneme özeti (dengeye geçiş, oturma süresi, doyum); parametre hassasiyet taraması | — |
+| `sim/simulator.py` | Lineer olmayan simülasyon: ESP32 gibi 500 Hz ayrık kontrol, AS5600 12-bit ve 48 CPR enkoder kuantalaması, Kalman, gürültü, gecikme, dürtme, ray uçları | `ode45` |
+| `sim/matlab_compat.py` | Matlab'ın θ işaretine dönüşüm (K ve durum), `cart_pendulum_application.m` ile aynı deneme | — |
+| `filters.py` | Türevden hız kestirimi (25 Hz), Butterworth, dik bölgede kararlı hal Kalman filtresi | `butter`, `kalman` |
 | `comm/` | JSON protokolü, seri port, ayrı thread'de okuyucu, sanal ESP32 | `serialport` |
-| `recorder.py`, `export.py` | CSV kayıt; ESP32 için `gains.h` üretimi | — |
+| `recorder.py`, `export.py` | CSV kayıt, kaydı okuma ve aynı başlangıç koşullu simülasyonla karşılaştırma; ESP32 için `gains.h` üretimi (K, geçiş şartları, swing-up, Kalman matrisleri) | — |
 
 ### 2.2 Arayüz (`python main.py`)
-* **Canlı İzleme:** θ, x, u kayan grafikleri, araba-sarkaç animasyonu, mod göstergesi, KALİBRE ET / BAŞLAT / DURDUR / ACİL STOP (**Esc**), hedef konum, swing-up aç/kapa, CSV kayıt, durum çubuğunda veri hızı, kayıp satır ve FPS.
-* **Model ve LQR Tasarımı:** parametre ve motor değerleri, Q/R ağırlıkları → K. Açık ve kapalı çevrim kutupları, kutup haritası, en yüksek araba hızı uyarısı, "küre mi küp mü" geometri hesaplayıcı, `gains.h` dışa aktarma.
-* **Analiz ve Simülasyon:** aşağıdan swing-up dahil lineer olmayan simülasyon ve animasyonlu tekrar oynatma, model uyumsuzluğu ve dürtme denemeleri, basamak yanıtı, kök eğrisi.
+* **Canlı İzleme:** θ, x, u, enerji ve mod kayan grafikleri, araba-sarkaç animasyonu, mod göstergesi, sonuç özeti, KALİBRE ET / BAŞLAT / DURDUR / ACİL STOP (**Esc**), hedef konum, swing-up aç/kapa, sürtünme ölçümü, CSV kayıt; simülasyonda kuvvet/süre/yer (sarkaç veya araba) seçilebilen dürtme, duraklat ve sıfırla; durum çubuğunda veri hızı, kayıp satır ve FPS.
+* **Model ve LQR Tasarımı:** parametre (g dahil) ve motor değerleri, Q/R ağırlıkları → K. Açık ve kapalı çevrim kutupları, kutup haritası, en yüksek araba hızı uyarısı, swing-up ayarları (hedef enerji oranı) ve LQR'a geçiş şartları, "küre mi küp mü" geometri hesaplayıcı, `gains.h` dışa aktarma.
+* **Analiz ve Simülasyon:** aşağıdan swing-up dahil lineer olmayan simülasyon (başlangıç hızları, Kalman aç/kapa) ve animasyonlu tekrar oynatma, model uyumsuzluğu ve dürtme denemeleri, Matlab uyumlu deneme, basamak yanıtı, kök eğrisi.
+* **Kayıt Oynatma:** CSV kaydını aynı başlangıç koşullu simülasyonla üst üste çizer, RMSE verir; gerçek denemelerde modeli doğrulamak için.
 * Bağlanınca cihazın kontrol periyodunu (Ts) sorar. Tasarımdakiyle eşleşirse K ve tüm ayarları otomatik yükler, eşleşmezse K göndermeyi reddeder. Cihaz resetlenirse ayarları yeniden yükler.
 
 ### 2.3 Sanal ESP32
@@ -54,7 +59,11 @@ Mekatronik ekibe başlangıç noktası. İki FreeRTOS görevi var: 500 Hz kontro
 | `protokol.md` | **İki ekip** | Haberleşme sözleşmesi: mesajlar, komutlar, mod makinesi, işaret kontrolü |
 | `parametre_tablosu.md` | **Mekatronik ekibi** | Doldurulacak ölçü tablosu ve nasıl ölçüleceği |
 | `mimari.md` | Bilgisayar ekibi | Neden döngü ESP32'de, thread yapısı, katmanlar |
-| `matlab_karsiliklari.md` | Herkes | Matlab fonksiyonu → kütüphanedeki karşılığı |
+| `matlab_karsiliklari.md` | Herkes | Matlab fonksiyonu → kütüphanedeki karşılığı; mekatronik Matlab modeliyle karşılaştırma |
+| `kullanim_kilavuzu.md` | Herkes | Ekran görüntülü arayüz anlatımı |
+| `katki_3_6_13.md`, `katki_14_15.md` | Bilgisayar ekibi | Enerji grafiği, deneme özeti, hassasiyet analizi; Kalman ve kayıt oynatma ayrıntıları |
+| `hassasiyet_raporu.md` | Herkes | Parametre hassasiyet taramasının sonuçları (02.11.2026'da, Kalman eklenmeden önce üretildi) |
+| `../matlab/README.md` | İki ekip | Matlab dosyaları, θ işareti farkı, K dönüşümü |
 
 ---
 
@@ -67,7 +76,7 @@ Toplantı notları ve tahtadaki plana göre:
 | **Mekanik tasarım:** tabla mekanizması, kayış-kasnak, sigma profil çerçeve, rulman ve köşebentler | Inventor modeli hazırlanıyor | Bittiğinde m, M, l ve atalet `parametre_tablosu.md`'ye girilecek. Inventor "Physical" sekmesi I değerini doğrudan verir |
 | **Motor seçimi** | **Seçildi (16.11.2026): Pololu 25D 12V, 48 CPR enkoderli, "251 RPM"**. Redüktör oranı/ürün numarası teyit edilmeli: Pololu'nun 12V 25D listesinde tam 251 RPM'lik model yok | **25D simülasyonu (yer tutucu sarkaç/araba değerleriyle, 4 olası model × 20/40/60 diş × iki ray × iki J_rotor × sürtünmeli/sürtünmesiz):** hiçbir 25D seçeneği 37D 10:1 + 40 diş kadar sağlam değil. En iyisi **HP 34:1 (#4844) + 60 diş: 6/8** (±0.4 m rayda 4/4, ±0.2 m rayda 2/4); 40 dişle HP 34:1 ve MP 34:1 5/8, LP 20.4:1 4/8, HP 47:1 1/8; 20 dişle hepsi 0–2/8 (araba ≤ 0.21 m/s, sarkaç kalkmıyor). Sonuç: **büyük kasnak (60 diş) ve uzun ray (±0.4 m)** gerekli; kısa rayda araba raydan taşıyor. Swing-up kazançları 37D için ayarlanmıştı, 25D'ye göre yeniden ayarlanınca sonuç iyileşebilir. Gerçek ölçüler ve kesin model gelince `python tools/motor_karsilastirma.py --sadece 25D` yeniden çalıştırılmalı. *Önceki karşılaştırma (37D / Pololu 35 / NEMA17):* **Öneri: 37D 10:1 + GT2 40 diş** (~1.4 m/s), en sağlam görünen seçenek: sürtünmeli/sürtünmesiz, iki ray boyu ve bilinmeyen rotor ataletinin en kötü değerinde 8/8 dengeye geldi. Yakın alternatifler var: 37D 10:1 + 20/60 diş, 19:1 + 40/60 diş ve 30:1 + 60 diş 7/8 (her koşul bir kez denendiği için fark tek deneme). 37D 30:1 + 20 diş (~0.2 m/s) yetersiz. **Şart:** "sürtünmeli" denemelerde telafi gerçek T_f ile açık, yani sürtünmenin yazılımda doğru bilindiği varsayılıyor; T_f = 0 kalırsa sarkaç kalkmıyor (#30) — sürtünme **Sürtünme Ölç** ile ölçülmeli. Toplantıdaki "Pololu 35" için iki 35:1 motor denendi (zayıf, 0–3/4), ama hangi motorun kastedildiği ve bu motorların değerleri **doğrulanmadı**; mekatroniğe sorulmalı. NEMA17 (#1200) torku yetiyor ama ±0.2 m rayda yakalama sonrası raydan taşıyor; seçilirse giriş türü "acceleration" olur, step sürücü gerekir ve firmware'in motor kısmı yeniden yazılmalıdır |
 | **Sarkaç kütlesi: küp mü küre mi** | Karar verilmedi | Geometri hesaplayıcı ikisini karşılaştırır. Uzun çubukta fark küçüktür; belirleyici olan ağırlık merkezi uzaklığı l'dir. Montaj kolaylığına göre seçilebilir |
-| **Sistem modelleme ve lineerleştirme** (θ = 0'da, parametrik) | Ekip toplantıda yoktu | Kütüphanede hazır ve testli (analitik + sayısal jacobian). Mekatronik ekibin Matlab sonuçlarıyla karşılaştırılması faydalı olur |
+| **Sistem modelleme ve lineerleştirme** (θ = 0'da, parametrik) | Matlab dosyaları geldi (`matlab/`) | Kütüphanede hazır ve testli (analitik + sayısal jacobian). Mekatronik ekibin Matlab modeliyle doğrusal ve doğrusal olmayan denklemler θ işareti dışında birebir aynı (`tests/test_matlab_compat.py`). İşaret kuralı henüz birleştirilmedi (#1): Matlab'da θ sola, projede sağa pozitif; K'yı dönüştürmek için `gain_from_matlab` |
 | **Kontrol:** LQR kararı, enerji bazlı swing-up araştırması | LQR seçildi, swing-up araştırılacak | İkisi de uygulandı ve simülasyonda çalışıyor: aşağıdan ~4 s'de kalkış, ±0.2 m ray kullanımı, %20 model hatasında da yakalama. Kazançlar araştırmaya başlangıç noktası olarak kullanılabilir |
 | **Sensör / mikrodenetleyici / sürücü** | **Kesinleşti (16.11.2026):** ESP32, AS5600, BTS7960 | Firmware zaten bunlara göre yazılmıştı; değişiklik gerekmedi |
 | **Limit switch** | **Takılacak** (17.11.2026). Tipi (NC/NO) ve pinleri teyit edilmeli | Firmware varsayılanı `LIMIT_SWITCHES 1`: switch'le otomatik homing ve switch korumaları. NC önerilir; NO ise `LIM_PRESSED = LOW`. Switch'ler takılmadan denenecekse `LIMIT_SWITCHES 0` (elle ortalama) |
@@ -104,6 +113,15 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 * **Bozuk parametre dosyası:** arayüz çökmüyor, varsayılanlarla açılıp uyarı veriyor.
 * **Esc:** dosya diyaloglarında da acil stop çalışıyor.
 
+### 4.1 Belge–kod karşılaştırması (18.11.2026)
+Son PR'lar (#35, #36, #37) yapay zekâ araçlarıyla hazırlandığı için, eski belgelere göre yazılmış kod olabileceği düşünülerek belgelerdeki her somut iddia ayrı bir ajanla koda karşı denetlendi. Bulunan kod tutarsızlıkları düzeltildi:
+* **Enkoder çözünürlüğü:** simülasyon, sanal ESP32 ve kayıt oynatma arabanın konumunu eski 37D enkoderiyle ölçüyordu; firmware ve Kalman 48 CPR kullanıyordu. Artık hepsi firmware'deki formülü kullanıyor.
+* **Dürtme:** Canlı sekmedeki dürtme "Matlab'daki Apply push gibi" diye anlatılıyordu ama sarkaca uygulanıyordu; Matlab arabaya uygular. Artık yer seçilebiliyor ve itme hareket denklemlerine tam olarak giriyor.
+* **Matlab uyumlu deneme:** Matlab'ın parametreleri, Q, R'si ve ±10 N kuvvet sınırı yoktu; eklendi.
+* **Motor varsayılanları:** `params.py` ile `params.json` farklı yer tutucular kullanıyordu; eşitlendi. `gains.h` güncel dışa aktarımla yeniden üretildi.
+
+Küçük, bilinen farklar: sanal ESP32'de homing yol sınırı hatası, sürtünme ölçümündeki switch denetimi ve açılıştaki `calib` olayı yok (firmware'de var). `hassasiyet_raporu.md` Kalman'dan önce üretildi, yeniden üretilmesi gerekiyor.
+
 ---
 
 ## 5. Artılar
@@ -111,7 +129,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 * **Doğru mimari:** zaman kritik döngü mikrodenetleyicide; PC tarafının hızı dengeyi etkilemez.
 * **Donanımsız geliştirme:** sanal ESP32 sayesinde arayüz, protokol ve kontrol mantığı kart gelmeden uçtan uca denendi.
 * **Tek kaynaktan tutarlılık:** aynı kontrol mantığı Python'da, sanal cihazda ve firmware'de var. Parametre aralıkları ve komut listesi testle eşleştiriliyor.
-* **Gerçekçi simülasyon:** 12-bit sensör kuantalaması, türevle hız kestirimi, gecikme, gürültü ve model uyumsuzluğu dahil. Swing-up kazançları ±0.4 m'lik kısa ray için taranarak seçildi.
+* **Gerçekçi simülasyon:** 12-bit açı ve 48 CPR enkoder kuantalaması, türevle ve Kalman ile hız kestirimi, gecikme, gürültü ve model uyumsuzluğu dahil. Swing-up kazançları ±0.4 m'lik kısa ray için taranarak seçildi.
 * **Doğrulanmış matematik:** LQR sonuçları python-control ile aynı; analitik model sayısal jacobian ile aynı; bağımsız incelemede türetmeyle de karşılaştırıldı.
 * **Güvenlik öncelikli:** homing yapılmadan başlatılamaz; ray sınırı, limit switch, sensör hatası ve acil stop'ta motor kapanır. Esc tuşu her pencerede acil stop'tur.
 * **Kolay güncelleme:** gerçek ölçüler gelince yalnızca `config/params.json` değişir; K, simülasyon ve `gains.h` arayüzden tek tuşla yenilenir.
@@ -121,7 +139,7 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 
 * **Firmware gerçek kartta hiç denenmedi.** Derlendiği doğrulandı; donanıma özgü sorunlar (pin seçimi, sürücü davranışı, enkoder gürültüsü) olabilir.
 * **Parametreler yer tutucu.** Swing-up kazançları ve LQR ağırlıkları gerçek değerlerle yeniden ayarlanmalı.
-* **Motor kararı kritik:** düşük devirli bir redüktörle swing-up fiziksel olarak mümkün olmayabilir.
+* **Motor değerleri teyit bekliyor:** Pololu 25D seçildi ama ürün numarası/redüktör oranı bilinmiyor; model hâlâ 37D yer tutucusuyla çalışıyor. 25D simülasyonunda (§3) büyük kasnak ve uzun ray gerekiyor; düşük devirli bir redüktörle swing-up fiziksel olarak mümkün olmayabilir.
 * **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. **Çözüldü (#14):** dik bölgede Kalman filtresi kullanılıyor; simülasyonda σ(u) 0.63 V → 0.21 V. Firmware'de `USE_KALMAN 0` ile kapatılabilir (bkz. `docs/katki_14_15.md`).
 * **Step motor desteği yarım:** modelde ve simülasyonda var, firmware'de yok.
 * **Model sadeleştirmeleri:** kayış esnekliği ve motor endüktansı ihmal ediliyor; motorun kuru (Coulomb) sürtünmesi `T_f`, viskoz sürtünmesi `B_m` ve rotor ataleti simülasyonda var ama değer girilene kadar 0 (Coulomb sürtünmesi LQR tasarımında ihmal edilir). Gerçek sistemde kazançlar biraz farklı çıkabilir.
@@ -131,11 +149,10 @@ Kod, yazandan bağımsız bir yapay zekâ ajanına inceletildi. Ajan fizik denkl
 ## 7. Yapılması gerekenler
 
 ### Mekatronik ekibi
-1. Motor + redüktör + kasnak kararı. Tasarım sekmesindeki "en yüksek araba hızı" ≥ ~1 m/s olmalı.
+1. Seçilen Pololu 25D motorun ürün numarası/redüktör oranı ve kasnak kararı. Tasarım sekmesindeki "en yüksek araba hızı" ≥ ~1 m/s olmalı.
 2. Mekanik tasarım bitince `docs/parametre_tablosu.md`'yi doldurmak (m, M, l, I, sürtünmeler, motor sabitleri, rotor ataleti).
-3. Homing önerisini (`protokol.md` §6) onaylamak veya değiştirmek.
-4. Firmware'i derleyip pinleri donanıma uyarlamak; ilk açılış kontrol listesini uygulamak (`firmware/esp32_pendulum/README.md`): işaret kontrolü → homing → yalnız LQR → swing-up.
-5. NC limit switch'ler (takılacak; tip ve pinler teyit edilmeli) ve motor beslemesini elle kesmenin kolay bir yolu (acil stop butonu olmayacak).
+3. Firmware'i karta yükleyip pinleri donanıma uyarlamak; ilk açılış kontrol listesini uygulamak (`firmware/esp32_pendulum/README.md`): işaret kontrolü → homing → yalnız LQR → swing-up.
+4. NC limit switch'ler (takılacak; tip ve pinler teyit edilmeli) ve motor beslemesini elle kesmenin kolay bir yolu (acil stop butonu olmayacak).
 
 ### Şimdi başlanabilecek işler (mekatronik verisi beklemeyen)
 Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutucu değerlerle hemen yapılabilir. Projeye yeni katılanlar için iyi bir başlangıçtır. İlk ikisi önceliklidir.
@@ -144,10 +161,11 @@ Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutuc
 |---|---|---|---|
 | 1 | ~~**Motor karşılaştırması**~~ ✔ *yapıldı* | `python tools/motor_karsilastirma.py` tüm adaylarla θ₀ = 180° swing-up'ı dener; sonuç ve tablo issue #7'de | Gerçek ölçüler gelince aynı betik yeniden çalıştırılır |
 | 2 | ~~**Firmware'i derlemek**~~ ✔ *yapıldı* | Core 3.3.12 ve 2.0.17 ile hatasız derleniyor; sürümler `firmware/esp32_pendulum/README.md`'de | Derleme her push'ta GitHub Actions'ta tekrarlanıyor |
-| 3 | **Hassasiyet analizi** | Simülasyonda her parametre (m, M, l, b, c, motor sabitleri) ±%10–30 bozulup swing-up ve dengenin sürüp sürmediği denenir (`tests/test_control.py::test_swing_up_robust_to_model_mismatch` örnek alınabilir) | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
+| 3 | ~~**Hassasiyet analizi**~~ ✔ *yapıldı (#13)* | `python tools/hassasiyet_analizi.py`; sonuç `docs/hassasiyet_raporu.md`. Rapor Kalman'dan önce üretildi, **yeniden üretilmeli** | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
 | 4 | ~~**Kalman filtresi**~~ ✔ *yapıldı (#14)* | `pendulum_lab/filters.py::KalmanFilter` ile hız kestirimi simülasyonda denenir, motor gerilimi titreşimi ölçülür, sonra firmware'e taşınır | Dengedeki ±1–1.5 V titreşimi azaltır. Gerçek değerler gelince yalnızca sayılar değişir |
 | 5 | ~~**Kayıt oynatma sekmesi**~~ ✔ *yapıldı (#15)* | Arayüze CSV kaydını açıp aynı başlangıç koşullu simülasyonla üst üste çizen bir sekme eklenir; sanal cihazdan alınan kayıtla denenir | Gerçek denemeler başlayınca modelin doğrulanmasını kolaylaştırır |
-| 6 | **Masada sensör testi** *(elde ESP32 + AS5600 varsa)* | Mekanizma olmadan ESP32'ye AS5600 bağlanıp açı okuma ve arayüzle haberleşme gerçek kartla denenir | Firmware'in sensör ve haberleşme kısmı donanım gelmeden doğrulanır |
+| 6 | ~~**Matlab karşılaştırması**~~ ✔ *yapıldı (#37)* | Matlab dosyaları `matlab/`'da; doğrusal ve doğrusal olmayan model testle karşılaştırılıyor; Analiz sekmesinde Matlab uyumlu deneme | İki ekip aynı modeli kullandığından emin olur |
+| 7 | **Masada sensör testi** *(elde ESP32 + AS5600 varsa)* | Mekanizma olmadan ESP32'ye AS5600 bağlanıp açı okuma ve arayüzle haberleşme gerçek kartla denenir | Firmware'in sensör ve haberleşme kısmı donanım gelmeden doğrulanır |
 
 ### Bilgisayar ekibi (veri geldikten sonra)
 1. Gerçek parametreler gelince: K'yı yeniden hesaplamak, aşağıdan swing-up simülasyonunu tekrarlamak, gerekirse swing-up kazançlarını ayarlamak, `gains.h` üretmek.

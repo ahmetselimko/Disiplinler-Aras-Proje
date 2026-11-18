@@ -24,12 +24,12 @@ Bu belge #14 ve #15 görevleri kapsamında yapılan değişiklikleri, deneysel �
    - Gerçek kartta model tutmazsa Kalman, derlemede `#define USE_KALMAN 0` ile kapatılıp eski 25 Hz türev filtresine dönülebilir.
    - `simulate_closed_loop` varsayılan olarak (`use_kalman=True`) firmware ile aynı kestiriciyi kullanır; eski davranış için `use_kalman=False`.
 
-### Simülasyon Karşılaştırması ($\theta_0 = 180^\circ$, 15 s, $T_s = 2\text{ ms}$, `SensorModel(seed=0)`)
+### Simülasyon Karşılaştırması ($\theta_0 = 180^\circ$, 15 s, $T_s = 2\text{ ms}$, `SensorModel(seed=0)`, 48 CPR enkoder; 18.11.2026'da yeniden ölçüldü)
 
 | Yöntem | Dengeye Giriş | Dengede $\sigma(u)$ ($t \ge 10\text{ s}$) | Dengede $\max\|u\|$ | Tepeden Tepeye ($u_{\text{ptp}}$) |
 |---|---|---|---|---|
-| 25 Hz `VelocityEstimator` | 3.644 s | 0.6327 V | 1.6832 V | 3.3651 V |
-| `KalmanFilter` (dik bölgede) | 3.638 s | **0.2134 V** (**-%66**) | **0.6238 V** (**-%63**) | **1.2361 V** (**-%63**) |
+| 25 Hz `VelocityEstimator` | 3.650 s | 0.6012 V | 1.6805 V | 3.3563 V |
+| `KalmanFilter` (dik bölgede) | 3.644 s | **0.2024 V** (**-%66**) | **0.6252 V** (**-%63**) | **1.2457 V** (**-%63**) |
 
 ---
 

@@ -16,9 +16,18 @@ from scipy.linalg import solve_discrete_are
 
 
 KALMAN_QN = (1e-9, 1e-5, 1e-9, 1e-4)       # [x, dx, th, dth] süreç gürültüsü kovaryans köşegeni
-KALMAN_ENC_RES = 1.25e-4                   # varsayılan enkoder çözünürlüğü [m]
 KALMAN_TH_RES = 2 * math.pi / 4096         # 12-bit AS5600 açı çözünürlüğü [rad]
 ENC_CPR_MOTOR = 48.0                       # motor milindeki enkoder (Pololu 25D: 48 CPR, 4x); firmware'deki ENC_CPR_MOTOR ile aynı
+# motor parametresi olmayan modeller için varsayılan enkoder çözünürlüğü [m/sayım]: 48 CPR, 10:1, GT2 40 diş
+KALMAN_ENC_RES = 2 * math.pi * 0.0127 / (ENC_CPR_MOTOR * 10.0)
+
+
+def encoder_resolution(p) -> float:
+    """Araba konumunun bir enkoder sayımı [m]. Firmware'deki X_PER_COUNT ile aynı formül:
+    2π·r_kasnak / (ENC_CPR_MOTOR · redüktör). DC motorlu olmayan modelde varsayılan değer."""
+    if getattr(p, "input_mode", "") == "voltage":
+        return 2 * math.pi * p.motor.r_pulley / (ENC_CPR_MOTOR * p.motor.gear)
+    return KALMAN_ENC_RES
 
 
 def _wrap_angle(a: float) -> float:
@@ -29,11 +38,7 @@ def _kalman_noise_matrices(p, Qn, Rn) -> tuple[np.ndarray, np.ndarray]:
     """Süreç (Qn) ve ölçüm (Rn) kovaryans matrislerini hazırlar."""
     Qn_mat = np.diag(Qn) if np.ndim(Qn) == 1 else np.atleast_2d(np.asarray(Qn, float))
     if Rn is None:
-        x_res = (
-            2 * math.pi * p.motor.r_pulley / (ENC_CPR_MOTOR * p.motor.gear)
-            if getattr(p, "input_mode", "") == "voltage"
-            else KALMAN_ENC_RES
-        )
+        x_res = encoder_resolution(p)
         Rn_mat = np.diag([(x_res ** 2) / 12.0, (KALMAN_TH_RES ** 2) / 12.0])
     else:
         Rn_mat = np.diag(Rn) if np.ndim(Rn) == 1 else np.atleast_2d(np.asarray(Rn, float))

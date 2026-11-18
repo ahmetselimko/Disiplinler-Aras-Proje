@@ -25,13 +25,15 @@ BOB_SHAPES = ("point", "sphere", "cube")
 class MotorParams:
     """Redüktörlü DC motor + kayış kasnağı (input_mode='voltage' için).
 
-    Varsayılanlar Pololu 37D 12V katalog değerlerinden kabaca türetilmiş YER TUTUCULARDIR.
+    Varsayılanlar Pololu 37D 12V katalog değerlerinden türetilmiş YER TUTUCULARDIR (config/params.json ile
+    aynı; tools/motor_karsilastirma.py MOTOR_CATALOG). Seçilen motor Pololu 25D 48 CPR'dir; ürün numarası ve
+    redüktör oranı teyit edilince hem burası hem params.json güncellenmeli.
     Not: 30:1 redüktör + 20 dişli kasnakla araba en fazla ~0.2 m/s gidebilir; sarkaç için
     yetersiz. Bu yüzden yer tutucu olarak 10:1 + GT2 40 diş (~1.4 m/s) seçildi.
     """
-    R: float = 2.2          # sargı direnci [ohm]
-    Kt: float = 0.0083      # tork sabiti, motor mili [N·m/A]
-    Ke: float = 0.0109      # zıt EMK sabiti, motor mili [V·s/rad]
+    R: float = 2.18         # sargı direnci [ohm]
+    Kt: float = 0.00892     # tork sabiti, motor mili [N·m/A]
+    Ke: float = 0.01104     # zıt EMK sabiti, motor mili [V·s/rad]
     gear: float = 10.0      # redüktör oranı
     r_pulley: float = 0.0127   # kasnak yarıçapı [m] (GT2 40 diş)
     V_max: float = 12.0     # besleme gerilimi [V]

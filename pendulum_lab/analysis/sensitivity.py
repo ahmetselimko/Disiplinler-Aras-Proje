@@ -137,7 +137,7 @@ def _run_case(nominal, real, K, sim_time, dt, initial_deg, threshold_deg, hold_s
     sup.start()
     try:
         r = simulate_closed_loop(real, sup, [0., 0., math.radians(initial_deg), 0.], sim_time,
-                                 dt=dt, sensor=SensorModel(seed=0), end_stops=True)
+                                 dt=dt, sensor=SensorModel.for_params(nominal, seed=0), end_stops=True)
     except (FloatingPointError, OverflowError) as exc:
         return CaseResult(False, None, math.nan, math.nan, "HATA", "HATA", error=str(exc))
     return evaluate_result(r, nominal, threshold_deg, hold_s)

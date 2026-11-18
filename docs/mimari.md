@@ -6,8 +6,8 @@
 ┌──────────────── ESP32 (500 Hz, gerçek zamanlı) ─────────────────┐        ┌────────────── PC (Python) ───────────────┐
 │ AS5600 (I2C) ─┐                                                  │        │                                           │
 │ Enkoder (ISR) ┼─▶ durum kestirimi ─▶ Swing-up / LQR ─▶ BTS7960   │ ─JSON─▶│ okuyucu thread ─▶ halka tampon ─▶ grafik  │
-│ Limit switch ─┘     (türev+filtre)    (mod makinesi)    PWM      │  200Hz │                         (60 FPS timer)    │
-│                                                                  │◀─JSON──│ K tasarımı (LQR), komutlar, kayıt, sim.   │
+│ Limit switch ─┘  (türev+filtre,       (mod makinesi)    PWM      │  200Hz │                         (60 FPS timer)    │
+│                   dikte Kalman)                                  │◀─JSON──│ K tasarımı (LQR), komutlar, kayıt, sim.   │
 └──────────────────────────────────────────────────────────────────┘ komut  └───────────────────────────────────────────┘
 ```
 
@@ -42,7 +42,7 @@ Kütüphane (`pendulum_lab`) arayüzden bağımsızdır. Arayüz olmadan, örne�
 Paylaşılan veri `RingBuffer`'dır: kilitli, önceden ayrılmış numpy dizisi. GUI her karede yalnızca son N satırın kopyasını alır. Komut yazma (`transport.write`) kilitlidir, bu yüzden GUI'den güvenle çağrılır.
 
 ## Sanal ESP32 neden var?
-Donanım (motor, sensör, kart) henüz seçilmedi. `MockDevice`, firmware'in yapacağı her şeyi aynı protokolle yapar: homing, limit switch'ler, swing-up, LQR, sensör kuantalama. Böylece arayüz ve protokol, kart gelmeden uçtan uca geliştirilip test edilebilir. Gerçek karta geçişte arayüzde yalnızca port seçimi değişir.
+Donanım seçildi (16.11.2026: ESP32, AS5600, BTS7960, Pololu 25D 48 CPR) ama mekanizma henüz kurulmadı. `MockDevice`, firmware'in yapacağı her şeyi aynı protokolle yapar: homing (switch'li veya elle ortalama), limit switch'ler, swing-up, LQR, Kalman, sürtünme ölçümü, sensör kuantalama (12-bit açı, 48 CPR enkoder). Firmware'den küçük farkları: homing yol sınırı hatası, sürtünme ölçümünde switch denetimi ve açılıştaki `calib` olayı yok. Böylece arayüz ve protokol, kart gelmeden uçtan uca geliştirilip test edilebilir. Gerçek karta geçişte arayüzde yalnızca port seçimi değişir.
 
 ## Gerçek parametreler gelince
 1. `config/params.json` dosyasını doldurun (bkz. `parametre_tablosu.md`) veya arayüzün Tasarım sekmesinden girip kaydedin.

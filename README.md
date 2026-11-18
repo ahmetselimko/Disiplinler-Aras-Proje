@@ -12,11 +12,12 @@
 
 Mekatronik + Bilgisayar disiplinlerarası ters sarkaç projesinin yazılım tarafı:
 
-* **`pendulum_lab/`**: Matlab'in yerine geçen Python kütüphanesi. Modelleme, doğrusallaştırma, LQR, enerji bazlı swing-up, mod geçişi, simülasyon, filtreler ve seri haberleşme.
+* **`pendulum_lab/`**: Matlab'in yerine geçen Python kütüphanesi. Modelleme, doğrusallaştırma, LQR, enerji bazlı swing-up, mod geçişi, simülasyon, filtreler (türev filtresi + Kalman), seri haberleşme, kayıt ve kayıt oynatma, Matlab modeliyle uyumluluk.
 * **`gui/` + `main.py`**: Canlı izleme ve kontrol arayüzü (PyQt5 + PyQtGraph).
 * **Sanal ESP32**: donanım gelmeden arayüzün uçtan uca çalıştırılabilmesi için.
-* **`firmware/esp32_pendulum/`**: ESP32 kodu (aynı kontrol mantığı). Henüz derlenmedi ve kartta denenmedi.
-* **`docs/`**: protokol, mimari, parametre tablosu, Matlab karşılıkları, kullanım kılavuzu.
+* **`firmware/esp32_pendulum/`**: ESP32 kodu (aynı kontrol mantığı). GitHub Actions'ta iki ESP32 core sürümüyle hatasız derleniyor; **kartta henüz denenmedi**.
+* **`matlab/`**: mekatronik ekibinin Matlab/Simulink dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`). Model Python kütüphanesiyle θ işareti dışında aynıdır; bkz. [matlab/README.md](matlab/README.md).
+* **`docs/`**: protokol, mimari, parametre tablosu, Matlab karşılıkları, kullanım kılavuzu, görev katkı belgeleri.
 
 Ne yapıldı, mekatronik ekipte neler bekleniyor, artılar/eksiler ve yapılacaklar için bkz. **[docs/proje_durumu.md](docs/proje_durumu.md)**. Güncel görevler: **[Görevler](https://github.com/ahmetselimko/Disiplinler-Aras-Proje/issues)** · **[Pano](https://github.com/users/ahmetselimko/projects/4)**.
 
@@ -35,20 +36,22 @@ python main.py
 1. Port olarak **★ Sanal ESP32 (simülasyon)** seçili gelir → **Bağlan**.
 2. **KALİBRE ET (Homing)** → araba sola gider, limit switch'e dokunur, ortaya döner.
 3. **BAŞLAT** → sarkaç swing-up ile kalkar, ±15° içinde LQR devreye girer.
-4. **Sarkacı Dürt** ile dayanıklılığı deneyin. **Esc** her yerde acil stop'tur.
-5. **Duraklat** fiziği dondurur, **Sıfırla** denemeyi seçilen θ₀ açısından yeniden hazırlar. **DURDUR**'dan sonra göstergede **DURDURULDU** yazar. **Sarkacı Dürt**, **Duraklat** ve **Sıfırla** yalnız simülasyonda çalışır.
+4. **Dürt** ile dayanıklılığı deneyin: kuvvet (N), süre (ms) ve yer (**sarkaca** ya da Matlab'daki "Apply push" gibi **arabaya**) seçilir. **Esc** her yerde acil stop'tur.
+5. **Duraklat** fiziği dondurur, **Sıfırla** denemeyi seçilen θ₀ açısından yeniden hazırlar. **DURDUR**'dan sonra göstergede **DURDURULDU** yazar. **Dürt**, **Duraklat** ve **Sıfırla** yalnız simülasyonda çalışır.
+6. **● Kaydı Başlat** ile alınan CSV, **Kayıt Oynatma** sekmesinde aynı başlangıç koşullu simülasyonla üst üste çizilebilir.
 
 | Sekme | İçerik |
 |---|---|
-| Canlı İzleme | θ, x, u kayan grafikleri (60 FPS), araba-sarkaç animasyonu, komutlar, duraklat/sıfırla (simülasyon), CSV kayıt |
-| Model ve LQR Tasarımı | Parametreler, Q/R ağırlıkları → K, kutup haritası, kontrol edilebilirlik, gains.h dışa aktarma, küre/küp geometri hesaplayıcı |
-| Analiz ve Simülasyon | Lineer olmayan simülasyon (sensör kusurları, gecikme, dürtme, model uyumsuzluğu) + animasyon, basamak yanıtı, kök eğrisi |
+| Canlı İzleme | θ, x, u, enerji ve mod kayan grafikleri (60 FPS), araba-sarkaç animasyonu, deneme özeti, komutlar, kuvvet/süre/yer seçilebilen dürtme ve duraklat/sıfırla (simülasyon), CSV kayıt |
+| Model ve LQR Tasarımı | Parametreler (g dahil), Q/R ağırlıkları → K, kutup haritası, kontrol edilebilirlik, swing-up ayarları (hedef enerji oranı dahil), LQR'a geçiş şartları (açı, açısal hız, araba konumu ve hızı), gains.h dışa aktarma, küre/küp geometri hesaplayıcı |
+| Analiz ve Simülasyon | Lineer olmayan simülasyon (başlangıç konum/hızları, sensör kusurları, Kalman aç/kapa, gecikme, kuvvet/süre/yer seçilebilen dürtme, model uyumsuzluğu) + animasyon; **Matlab uyumlu** deneme (`cart_pendulum_application.m` ile aynı); basamak yanıtı, kök eğrisi |
+| Kayıt Oynatma | CSV kaydını açar; θ, x, u, enerji ve modu aynı başlangıç koşullu simülasyonla üst üste çizer, RMSE verir, 0.25x–2x animasyon |
 
 ## Gerçek sistemde kullanım
 Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kartın COM portu seçilir, denge döngüsü kartta çalışır, arayüz izler ve komut gönderir. **Ancak bu yol henüz denenmedi.** Şimdiye kadarki bütün sonuçlar simülasyondan geliyor. Gerçek sistemde çalışması için:
 
-1. Firmware derlenmeli ve karta yüklenmeli.
-2. Pinler gerçek kablolamaya uyarlanmalı. Seçilen donanım (16.11.2026): Pololu 25D 12V 48 CPR enkoderli motor, BTS7960 sürücü, AS5600 açı sensörü; kod bunlara göre yazıldı (enkoder 48 CPR). Motorun redüktör oranı/ürün numarası teyit edilmeli.
+1. Firmware karta yüklenmeli (derleme CI'da doğrulanıyor).
+2. Pinler gerçek kablolamaya uyarlanmalı. Seçilen donanım (16.11.2026): Pololu 25D 12V 48 CPR enkoderli motor, BTS7960 sürücü, AS5600 açı sensörü; kod bunlara göre yazıldı (enkoder 48 CPR, firmware ve simülasyonda aynı). **Motorun redüktör oranı/ürün numarası teyit edilmeli:** o gelene kadar `config/params.json`'daki motor değerleri (R, Kt, Ke, redüktör 10:1) eski 37D yer tutucusudur.
 3. `config/params.json` gerçek ölçülerle doldurulmalı, K yeniden hesaplanıp karta gönderilmeli.
 4. Limit switch'ler takılacak (firmware varsayılanı `LIMIT_SWITCHES 1`; switch tipi ve pinleri teyit edilmeli). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
 5. [İlk açılış kontrol listesi](firmware/esp32_pendulum/README.md#i̇lk-açılış-kontrol-listesi) sırayla uygulanmalı: işaret kontrolü → homing → yalnız LQR → swing-up.
@@ -64,23 +67,23 @@ taramasının tanımları ve çalıştırılması: **[3, 6 ve 13 numaralı göre
 ```bash
 python -m pytest -q
 ```
-Testler her push ve PR'da GitHub Actions ile de otomatik çalışır. Şunları doğrular: analitik doğrusallaştırma ile sayısal jacobian'ın eşleşmesi, LQR/DLQR sonuçlarının `python-control` ile aynı çıkması, 500 Hz ve 12-bit sensörle LQR dengesi, aşağıdan swing-up + yakalama, %20 model hatasına dayanıklılık, Coulomb sürtünmesi ve telafisi, protokol, halka tampon, kayıp satır sayımı, sanal cihazla gerçek zamanlı 500 Hz kayıpsız okuma, duraklat/sıfırla ve Canlı İzleme butonları.
+Testler her push ve PR'da GitHub Actions ile de otomatik çalışır; firmware de aynı iş akışında iki ESP32 core sürümüyle derlenir. Şunları doğrular: analitik doğrusallaştırma ile sayısal jacobian'ın eşleşmesi, LQR/DLQR sonuçlarının `python-control` ile aynı çıkması, 500 Hz ve 12-bit sensörle LQR dengesi, aşağıdan swing-up + yakalama, %20 model hatasına dayanıklılık, Coulomb sürtünmesi ve telafisi, Kalman filtresinin titreşimi azaltması, Python–firmware parametre/protokol eşliği, Matlab modeliyle (doğrusal ve doğrusal olmayan) eşleşme, kayıt oynatma, protokol, halka tampon, kayıp satır sayımı, sanal cihazla gerçek zamanlı 500 Hz kayıpsız okuma, duraklat/sıfırla ve arayüz butonları.
 
 ## Klasörler
 ```
 pendulum_lab/   model/ control/ analysis/ sim/ comm/ filters.py recorder.py export.py
-gui/            main_window, live_tab, design_tab, analysis_tab, connection_panel
+gui/            main_window, live_tab, design_tab, analysis_tab, playback_tab, connection_panel, state, widgets
 config/         params.json  (YER TUTUCU değerler — mekatronik ekibi dolduracak)
-firmware/       esp32_pendulum/ (henüz derlenmedi, kartta denenmedi)
-docs/           protokol.md · mimari.md · parametre_tablosu.md · matlab_karsiliklari.md · kullanim_kilavuzu.md · proje_durumu.md
+firmware/       esp32_pendulum/ (CI'da derleniyor, kartta denenmedi)
+matlab/         mekatronik ekibinin Matlab/Simulink dosyaları
+docs/           protokol.md · mimari.md · parametre_tablosu.md · matlab_karsiliklari.md · kullanim_kilavuzu.md · proje_durumu.md · katki_*.md
 tests/          pytest
 .github/        workflows/test.yml (GitHub Actions)
-tools/          demo_kayit.py (tanıtım videosu, GIF ve ekran görüntülerini üretir → docs/media/)
+tools/          demo_kayit.py (tanıtım videosu/GIF) · hassasiyet_analizi.py · motor_karsilastirma.py
 kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 ```
 
 ## Bekleyen işler (diğer ekipten)
 * Gerçek fiziksel parametreler → `config/params.json` (`docs/parametre_tablosu.md`).
-* Motor seçimi (DC + enkoder mi, NEMA17 mi). Step motor seçilirse `input_mode = "acceleration"`.
-* Homing'i kimin başlatacağı (öneri `docs/protokol.md` §6'da).
+* Seçilen Pololu 25D motorun ürün numarası / redüktör oranı (motor değerleri ve kazançlar buna göre yeniden hesaplanacak).
 * Montaj sonrası işaret kontrolü (`docs/protokol.md` §2).

@@ -29,7 +29,7 @@ Aynı derleme her push ve PR'da GitHub Actions'ta iki core sürümüyle tekrarla
 | Dosya | İçerik |
 |---|---|
 | `esp32_pendulum.ino` | 500 Hz kontrol görevi (çekirdek 1) + iletişim görevi (çekirdek 0) |
-| `gains.h` | LQR kazancı, eşikler, model sabitleri, redüktör oranı ve kasnak yarıçapı. PC arayüzünden üretilir (**gains.h Dışa Aktar**) |
+| `gains.h` | LQR kazancı, eşikler ve LQR'a geçiş şartları (`CATCH_*`), swing-up kazançları ve hedef enerji oranı (`SU_*`), model sabitleri, redüktör oranı ve kasnak yarıçapı, Kalman matrisleri (`KALMAN_AD/BD/L`). PC arayüzünden üretilir (**gains.h Dışa Aktar**). Eski bir `gains.h`'de olmayan değerler için `.ino`'daki `#ifndef` varsayılanları kullanılır; Kalman matrisleri yoksa Kalman uyarıyla kapalı derlenir |
 
 Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`: seçilen Pololu 25D için 48; 37D'de 64 olurdu) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
 
@@ -71,6 +71,8 @@ Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takıl
 | `FrictionTest`, `friction` komutu (sürtünme ölçümü) | `pendulum_lab/control/friction.py`, `mock_device.py` (test: `test_firmware_friction_matches_python`) |
 | `accelToVolt` (Coulomb telafisi dahil) | `pendulum_lab/model/dynamics.py::accel_to_input`, `coulomb_compensation` (test: `test_firmware_coulomb_compensation_matches_python`) |
 | `VelEst` (25 Hz) | `pendulum_lab/filters.py::VelocityEstimator` |
+| `KalmanEst` (dik bölgede, `USE_KALMAN 1`; `0` ile kapatılır) | `pendulum_lab/filters.py::KalmanFilter`, `design_kalman` (test: `test_firmware_kalman_matches_python`) |
+| `ENC_CPR_MOTOR` (48), `X_PER_COUNT` | `pendulum_lab/filters.py::ENC_CPR_MOTOR`, `encoder_resolution` (test: `test_simulated_encoder_resolution_matches_firmware`) |
 | telemetri `snprintf` biçimi | `pendulum_lab/comm/protocol.py::encode_telemetry` |
 | `PARAM_LIMITS`, komut kabul/ret kuralları | `protocol.py::SET_PARAM_LIMITS`, `mock_device.py::_handle` (test: `test_firmware_param_limits_match_python`) |
 

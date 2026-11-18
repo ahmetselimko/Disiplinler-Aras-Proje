@@ -194,4 +194,51 @@ def test_live_tab_kick_sends_force_and_duration(qapp):
     tab.kick_F.setValue(-3.0)
     tab.kick_dur.setValue(200.0)
     tab.kick()
-    assert sent == [("kick", {"F": -3.0, "dur": pytest.approx(0.2)})]
+    assert sent == [("kick", {"F": -3.0, "dur": pytest.approx(0.2), "at": "pole"})]
+    tab.kick_at.setCurrentIndex(tab.kick_at.findData("cart"))
+    tab.kick()
+    assert sent[-1] == ("kick", {"F": -3.0, "dur": pytest.approx(0.2), "at": "cart"})
+
+
+def test_push_generalized_forces():
+    """Dış itme: arabaya F → yalnız x denklemine; ağırlık merkezine F → x'e F, θ'ya F·l·cosθ (Lagrange)."""
+    from pendulum_lab.model.dynamics import accelerations
+    from pendulum_lab.sim.matlab_compat import matlab_reference_params
+    p = matlab_reference_params()                                          # kuvvet girişli, motor yok
+    s = [0.0, 0.0, 0.3, 0.0]
+    a0 = accelerations(p, s, 0.0)
+    for F in (1.0, -2.5):
+        assert accelerations(p, s, 0.0, f_cart=F) == pytest.approx(accelerations(p, s, F))   # = kontrol kuvveti
+        # ağırlık merkezine kuvvet ≡ arabaya F + sarkaca F·l·cosθ tork: θ̈ farkı doğrusal sistemden doğrulanır
+        ddx, ddth = accelerations(p, s, 0.0, f_pole=F)
+        c = math.cos(s[2])
+        M = [[p.M_eff + p.m, p.m * p.l * c], [p.m * p.l * c, p.J]]
+        lhs = [M[0][0] * (ddx - a0[0]) + M[0][1] * (ddth - a0[1]), M[1][0] * (ddx - a0[0]) + M[1][1] * (ddth - a0[1])]
+        assert lhs == pytest.approx([F, F * p.l * c])
+
+
+def test_mock_kick_to_cart_moves_cart_and_tilts_pendulum_opposite():
+    """Arabaya itme (Matlab'daki "Apply push"): araba itme yönünde hızlanır, dik sarkaç ters yöne yatar."""
+    dev, out = _device()
+    dev.s = [0.0, 0.0, 0.0, 0.0]                                          # dik, hareketsiz (kontrol kapalı)
+    dev.feed(P.encode_command("kick", F=2.0, dur=0.05, at="cart"))
+    for _ in range(int(0.05 / dev.Ts)):
+        dev.step()
+    assert _acks(out, "kick")[-1].ok
+    assert dev.s[1] > 0 and dev.s[3] < 0
+    dev.feed(P.encode_command("kick", F=1.0, dur=0.05, at="tavan"))
+    dev.step()
+    assert not _acks(out, "kick")[-1].ok                                   # bilinmeyen yer reddedilir
+
+
+def test_simulator_disturbance_target():
+    from pendulum_lab.sim.simulator import simulate_closed_loop
+    from pendulum_lab.sim.matlab_compat import matlab_reference_params
+    p = matlab_reference_params()
+    dist = lambda t: 2.0 if t < 0.05 else 0.0
+    cart = simulate_closed_loop(p, lambda s: 0.0, [0, 0, 0, 0], 0.05, disturbance=dist, disturbance_target="cart")
+    pole = simulate_closed_loop(p, lambda s: 0.0, [0, 0, 0, 0], 0.05, disturbance=dist, disturbance_target="pole")
+    assert cart.s[-1][1] > 0 and cart.s[-1][3] < 0                         # araba sağa, sarkaç sola
+    assert pole.s[-1][3] > 0                                               # sarkaç itme yönüne
+    with pytest.raises(ValueError):
+        simulate_closed_loop(p, lambda s: 0.0, [0, 0, 0, 0], 0.01, disturbance_target="tavan")
