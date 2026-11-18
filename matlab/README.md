@@ -1,6 +1,6 @@
 # Matlab / Simulink dosyaları (mekatronik ekibi)
 
-Bu klasöre mekatronik ekibinin Matlab dosyaları konacak (issue #10):
+Bu klasörde mekatronik ekibinin Matlab dosyaları bulunur (issue #10):
 
 | Dosya | Ne yapar |
 |---|---|
