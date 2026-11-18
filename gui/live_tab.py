@@ -93,6 +93,7 @@ class LiveTab(QtWidgets.QWidget):
 
         btns = QtWidgets.QGridLayout()
         self.b_home = QtWidgets.QPushButton("KALİBRE ET (Homing)")
+        self.b_home.setToolTip("Araba yavaşça sol limit switch'e gider, orayı ray ucu kabul eder ve ortaya döner")
         self.b_push = QtWidgets.QPushButton("K'yı Cihaza Gönder")
         self.b_start = QtWidgets.QPushButton("BAŞLAT")
         self.b_stop = QtWidgets.QPushButton("DURDUR")
@@ -117,7 +118,7 @@ class LiveTab(QtWidgets.QWidget):
         self.b_pause.setToolTip("Yalnız simülasyon: fizik ve kontrol donar, telemetri son değerlerle sürer")
         self.b_reset = QtWidgets.QPushButton("Sıfırla")
         self.b_reset.setToolTip("Yalnız simülasyon: BEKLEMEDE'ye döner, sarkaç θ₀ açısında durağan konur "
-                                "(homing yapıldıysa araba rayın ortasına)")
+                                "(kalibre edildiyse araba x = 0 noktasına)")
         self.th0 = spin(180.0, -180.0, 180.0, 0, 5, "°")
         self.th0.setToolTip("Sıfırlamada başlangıç açısı θ₀ (0 = dik, 180 = aşağıda)")
         self.b_rec = QtWidgets.QPushButton("● Kaydı Başlat")

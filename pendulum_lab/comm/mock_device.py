@@ -222,12 +222,12 @@ class MockDevice:
         return P.encode_ack(cmd, False, "desteklenmiyor")
 
     def _reset(self, th0: float):
-        """IDLE'a dön, duraklatmayı kaldır, sarkacı θ₀'da durağan koy; homing yapıldıysa araba rayın ortasına."""
+        """IDLE'a dön, duraklatmayı kaldır, sarkacı θ₀'da durağan koy; kalibre edildiyse araba x = 0 noktasına."""
         self.sup.stop()
         self._home_phase = 0
         self.paused = False
         self._kick_F, self._kick_left = 0.0, 0.0
-        self.s = [0.0 if self.homed else self.s[0], 0.0, th0, 0.0]
+        self.s = [self.x_offset if self.homed else self.s[0], 0.0, th0, 0.0]   # ölçülen x = 0 noktası
         for est in (self.vx, self.vth):           # açı sıçraması sahte bir hız tepesi üretmesin
             est.prev, est.lp.y = None, None
 

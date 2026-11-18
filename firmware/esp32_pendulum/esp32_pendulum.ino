@@ -55,11 +55,12 @@ static const int PIN_SDA = 21, PIN_SCL = 22;          // AS5600
 static const int PIN_ENC_A = 32, PIN_ENC_B = 33;      // motor enkoderi (10k pull-up harici)
 static const int PIN_RPWM = 25, PIN_LPWM = 26;        // BTS7960
 static const int PIN_EN = 27;                         // BTS7960 R_EN + L_EN birlikte
-// Limit switch'ler takılı mı? 0: switch yok (şu anki donanım). Homing yerine "elle ortalama": araba elle
-// ray ortasına konur, KALİBRE ET (home) o noktayı x = 0 yapar; ray güvenliğini yalnız enkoderle yazılımsal
-// sınır (SOFT_MARGIN) sağlar → ray uçlarına mekanik durdurucu/tampon konmalı. 1: switch'le otomatik homing.
+// Limit switch'ler takılı mı? 1 (şu anki donanım, 17.11.2026): switch'le otomatik homing ve switch korumaları.
+// 0: switch yok. Homing yerine "elle ortalama": araba elle ray ortasına konur, KALİBRE ET (home) o noktayı
+// x = 0 yapar; ray güvenliğini yalnız enkoderle yazılımsal sınır (SOFT_MARGIN) sağlar. Switch takılı değilken
+// 1 bırakılırsa NC ayarındaki boş pinler "basılı" okunur ve kart hemen limit hatasına düşer.
 #ifndef LIMIT_SWITCHES
-#define LIMIT_SWITCHES 0
+#define LIMIT_SWITCHES 1
 #endif
 static const int PIN_LIM_L = 18, PIN_LIM_R = 19;      // limit switch (LIMIT_SWITCHES 1). NC (normalde kapalı) önerilir:
 static const int LIM_PRESSED = HIGH;                  //   NC + INPUT_PULLUP → basılı/kopuk kablo = HIGH (güvenli)
@@ -70,7 +71,7 @@ static const char *FW_NAME = "ref-1.1";
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
-static const float ENC_CPR_MOTOR = 64.0f;             // motor milindeki enkoder (37D: 64 CPR, 4x). Motor değişirse düzenleyin
+static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder (Pololu 25D: 48 CPR, 4x; 37D olsaydı 64). Motor değişirse düzenleyin
 // redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
 static const float ENC_COUNTS_PER_REV = ENC_CPR_MOTOR * MOTOR_GEAR;
 static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;
