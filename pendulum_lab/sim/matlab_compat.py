@@ -1,15 +1,15 @@
 """Mekatronik ekibinin Matlab/Simulink modeliyle uyumluluk.
 
 Matlab dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`)
-issue #1'deki ön karşılaştırmaya göre bu projeyle aynı denklemleri kullanır (dosyalar
-repoya eklenince doğrudan doğrulanacak). İki fark vardır:
+bu projeyle aynı denklemleri kullanır (doğrusal ve doğrusal olmayan model; tests/test_matlab_compat.py).
+İki fark vardır:
 
 1. θ işareti: Matlab'da sarkaç SOLA yatınca θ > 0, bu projede (Python, firmware, docs/protokol.md)
    +x yönüne (SAĞA) yatınca θ > 0. Durum dönüşümü s_matlab = T·s, T = diag(1, 1, −1, −1).
    Bu yüzden K'nın θ ve θ̇ kazançlarının işareti terstir:  K_matlab = K·T.
 2. Deneme biçimi (`cart_pendulum_application.m`): sürekli zamanlı kontrolcü (örnekleme yok),
-   kuvvet girişi, ideal sensör, sabit adımlı RK4 (dt = 2.5 ms); araba ±0.2 m'yi aşınca veya
-   |θ| ≥ 90° olunca deneme durur.
+   kuvvet girişi, ±Fmax = 10 N kuvvet sınırı, ideal sensör, sabit adımlı RK4 (dt = 2.5 ms); araba
+   ±0.2 m'ye ulaşınca veya |θ| ≥ 90° olunca deneme durur. Dış itme (Apply push) arabaya uygulanır.
 
 `simulate_matlab_compatible` bu deneme biçimini Python'da tekrarlar; Analiz sekmesindeki
 "Matlab uyumlu" seçeneği bunu kullanır. Karşılaştırma testi: tests/test_matlab_compat.py
@@ -30,7 +30,8 @@ from ..model.params import PendulumParams
 MATLAB_SIGN = np.diag([1.0, 1.0, -1.0, -1.0])
 
 # cart_pendulum_lqr.m içindeki tasarım ağırlıkları
-MATLAB_Q = (25.0, 4.0, 32.83, 1.0)
+# Q = diag(1 ./ [0.2, 0.5, deg2rad(10), 1].^2),  R = 1 / Fmax^2
+MATLAB_Q = (25.0, 4.0, 1.0 / math.radians(10.0) ** 2, 1.0)
 MATLAB_R = 0.01
 # cart_pendulum_lqr.m'nin bu değerlerle bulduğu K (Matlab'ın θ işaretinde, issue #1 ve #10)
 MATLAB_K_REFERENCE = (-50.0, -45.37, 168.66, 33.25)
@@ -39,6 +40,7 @@ MATLAB_K_REFERENCE = (-50.0, -45.37, 168.66, 33.25)
 MATLAB_DT = 0.0025          # RK4 adımı [s]
 MATLAB_RAIL_LIMIT = 0.2     # |x| bu değeri aşınca deneme durur [m]
 MATLAB_THETA_LIMIT = math.pi / 2   # |θ| bu değere ulaşınca deneme durur [rad]
+MATLAB_F_MAX = 10.0         # kontrol kuvveti sınırı ±Fmax [N] (Matlab'da "Motor limit", Simulink'te "Force Limit")
 
 
 def matlab_reference_params() -> PendulumParams:
@@ -81,7 +83,7 @@ class MatlabSimResult:
     t: np.ndarray          # (n,)
     s: np.ndarray          # (n, 4) proje işaretinde durum [x, ẋ, θ, θ̇]
     u: np.ndarray          # (n,) kuvvet [N]
-    stop_reason: str       # "time" (süre bitti), "rail" (|x| > sınır), "angle" (|θ| ≥ 90°)
+    stop_reason: str       # "time" (süre bitti), "rail" (|x| ≥ sınır), "angle" (|θ| ≥ 90°)
 
     @property
     def x(self): return self.s[:, 0]
@@ -101,14 +103,16 @@ class MatlabSimResult:
 def simulate_matlab_compatible(p: PendulumParams, K, s0, T: float = 10.0, *, x_ref: float = 0.0,
                                dt: float = MATLAB_DT, rail_limit: float = MATLAB_RAIL_LIMIT,
                                theta_limit: float = MATLAB_THETA_LIMIT,
-                               disturbance=None) -> MatlabSimResult:
+                               disturbance=None, f_max: float | None = MATLAB_F_MAX) -> MatlabSimResult:
     """`cart_pendulum_application.m` ile aynı deneme: sürekli LQR, kuvvet girişi, RK4.
 
     p        : mekanik parametreler (input_mode ne olursa olsun kuvvet girişiyle simüle edilir)
     K        : PROJE işaretinde LQR kazancı, u = −K·(s − [x_ref, 0, 0, 0]).
                Matlab'dan gelen K için önce gain_from_matlab(K) kullanın.
     s0       : proje işaretinde başlangıç durumu
-    disturbance(t) -> ek kuvvet [N] (arabaya), isteğe bağlı
+    disturbance(t) -> ek kuvvet [N] (arabaya, Matlab'daki "Apply push" gibi), isteğe bağlı
+    f_max    : kontrol kuvveti sınırı [N]; Matlab'daki gibi yalnız kontrolcü kuvveti sınırlanır, dış itme
+               sınırlanmaz. None: sınırsız
 
     Kontrolcü sürekli zamanlıdır: u her RK4 alt değerlendirmesinde o anki durumdan yeniden hesaplanır
     (Matlab'da u'nun türev fonksiyonunun içinde hesaplanması gibi). Sensör idealdir.
@@ -121,7 +125,8 @@ def simulate_matlab_compatible(p: PendulumParams, K, s0, T: float = 10.0, *, x_r
     n_max = int(round(T / dt))
 
     def control(z) -> float:
-        return -(k0 * (z[0] - x_ref) + k1 * z[1] + k2 * z[2] + k3 * z[3])
+        u = -(k0 * (z[0] - x_ref) + k1 * z[1] + k2 * z[2] + k3 * z[3])
+        return u if f_max is None else max(-f_max, min(f_max, u))
 
     def f(z, t):
         u = control(z) + (disturbance(t) if disturbance else 0.0)
@@ -143,7 +148,7 @@ def simulate_matlab_compatible(p: PendulumParams, K, s0, T: float = 10.0, *, x_r
         ts.append(t + dt)
         S.append(list(s))
         U.append(control(s))
-        if abs(s[0]) > rail_limit:
+        if abs(s[0]) >= rail_limit:            # Matlab: abs(z(1)) >= railLimit
             reason = "rail"
             break
         if abs(s[2]) >= theta_limit:

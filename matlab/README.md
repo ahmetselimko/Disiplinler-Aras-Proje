@@ -5,8 +5,8 @@ Bu klasöre mekatronik ekibinin Matlab dosyaları konacak (issue #10):
 | Dosya | Ne yapar |
 |---|---|
 | `cart_pendulum_lqr.m` | Model (A, B) ve LQR tasarımı. **Simulink modelinden önce çalıştırılmalı**, çünkü modelin kullandığı değişkenleri (A, B, K, …) çalışma alanına yazar |
-| `cart_pendulum_application.m` | Deneme: sürekli LQR, kuvvet girişi, RK4 dt = 2.5 ms; ±0.2 m veya \|θ\| ≥ 90°'de durur |
-| `cart_pendulum_lqr_sim.slx` | Simulink modeli (ode45, RelTol 1e-7) |
+| `cart_pendulum_application.m` | Deneme: sürekli LQR, kuvvet girişi (±10 N sınırlı), RK4 dt = 2.5 ms; ±0.2 m veya \|θ\| ≥ 90°'de durur. Dış itme (Apply push) arabaya uygulanır |
+| `cart_pendulum_lqr_sim.slx` | Simulink modeli (ode45, RelTol 1e-7, ±Fmax kuvvet sınırı) |
 
 ## θ işareti — dikkat
 Matlab dosyalarında θ, sarkaç **sola** yatınca pozitiftir. Python kütüphanesinde, ESP32 firmware'inde ve

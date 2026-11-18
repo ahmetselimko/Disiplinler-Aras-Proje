@@ -13,7 +13,7 @@ import pytest
 from pendulum_lab import linearize, lqr
 from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.sim.matlab_compat import (
-    MATLAB_K_REFERENCE, MATLAB_Q, MATLAB_R, MATLAB_SIGN, gain_from_matlab, gain_to_matlab,
+    MATLAB_F_MAX, MATLAB_K_REFERENCE, MATLAB_Q, MATLAB_R, MATLAB_SIGN, gain_from_matlab, gain_to_matlab,
     matlab_reference_params, simulate_matlab_compatible, state_from_matlab, state_to_matlab,
 )
 from pendulum_lab.sim.simulator import simulate_closed_loop
@@ -108,11 +108,11 @@ def test_matlab_compatible_sim_stops_at_angle_limit(p):
 
 
 def test_matlab_compatible_sim_stops_at_rail_limit(p):
-    """Büyük konum hatasıyla başlatılan araba ±0.2 m'yi aşınca deneme durur."""
+    """Büyük konum hatasıyla başlatılan araba ±0.2 m'ye ulaşınca deneme durur (Matlab: abs(z(1)) >= railLimit)."""
     K = gain_from_matlab(MATLAB_K_REFERENCE)
     r = simulate_matlab_compatible(p, K, [0.0, 0, 0, 0], T=10, x_ref=0.5)
     assert r.stop_reason == "rail"
-    assert abs(r.x[-1]) > 0.2 and np.all(np.abs(r.x[:-1]) <= 0.2)
+    assert abs(r.x[-1]) >= 0.2 and np.all(np.abs(r.x[:-1]) < 0.2)
 
 
 def test_matlab_compatible_sim_agrees_with_library_simulator(p):
@@ -120,7 +120,7 @@ def test_matlab_compatible_sim_agrees_with_library_simulator(p):
     hemen hemen aynı yörüngeyi verir (Ts = 2 ms küçük olduğu için)."""
     K = gain_from_matlab(MATLAB_K_REFERENCE)
     s0 = [0.05, 0, math.radians(8), 0]
-    r_m = simulate_matlab_compatible(p, K, s0, T=4)
+    r_m = simulate_matlab_compatible(p, K, s0, T=4, f_max=None)   # kütüphane simülasyonunda kuvvet sınırı yok
     r_p = simulate_closed_loop(p, lambda s: -float(K @ np.asarray(s)), s0, T=4, dt=0.002, end_stops=False)
     for t_check in (0.5, 1.0, 2.0, 4.0):
         i_m = int(np.argmin(np.abs(r_m.t - t_check)))
@@ -147,3 +147,39 @@ def test_matlab_compatible_sim_rejects_bad_K(p):
         simulate_matlab_compatible(p, [1, 2, 3], [0, 0, 0, 0])
     with pytest.raises(ValueError):
         simulate_matlab_compatible(p, [1, 2, float("nan"), 4], [0, 0, 0, 0])
+
+
+def matlab_nonlinear_accel(p, z, F):
+    """cart_pendulum_application.m / Simulink "Nonlinear Dynamics" fonksiyonu (Matlab işaretinde: θ sola +)."""
+    J = p.I + p.m * p.l ** 2
+    h = p.m * p.l
+    th, om = z[2], z[3]
+    H = np.array([[p.M + p.m, -h * math.cos(th)], [-h * math.cos(th), J]])
+    rhs = np.array([F - p.b * z[1] - h * math.sin(th) * om ** 2, h * p.g * math.sin(th)])
+    return np.linalg.solve(H, rhs)
+
+
+def test_python_nonlinear_model_equals_matlab_up_to_theta_sign(p):
+    """Doğrusal olmayan model de Matlab'ınkiyle aynı (θ işareti dışında), geniş açılarda da."""
+    from pendulum_lab.model.dynamics import accelerations
+    rng = np.random.default_rng(0)
+    for _ in range(500):
+        s = rng.uniform([-0.2, -2, -1.5, -6], [0.2, 2, 1.5, 6])
+        F = rng.uniform(-20, 20)
+        ddx, ddth = accelerations(p, s, F)
+        a_m = matlab_nonlinear_accel(p, state_to_matlab(s), F)
+        assert ddx == pytest.approx(a_m[0], abs=1e-9)
+        assert -ddth == pytest.approx(a_m[1], abs=1e-9)
+
+
+def test_matlab_Q_matches_scales_and_force_is_limited(p):
+    """Q = diag(1/[0.2 0.5 deg2rad(10) 1].^2), R = 1/Fmax^2; kontrol kuvveti ±Fmax ile sınırlı (Matlab gibi)."""
+    np.testing.assert_allclose(MATLAB_Q, 1 / np.array([0.2, 0.5, math.radians(10), 1.0]) ** 2)
+    assert MATLAB_R == pytest.approx(1 / MATLAB_F_MAX ** 2)
+    K = gain_from_matlab(MATLAB_K_REFERENCE)
+    s0 = [0, 0, math.radians(10), 0]                       # cart_pendulum_lqr.m'deki z0
+    r = simulate_matlab_compatible(p, K, s0, T=10)
+    assert np.max(np.abs(r.u)) == pytest.approx(MATLAB_F_MAX)
+    assert r.stop_reason == "time" and abs(r.th[-1]) < math.radians(0.1)
+    r_free = simulate_matlab_compatible(p, K, s0, T=10, f_max=None)
+    assert np.max(np.abs(r_free.u)) > 2 * MATLAB_F_MAX     # sınırsız olsaydı ~29 N isterdi

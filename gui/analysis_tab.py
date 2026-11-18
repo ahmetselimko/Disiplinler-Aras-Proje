@@ -13,7 +13,8 @@ from pendulum_lab.analysis.linear import StateSpace, rlocus, step_info
 from pendulum_lab.analysis.summary import compute_trial_summary
 from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.control.supervisor import MODE_CODES, Mode, Supervisor
-from pendulum_lab.sim.matlab_compat import (MATLAB_DT, MATLAB_Q, MATLAB_R, MATLAB_RAIL_LIMIT, force_model,
+from pendulum_lab.sim.matlab_compat import (MATLAB_DT, MATLAB_F_MAX, MATLAB_Q, MATLAB_R, MATLAB_RAIL_LIMIT,
+                                            force_model,
                                             gain_to_matlab, matlab_reference_params,
                                             simulate_matlab_compatible)
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
@@ -82,9 +83,11 @@ class SimulationPage(QtWidgets.QWidget):
         p_ref = matlab_reference_params()
         self.matlab_ref_cb.setToolTip(
             f"Açık: cart_pendulum_lqr.m'deki değerler (M={p_ref.M:g}, m={p_ref.m:g}, l={p_ref.l:g}, I={p_ref.I:g}, "
-            f"b={p_ref.b:g}; Q=diag{MATLAB_Q}, R={MATLAB_R:g}). Sonuç Matlab'ın sonucuyla karşılaştırılabilir.\n"
+            f"b={p_ref.b:g}; Q=diag(25, 4, 32.83, 1), R={MATLAB_R:g}, kuvvet sınırı ±{MATLAB_F_MAX:g} N). "
+            "Sonuç Matlab'ın sonucuyla karşılaştırılabilir.\n"
             "Kapalı: projenin parametreleri ve Tasarım sekmesindeki Q, R; K kuvvet girişli model için yeniden "
-            "hesaplanır.\nBu durumda K Matlab'ınkiyle aynı değildir (yalnız Matlab'ın işaret kuralıyla gösterilir).")
+            "hesaplanır, kuvvet sınırı yoktur.\nBu durumda K Matlab'ınkiyle aynı değildir (yalnız Matlab'ın işaret "
+            "kuralıyla gösterilir).")
         self.run_btn = QtWidgets.QPushButton("▶ Simüle Et")
         self.run_btn.setStyleSheet("QPushButton{font-weight:bold;padding:6px}")
         f.addRow(self.matlab_cb)
@@ -174,45 +177,45 @@ class SimulationPage(QtWidgets.QWidget):
 
         Matlab ayarları seçiliyse model, Q ve R cart_pendulum_lqr.m'dekilerdir (sonuç Matlab'ınkiyle
         karşılaştırılabilir); değilse projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır.
-        Dönüş: (sonuç, bilgi satırları, gerçek sistem parametreleri)."""
+        Dönüş: (sonuç, bilgi satırları, gerçek sistem parametreleri, kuvvet sınırı [N] veya None)."""
         st = self.state
         th0 = self.th0.value()
         if abs(th0) >= 90:
             QtWidgets.QMessageBox.warning(self, "Simülasyon",
                                           "Matlab uyumlu denemede |θ₀| < 90° olmalı (swing-up yok, deneme hemen durur).")
-            return None, None, None
+            return None, None, None, None
         if self.matlab_ref_cb.isChecked():
-            design, Q, R, x_ref = matlab_reference_params(), MATLAB_Q, MATLAB_R, 0.0
+            design, Q, R, x_ref, f_max = matlab_reference_params(), MATLAB_Q, MATLAB_R, 0.0, MATLAB_F_MAX
             source = "Matlab'ın ayarları (cart_pendulum_lqr.m)"
         else:
-            design, Q, R, x_ref = force_model(st.p), st.Q, st.R, st.x_ref
+            design, Q, R, x_ref, f_max = force_model(st.p), st.Q, st.R, st.x_ref, None
             source = "proje parametreleri + Tasarım Q, R (Matlab'ın K'sı DEĞİL)"
         real = copy.deepcopy(design)
         real.m, real.l = real.m * mismatch, real.l * mismatch
         K, _, _ = design_lqr(design, Q, [[R]])
         K = K.ravel()
         s0 = [self.x0.value(), self.dx0.value(), math.radians(th0), math.radians(self.dth0.value())]
-        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref)
+        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref, f_max=f_max)
         Km = gain_to_matlab(K)
-        reason = {"time": "süre doldu", "rail": f"|x| > {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
+        reason = {"time": "süre doldu", "rail": f"|x| ≥ {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
         head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",
                 f"Ayarlar: {source}",
                 "K (proje işaretinde, θ sağa +) = [" + ", ".join(f"{v:.2f}" for v in K) + "]",
                 "K (Matlab işaretinde, θ sola +) = [" + ", ".join(f"{v:.2f}" for v in Km) + "]",
-                "Giriş kuvvettir [N], doyum yoktur."]
-        return r, head, real
+                "Giriş kuvvettir [N], " + (f"±{f_max:g} N ile sınırlı." if f_max else "sınır yoktur.")]
+        return r, head, real, f_max
 
     def run(self):
         st = self.state
         k = 1 + self.mismatch.value() / 100
         if self.matlab_cb.isChecked():
             try:
-                r, head, real = self._run_matlab(k)
+                r, head, real, f_max = self._run_matlab(k)
             except FloatingPointError as e:
                 QtWidgets.QMessageBox.warning(self, "Simülasyon", str(e))
                 return
             if r is not None:
-                self._show_result(r, real, head, u_max=1e6, rail_half=MATLAB_RAIL_LIMIT)
+                self._show_result(r, real, head, u_max=f_max or 1e6, rail_half=MATLAB_RAIL_LIMIT)
             return
         real = copy.deepcopy(st.p)
         real.m, real.l = real.m * k, real.l * k
