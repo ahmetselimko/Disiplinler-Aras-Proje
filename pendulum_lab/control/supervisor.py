@@ -2,7 +2,7 @@
 
 Toplantı kararı: LQR, sinθ≈θ varsayımı geçerli olduğu bölgede (|θ| < ~10–15°) açık; dışarıda
 enerji bazlı swing-up çalışır. Geçiş yazılımsaldır ve histerezislidir (eşikte titreme olmasın):
-    SWING_UP → BALANCE :  |θ| < catch_deg  ve |θ̇| < catch_dth
+    SWING_UP → BALANCE :  |θ| < catch_deg  ve |θ̇| < catch_dth  ve |x| < catch_x  ve |ẋ| < catch_dx
     BALANCE  → SWING_UP:  |θ| > release_deg
     her mod  → FAULT   :  |x| > rail_half − soft_margin   (motor gücü kesilir)
     FAULT → IDLE yalnız STOP ile; BAŞLAT yalnız IDLE'dan kabul edilir (hatadan doğrudan çıkılmaz).
@@ -19,11 +19,16 @@ from enum import Enum
 import numpy as np
 
 from ..model.dynamics import accel_to_input, wrap_angle
+from ..model.params import PendulumParams
+from .swingup import EnergySwingUp
 
 START_X_MARGIN = 0.10     # BAŞLAT için rayın ucuna en az bu kadar uzak olmalı [m]
 START_MAX_SPEED = 0.2     # BAŞLAT için araba hızı bundan düşük olmalı [m/s]
-from ..model.params import PendulumParams
-from .swingup import EnergySwingUp
+# Geçiş (SWING_UP → BALANCE) varsayılanları. catch_x / catch_dx varsayılanda geçişi kısıtlamaz
+# (yazılımsal ray sınırı ve aracın en yüksek hızı zaten daha dar); gerçek denemelerde daraltılabilir.
+CATCH_DTH = 5.0           # LQR'a girişte açısal hız sınırı [rad/s]
+CATCH_X = 0.40            # LQR'a girişte araba konum sınırı |x| [m]
+CATCH_DX = 2.0            # LQR'a girişte araba hız sınırı |ẋ| [m/s]
 
 
 class Mode(str, Enum):
@@ -42,14 +47,17 @@ CODE_MODES = {i: m for m, i in MODE_CODES.items()}
 
 class Supervisor:
     def __init__(self, p: PendulumParams, K, swingup: EnergySwingUp | None = None,
-                 catch_deg: float = 15.0, release_deg: float = 30.0, catch_dth: float = 5.0,
-                 soft_margin: float = 0.03, swingup_enabled: bool = True):
+                 catch_deg: float = 15.0, release_deg: float = 30.0, catch_dth: float = CATCH_DTH,
+                 soft_margin: float = 0.03, swingup_enabled: bool = True,
+                 catch_x: float = CATCH_X, catch_dx: float = CATCH_DX):
         self.p = p
         self.K = np.asarray(K, dtype=float).reshape(-1)
         self.swingup = swingup or EnergySwingUp()
         self.catch = math.radians(catch_deg)
         self.release = math.radians(release_deg)
         self.catch_dth = catch_dth
+        self.catch_x = catch_x
+        self.catch_dx = catch_dx
         self.soft_margin = soft_margin
         self.swingup_enabled = swingup_enabled
         self.x_ref = 0.0
@@ -83,6 +91,11 @@ class Supervisor:
         self.K = K
 
     # --- döngü ---
+    def can_catch(self, s) -> bool:
+        """SWING_UP/WAIT → BALANCE geçiş şartı: açı, açısal hız, araba konumu ve hızı sınırlar içinde."""
+        return (abs(wrap_angle(s[2])) < self.catch and abs(s[3]) < self.catch_dth
+                and abs(s[0]) < self.catch_x and abs(s[1]) < self.catch_dx)
+
     def lqr_input(self, s) -> float:
         e0 = s[0] - self.x_ref
         e2 = wrap_angle(s[2])
@@ -101,7 +114,7 @@ class Supervisor:
         th = abs(wrap_angle(s[2]))
         if self.mode == Mode.BALANCE and th > self.release:
             self.mode = Mode.SWING_UP if self.swingup_enabled else Mode.WAIT
-        elif self.mode in (Mode.SWING_UP, Mode.WAIT) and th < self.catch and abs(s[3]) < self.catch_dth:
+        elif self.mode in (Mode.SWING_UP, Mode.WAIT) and self.can_catch(s):
             self.mode = Mode.BALANCE
 
         if self.mode == Mode.BALANCE:

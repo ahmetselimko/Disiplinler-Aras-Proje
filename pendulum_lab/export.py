@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
 from .filters import design_kalman
 
 
@@ -29,7 +30,8 @@ def _c_mat(M) -> list[str]:
 
 
 def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float = 15.0,
-                 release_deg: float = 30.0) -> str:
+                 release_deg: float = 30.0, catch_dth: float = CATCH_DTH, catch_x: float = CATCH_X,
+                 catch_dx: float = CATCH_DX) -> str:
     K = np.asarray(K, dtype=float).ravel()
     period_ms = Ts * 1000
     if abs(period_ms - round(period_ms)) > 1e-9 or round(period_ms) < 1:
@@ -52,6 +54,9 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
         "static const float LQR_K[4] = {" + ", ".join(f"{k:.6f}f" for k in K) + "};",
         f"#define CATCH_RAD          {math.radians(catch_deg):.6f}f",
         f"#define RELEASE_RAD        {math.radians(release_deg):.6f}f",
+        f"#define CATCH_DTH          {catch_dth:.4f}f   // LQR'a girişte |θ̇| sınırı [rad/s]",
+        f"#define CATCH_X            {catch_x:.4f}f   // LQR'a girişte |x| sınırı [m]",
+        f"#define CATCH_DX           {catch_dx:.4f}f   // LQR'a girişte |ẋ| sınırı [m/s]",
         f"#define U_MAX              {p.u_max:.4f}f",
         f"#define RAIL_HALF_M        {p.rail_half:.4f}f",
         "",
@@ -79,6 +84,7 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
             f"#define SU_K_X             {swingup.k_x:.4f}f",
             f"#define SU_K_V             {swingup.k_v:.4f}f",
             f"#define SU_A_KICK          {swingup.a_kick:.4f}f",
+            f"#define SU_E_RATIO         {swingup.E_ratio:.4f}f   // hedef enerji oranı (1 = dik konum)",
         ]
     lines += [
         "",

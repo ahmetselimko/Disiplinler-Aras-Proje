@@ -30,6 +30,19 @@
 #ifndef P_FC
 #define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
 #endif
+// eski gains.h: geçiş sınırları ve hedef enerji oranı için supervisor.py varsayılanları
+#ifndef CATCH_DTH
+#define CATCH_DTH 5.0f     // LQR'a girişte |θ̇| sınırı [rad/s]
+#endif
+#ifndef CATCH_X
+#define CATCH_X 0.40f      // LQR'a girişte |x| sınırı [m]
+#endif
+#ifndef CATCH_DX
+#define CATCH_DX 2.0f      // LQR'a girişte |ẋ| sınırı [m/s]
+#endif
+#ifndef SU_E_RATIO
+#define SU_E_RATIO 1.0f    // swing-up hedef enerji oranı (1 = dik konum)
+#endif
 #ifndef INPUT_MODE_VOLTAGE
 #error "Bu firmware yalnız DC motor (input_mode = voltage) için yazıldı. Step motor için motor sürme kısmı yeniden yazılmalı."
 #endif
@@ -111,11 +124,15 @@ struct ParamLimit { const char *key; float lo, hi; };
 static const ParamLimit PARAM_LIMITS[] = {
   {"catch_deg", 1.0f, 45.0f},
   {"release_deg", 2.0f, 90.0f},
+  {"catch_dth", 0.5f, 50.0f},
+  {"catch_x", 0.01f, 1.0f},
+  {"catch_dx", 0.01f, 5.0f},
   {"swingup", 0.0f, 1.0f},
   {"k_E", 0.0f, 10000.0f},
   {"a_max", 0.0f, 50.0f},
   {"k_x", 0.0f, 1000.0f},
   {"k_v", 0.0f, 1000.0f},
+  {"E_ratio", 0.5f, 1.5f},
   {"x_ref", -0.3f, 0.3f},
   {"u_max", 0.0f, 48.0f},
   {"telemetry_hz", 1.0f, 500.0f},
@@ -133,7 +150,8 @@ struct Shared {
   bool homed, angle_ok;
   // iletişim → kontrol
   float K[4]; float catch_rad, release_rad, x_ref, u_max;
-  float su_kE, su_amax, su_kx, su_kv, su_akick; bool swingup_on;
+  float catch_dth, catch_x, catch_dx;                // LQR'a giriş sınırları: |θ̇| [rad/s], |x| [m], |ẋ| [m/s]
+  float su_kE, su_amax, su_kx, su_kv, su_akick, su_eratio; bool swingup_on;
   float fc_volt;                                     // sürtünme telafisi [V] (set_param fc_volt)
   bool req_start, req_stop, req_estop, req_home, req_calib, req_friction;
   // olaylar (kontrol üretir, iletişim gönderir)
@@ -270,11 +288,12 @@ static float accelToVolt(float dx, float th, float dth, float a, bool coulomb) {
 // Enerji bazlı swing-up (swingup.EnergySwingUp ile aynı)
 static float swingUpAccel(const Shared &p, float x, float dx, float th, float dth) {
   float E = 0.5f * P_J * dth * dth + P_M_POLE * P_G * P_L * (cosf(th) - 1.0f);
+  float E_target = (p.su_eratio - 1.0f) * 2 * P_M_POLE * P_G * P_L;   // EnergySwingUp.target_energy
   float a;
   if (fabsf(dth) < 0.05f && fabsf(wrapAngle(th)) > 2.8f && E < -0.99f * 2 * P_M_POLE * P_G * P_L)
     a = p.su_akick * (x > 1e-3f ? -1.0f : 1.0f);
   else
-    a = p.su_kE * E * dth * cosf(th);
+    a = p.su_kE * (E - E_target) * dth * cosf(th);
   a = clampf(a, -p.su_amax, p.su_amax);
   a += -p.su_kx * x - p.su_kv * dx;
   return clampf(a, -p.su_amax, p.su_amax);
@@ -469,7 +488,8 @@ void ctrlTask(void *) {
       else if (fabsf(x) > RAIL_HALF_M - SOFT_MARGIN) mode = raiseFault(mode, "rail");
       else {
         if (mode == BALANCE && ath > p.release_rad) mode = p.swingup_on ? SWING_UP : WAIT;
-        else if (mode != BALANCE && ath < p.catch_rad && fabsf(dth) < 5.0f) mode = BALANCE;
+        else if (mode != BALANCE && ath < p.catch_rad && fabsf(dth) < p.catch_dth
+                 && fabsf(x) < p.catch_x && fabsf(dx) < p.catch_dx) mode = BALANCE;   // Supervisor.can_catch
         if (mode == BALANCE)
           u = -(p.K[0] * (x - p.x_ref) + p.K[1] * dx + p.K[2] * th + p.K[3] * dth);
         else if (mode == SWING_UP)
@@ -539,6 +559,10 @@ static void handleSetParam(JsonObject d) {
   // 2) uygula
   portENTER_CRITICAL(&mux);
   S.catch_rad = radians(catch_deg); S.release_rad = radians(release_deg);
+  if (d["catch_dth"].is<float>()) S.catch_dth = d["catch_dth"].as<float>();
+  if (d["catch_x"].is<float>())   S.catch_x   = d["catch_x"].as<float>();
+  if (d["catch_dx"].is<float>())  S.catch_dx  = d["catch_dx"].as<float>();
+  if (d["E_ratio"].is<float>())   S.su_eratio = d["E_ratio"].as<float>();
   if (d["swingup"].is<float>()) S.swingup_on = d["swingup"].as<float>() != 0;
   if (d["k_E"].is<float>())   S.su_kE   = d["k_E"].as<float>();
   if (d["a_max"].is<float>()) S.su_amax = d["a_max"].as<float>();
@@ -674,6 +698,7 @@ void setup() {
   memcpy(S.K, LQR_K, sizeof S.K);
   S.catch_rad = CATCH_RAD; S.release_rad = RELEASE_RAD; S.u_max = U_MAX; S.swingup_on = true;
   S.su_kE = SU_K_E; S.su_amax = SU_A_MAX; S.su_kx = SU_K_X; S.su_kv = SU_K_V; S.su_akick = SU_A_KICK;
+  S.su_eratio = SU_E_RATIO; S.catch_dth = CATCH_DTH; S.catch_x = CATCH_X; S.catch_dx = CATCH_DX;
   S.fc_volt = P_FC / MOTOR_ALPHA;                     // gains.h'deki telafi, gerilim olarak
   S.mode = IDLE;
 

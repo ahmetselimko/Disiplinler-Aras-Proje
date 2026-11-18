@@ -78,6 +78,7 @@ class MockDevice:
         self._home_r0 = False
         self._home_i = 0.0                        # homing hız döngüsünün integrali [m/s²]
         self._manual_home = False                 # switch'siz: bir sonraki adımda bulunulan yer x = 0
+        self._kick_F, self._kick_left = 0.0, 0.0  # süren dürtme: kuvvet [N] ve kalan süre [s]
         self._rx = bytearray()
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -202,7 +203,15 @@ class MockDevice:
             self._fault("estop")
             return P.encode_ack("estop")
         if cmd == "kick":
-            self.s[3] += float(a.get("dth", 1.5))
+            if "F" not in a:                      # eski biçim: açısal hıza anlık ekleme
+                self.s[3] += float(a.get("dth", 1.5))
+                return P.encode_ack("kick")
+            F, dur = float(a["F"]), float(a.get("dur", 0.05))
+            if not (P.KICK_F_LIMITS[0] <= F <= P.KICK_F_LIMITS[1]):
+                return P.encode_ack("kick", False, "F aralık dışı [{}, {}] N".format(*P.KICK_F_LIMITS))
+            if not (P.KICK_DUR_LIMITS[0] <= dur <= P.KICK_DUR_LIMITS[1]):
+                return P.encode_ack("kick", False, "dur aralık dışı [{}, {}] s".format(*P.KICK_DUR_LIMITS))
+            self._kick_F, self._kick_left = F, dur
             return P.encode_ack("kick")
         if cmd == "pause":
             self.paused = bool(int(a.get("on", 1)))
@@ -220,6 +229,7 @@ class MockDevice:
         self.sup.stop()
         self._home_phase = 0
         self.paused = False
+        self._kick_F, self._kick_left = 0.0, 0.0
         self.s = [self.x_offset if self.homed else self.s[0], 0.0, th0, 0.0]   # ölçülen x = 0 noktası
         for est in (self.vx, self.vth):           # açı sıçraması sahte bir hız tepesi üretmesin
             est.prev, est.lp.y = None, None
@@ -249,9 +259,11 @@ class MockDevice:
             sup.catch = math.radians(val)
         elif key == "release_deg":
             sup.release = math.radians(val)
+        elif key in ("catch_dth", "catch_x", "catch_dx"):
+            setattr(sup, key, val)
         elif key == "swingup":
             sup.swingup_enabled = bool(val)
-        elif key in ("k_E", "a_max", "k_x", "k_v"):
+        elif key in ("k_E", "a_max", "k_x", "k_v", "E_ratio"):
             setattr(su, key, val)
         elif key == "x_ref":
             sup.x_ref = val
@@ -357,6 +369,9 @@ class MockDevice:
         h = self.Ts / 2
         for _ in range(2):
             self.s = rk4_step(p, self.s, u_phys, h)
+            if self._kick_left > 0:   # simulator.simulate_closed_loop'taki bozucu ile aynı: tork F·l·cosθ
+                self.s[3] += self._kick_F * p.l * math.cos(self.s[2]) / p.J * h
+                self._kick_left -= h
         self._rail_end_stops()
 
         self.k += 1

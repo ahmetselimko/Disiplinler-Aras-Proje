@@ -7,6 +7,9 @@ Araba ivmesi a için  dE/dt = −m l a θ̇ cosθ  (sürtünme ihmal)  olduğund
 
 seçimi dE/dt = −m l k_E E (θ̇cosθ)² verir → E monoton olarak 0'a (dik konum enerjisine) gider.
 Rayın dışına taşmamak için araba merkezleme terimi eklenir: −k_x x − k_v ẋ.
+
+Hedef enerji oranı E_ratio, hedefi aşağı-durağan konumdan ölçülen enerjinin dik konumdakine (2mgl)
+oranı olarak verir: 1 → tam dik konum enerjisi (E = 0), 1.1 → %10 fazlası (E = 0.2 mgl).
 Çıkış İVMEdir; motor girişine dynamics.accel_to_input ile çevrilir.
 """
 
@@ -28,11 +31,15 @@ class EnergySwingUp:
     k_x: float = 10.0       # merkezleme (konum) kazancı
     k_v: float = 6.0        # merkezleme (hız) kazancı
     a_kick: float = 2.0     # sarkaç tam aşağıda hareketsizken ilk dürtme ivmesi
-    E_target: float = 0.0   # hedef enerji (dik konum)
+    E_ratio: float = 1.0    # hedef enerji oranı (1 = dik konum enerjisi)
+
+    def target_energy(self, p: PendulumParams) -> float:
+        """Hedef enerji [J], energy() ile aynı sıfır noktasında (dik-durağan = 0)."""
+        return (self.E_ratio - 1.0) * 2 * p.m * p.g * p.l
 
     def accel(self, p: PendulumParams, s) -> float:
         x, dx, th, dth = s
-        E = energy(p, th, dth) - self.E_target
+        E = energy(p, th, dth) - self.target_energy(p)
         E_bottom = 2 * p.m * p.g * p.l
         if abs(dth) < 0.05 and abs(wrap_angle(th)) > 2.8 and energy(p, th, dth) < -0.99 * E_bottom:
             # aşağıda hareketsiz: θ̇cosθ = 0 olduğundan enerji kuralı tek başına başlatamaz → rayın

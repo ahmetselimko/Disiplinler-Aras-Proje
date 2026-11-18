@@ -9,7 +9,7 @@ PC → ESP32
   {"cmd":"set_gain","K":[k1,k2,k3,k4]}   {"cmd":"start"}  {"cmd":"stop"}  {"cmd":"estop"}
   {"cmd":"home"}  {"cmd":"ping"}  {"cmd":"calib"}  {"cmd":"set_param","catch_deg":15,...}
   {"cmd":"friction"} → {"evt":"friction","ok":true,"v_pos":..,"v_neg":..,"v_c":..,"slope":..}
-  yalnız simülasyon: {"cmd":"kick","dth":1.0}  {"cmd":"pause","on":1}  {"cmd":"reset","th0_deg":180}
+  yalnız simülasyon: {"cmd":"kick","F":2.0,"dur":0.1} (veya eski biçim {"cmd":"kick","dth":1.0})  {"cmd":"pause","on":1}  {"cmd":"reset","th0_deg":180}
 
 SET_PARAM_LIMITS bu protokolün TEK kaynağıdır; firmware'deki PARAM_LIMITS tablosu ve docs/protokol.md
 bununla aynı olmalıdır (tests/test_comm.py::test_firmware_param_limits_match_python bunu denetler).
@@ -26,15 +26,22 @@ COMMANDS = ("ping", "start", "stop", "estop", "home", "calib", "set_gain", "set_
             "kick", "pause", "reset")
 # yalnız sanal ESP32'de geçerli komutlar (firmware'de yok): dürt, fiziği dondur/sürdür, başlangıç durumuna dön
 SIM_ONLY_COMMANDS = ("kick", "pause", "reset")
+# sanal ESP32'de dürtme: sarkacın ağırlık merkezine yatay kuvvet F [N], dur [s] boyunca
+KICK_F_LIMITS = (-20.0, 20.0)
+KICK_DUR_LIMITS = (0.001, 2.0)
 # set_param ile değiştirilebilecek parametreler ve kabul edilen aralıklar
 SET_PARAM_LIMITS = {
     "catch_deg": (1.0, 45.0),
     "release_deg": (2.0, 90.0),
+    "catch_dth": (0.5, 50.0),    # LQR'a girişte |θ̇| sınırı [rad/s]
+    "catch_x": (0.01, 1.0),      # LQR'a girişte |x| sınırı [m]
+    "catch_dx": (0.01, 5.0),     # LQR'a girişte |ẋ| sınırı [m/s]
     "swingup": (0, 1),
     "k_E": (0.0, 1e4),
     "a_max": (0.0, 50.0),
     "k_x": (0.0, 1e3),
     "k_v": (0.0, 1e3),
+    "E_ratio": (0.5, 1.5),       # swing-up hedef enerji oranı (1 = dik konum enerjisi)
     "x_ref": (-0.3, 0.3),        # ray yarı boyu − 0.1 m (yer tutucu ray ±0.4 m)
     "u_max": (0.0, 48.0),        # cihaz ayrıca kendi besleme gerilimiyle sınırlar
     "telemetry_hz": (1, 500),

@@ -17,6 +17,13 @@ from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
 from .widgets import PendulumView, mono_font, spin, setup_mode_axis
 
 
+def pulse_disturbance(t_start: float, force: float, duration: float):
+    """t_start anından itibaren duration saniye boyunca force [N] uygulayan bozucu; force = 0 ise None."""
+    if not force:
+        return None
+    return lambda t: force if t_start <= t < t_start + duration else 0.0
+
+
 class AnalysisTab(QtWidgets.QTabWidget):
     def __init__(self, state, parent=None):
         super().__init__(parent)
@@ -39,6 +46,10 @@ class SimulationPage(QtWidgets.QWidget):
         self.th0 = spin(180.0, -180, 180, 1, 1, "°")
         self.th0.setToolTip("0 = dik, 180 = aşağıda asılı")
         self.x0 = spin(0.0, -0.3, 0.3, 3, 0.01, "m")
+        self.dx0 = spin(0.0, -2.0, 2.0, 3, 0.05, "m/s")
+        self.dx0.setToolTip("Arabanın başlangıç hızı ẋ₀")
+        self.dth0 = spin(0.0, -1000.0, 1000.0, 1, 10.0, "°/s")
+        self.dth0.setToolTip("Sarkacın başlangıç açısal hızı θ̇₀")
         self.T = spin(15.0, 0.5, 120, 1, 1, "s")
         self.real_cb = QtWidgets.QCheckBox("Gerçekçi sensör (AS5600 12-bit, enkoder, türevle hız)")
         self.real_cb.setChecked(True)
@@ -52,12 +63,16 @@ class SimulationPage(QtWidgets.QWidget):
         self.swing_cb.setChecked(True)
         self.dist_t = spin(0.0, 0, 120, 2, 0.5, "s")
         self.dist_F = spin(0.0, -20, 20, 2, 0.5, "N")
+        self.dist_dur = spin(50.0, 1, 2000, 0, 10, "ms")
+        self.dist_dur.setToolTip("Dürtme kuvvetinin ne kadar süre uygulanacağı")
         self.mismatch = spin(0.0, -50, 50, 0, 5, "%")
         self.mismatch.setToolTip("Gerçek sistemin m ve l değerleri tasarım modelinden bu kadar farklı olsun")
         self.run_btn = QtWidgets.QPushButton("▶ Simüle Et")
         self.run_btn.setStyleSheet("QPushButton{font-weight:bold;padding:6px}")
         f.addRow("Başlangıç θ₀", self.th0)
         f.addRow("Başlangıç x₀", self.x0)
+        f.addRow("Başlangıç hızı ẋ₀", self.dx0)
+        f.addRow("Başl. açısal hız θ̇₀", self.dth0)
         f.addRow("Süre", self.T)
         f.addRow(self.real_cb)
         f.addRow(self.kalman_cb)
@@ -65,7 +80,8 @@ class SimulationPage(QtWidgets.QWidget):
         f.addRow("Giriş gecikmesi", self.delay)
         f.addRow(self.swing_cb)
         f.addRow("Dürtme anı", self.dist_t)
-        f.addRow("Dürtme kuvveti (50 ms)", self.dist_F)
+        f.addRow("Dürtme kuvveti", self.dist_F)
+        f.addRow("Dürtme süresi", self.dist_dur)
         f.addRow("Model uyumsuzluğu", self.mismatch)
         f.addRow(self.run_btn)
         self.info = QtWidgets.QLabel("")
@@ -129,14 +145,15 @@ class SimulationPage(QtWidgets.QWidget):
         k = 1 + self.mismatch.value() / 100
         real.m, real.l = real.m * k, real.l * k
         sup = Supervisor(st.p, st.K, swingup=copy.deepcopy(st.swingup), catch_deg=st.catch_deg,
+                         catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
         sup.start()
         sensor = SensorModel(th_noise_std=math.radians(self.noise.value())) if self.real_cb.isChecked() else None
-        t_d, F_d = self.dist_t.value(), self.dist_F.value()
-        dist = (lambda t: F_d if t_d <= t < t_d + 0.05 else 0.0) if F_d else None
+        dist = pulse_disturbance(self.dist_t.value(), self.dist_F.value(), self.dist_dur.value() / 1000)
+        s0 = [self.x0.value(), self.dx0.value(), math.radians(self.th0.value()), math.radians(self.dth0.value())]
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         try:
-            r = simulate_closed_loop(real, sup, [self.x0.value(), 0, math.radians(self.th0.value()), 0],
+            r = simulate_closed_loop(real, sup, s0,
                                      self.T.value(), dt=st.Ts, sensor=sensor, delay_steps=self.delay.value(),
                                      disturbance=dist, use_kalman=self.kalman_cb.isChecked())
         except FloatingPointError as e:
