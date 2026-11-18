@@ -101,7 +101,7 @@ def test_unexpected_programming_errors_are_not_swallowed(monkeypatch):
 def test_get_and_set_nested_attr():
     p = PendulumParams()
     assert get_nested_attr(p, "m") == 0.2
-    assert get_nested_attr(p, "motor.R") == 2.2
+    assert get_nested_attr(p, "motor.R") == 2.18
 
     set_nested_attr(p, "m", 0.25)
     assert p.m == 0.25

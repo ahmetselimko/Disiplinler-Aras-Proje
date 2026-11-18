@@ -1,5 +1,5 @@
 // Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin
-// 2026-11-18 09:45:46
+// 2026-11-18 10:42:04
 // Q = [10.0, 1.0, 100.0, 1.0]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage T_f=0.0 B_m=0.0
 #pragma once
@@ -13,6 +13,9 @@
 static const float LQR_K[4] = {-9.545742f, -22.272552f, -56.221807f, -8.686515f};
 #define CATCH_RAD          0.261799f
 #define RELEASE_RAD        0.523599f
+#define CATCH_DTH          5.0000f   // LQR'a girişte |θ̇| sınırı [rad/s]
+#define CATCH_X            0.4000f   // LQR'a girişte |x| sınırı [m]
+#define CATCH_DX           2.0000f   // LQR'a girişte |ẋ| sınırı [m/s]
 #define U_MAX              12.0000f
 #define RAIL_HALF_M        0.4000f
 
@@ -37,6 +40,7 @@ static const float LQR_K[4] = {-9.545742f, -22.272552f, -56.221807f, -8.686515f}
 #define SU_K_X             10.0000f
 #define SU_K_V             6.0000f
 #define SU_A_KICK          2.0000f
+#define SU_E_RATIO         1.0000f   // hedef enerji oranı (1 = dik konum)
 
 // Ayrık kararlı hal Kalman filtresi (dik konum etrafında: s+ = Ad*s + Bd*u, s += L*(y - C*s))
 #define KALMAN_AVAILABLE 1

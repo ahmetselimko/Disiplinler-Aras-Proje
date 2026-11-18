@@ -234,7 +234,8 @@ class SimulationPage(QtWidgets.QWidget):
                          catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
         sup.start()
-        sensor = SensorModel(th_noise_std=math.radians(self.noise.value())) if self.real_cb.isChecked() else None
+        sensor = (SensorModel.for_params(st.p, th_noise_std=math.radians(self.noise.value()))
+                  if self.real_cb.isChecked() else None)
         dist = pulse_disturbance(self.dist_t.value(), self.dist_F.value(), self.dist_dur.value() / 1000)
         s0 = [self.x0.value(), self.dx0.value(), math.radians(self.th0.value()), math.radians(self.dth0.value())]
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)

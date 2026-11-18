@@ -82,6 +82,11 @@ def _manual_dev(x0, **kw):
 
 def test_manual_home_zeroes_current_position_without_moving():
     dev, out = _manual_dev(0.07)
+    # araba elle ortaya konup durmuş: açılıştaki küçük sarkaç salınımı arabayı ~5 mm/s kaydırıyor, bu da
+    # HOME_STILL_DX = 0.01 m/s sınırına yakın (48 CPR'de tohuma bağlı olarak aşıyordu) → hareketsiz başlat
+    dev.s = [0.07, 0.0, math.pi, 0.0]
+    for _ in range(50):
+        dev.step()
     dev.feed(P.encode_command("home"))
     for _ in range(5):
         dev.step()

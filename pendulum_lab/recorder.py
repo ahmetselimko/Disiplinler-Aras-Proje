@@ -382,7 +382,7 @@ def compare_recording_with_simulation(
           float(session.th[i_start]), float(session.dth[i_start])]
     t_off = float(session.t[i_start]) - t0
     T = max(float(session.t[shown.stop - 1]) - float(session.t[i_start]), Ts)
-    sensor = SensorModel(seed=0) if realistic_sensor else None
+    sensor = SensorModel.for_params(p, seed=0) if realistic_sensor else None
     sim = simulate_closed_loop(p, sup, s0, T, dt=Ts, sensor=sensor, use_kalman=use_kalman)
     sim_sum_src = sim
     sim = dc_replace(sim, t=sim.t + t_off)      # kaydın zaman eksenine (BAŞLAT anı) hizala

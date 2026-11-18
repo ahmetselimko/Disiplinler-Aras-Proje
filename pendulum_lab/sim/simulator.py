@@ -14,16 +14,17 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from ..filters import KalmanFilter, VelocityEstimator
+from ..filters import KALMAN_ENC_RES, KALMAN_TH_RES, KalmanFilter, VelocityEstimator, encoder_resolution
 from ..model.dynamics import accelerations, dynamics, wrap_angle
 from ..model.params import PendulumParams
 
 
 @dataclass
 class SensorModel:
-    """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 37D enkoderi (~0.125 mm/sayım)."""
-    th_resolution: float = 2 * math.pi / 4096
-    x_resolution: float = 1.25e-4
+    """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 48 CPR motor enkoderi, 10:1, 40 diş (~0.166 mm/sayım).
+    Parametrelerden (gerçek redüktör ve kasnakla, firmware gibi) kurmak için SensorModel.for_params(p)."""
+    th_resolution: float = KALMAN_TH_RES
+    x_resolution: float = KALMAN_ENC_RES
     th_noise_std: float = 0.0
     x_noise_std: float = 0.0
     seed: int | None = 0
@@ -31,6 +32,12 @@ class SensorModel:
 
     def __post_init__(self):
         self._rng = np.random.default_rng(self.seed)
+
+    @classmethod
+    def for_params(cls, p: PendulumParams, **kw) -> "SensorModel":
+        """Enkoder çözünürlüğü p'nin redüktör ve kasnağından (firmware'deki X_PER_COUNT ile aynı)."""
+        kw.setdefault("x_resolution", encoder_resolution(p))
+        return cls(**kw)
 
     @staticmethod
     def _q(v: float, res: float) -> float:

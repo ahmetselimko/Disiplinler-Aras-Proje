@@ -340,3 +340,18 @@ def test_kalman_encoder_cpr_matches_firmware():
     ino = (FIRMWARE_DIR / "esp32_pendulum.ino").read_text(encoding="utf-8")
     m = re.search(r"ENC_CPR_MOTOR\s*=\s*([\d.]+)f", ino)
     assert m and float(m.group(1)) == ENC_CPR_MOTOR
+
+
+def test_simulated_encoder_resolution_matches_firmware():
+    """Simülasyonun enkoder sayımı firmware'deki X_PER_COUNT = 2π·r / (ENC_CPR_MOTOR·MOTOR_GEAR) ile aynı;
+    sanal ESP32 de bunu kullanır (eski motorun 1.25e-4 m değeri kalmamalı)."""
+    from pendulum_lab.filters import ENC_CPR_MOTOR, encoder_resolution
+    from pendulum_lab.model.params import load_params
+    from pendulum_lab.sim.simulator import SensorModel
+
+    p = load_params(ROOT / "config" / "params.json")
+    res = 2 * math.pi * p.motor.r_pulley / (ENC_CPR_MOTOR * p.motor.gear)
+    assert encoder_resolution(p) == pytest.approx(res)
+    assert SensorModel.for_params(p).x_resolution == pytest.approx(res)
+    assert SensorModel().x_resolution == pytest.approx(res)               # varsayılan da 48 CPR
+    assert MockDevice(params=p, seed=0).sensor.x_resolution == pytest.approx(res)

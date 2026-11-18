@@ -64,7 +64,7 @@ class MockDevice:
         self.homed = False
         K, _, _ = design_lqr(self.p, DEFAULT_Q, [[DEFAULT_R]], Ts=Ts)
         self.sup = Supervisor(self.p, K)
-        self.sensor = SensorModel(seed=seed)
+        self.sensor = SensorModel.for_params(self.p, seed=seed)
         self.vx = VelocityEstimator(Ts)
         self.vth = VelocityEstimator(Ts, angular=True)
         self.kf = KalmanFilter.from_params(self.sup.p, Ts)
