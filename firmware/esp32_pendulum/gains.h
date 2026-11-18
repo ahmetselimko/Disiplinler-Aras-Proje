@@ -1,5 +1,5 @@
 // Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin
-// 2026-11-16 17:52:37
+// 2026-11-18 09:45:46
 // Q = [10.0, 1.0, 100.0, 1.0]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage T_f=0.0 B_m=0.0
 #pragma once
@@ -48,8 +48,8 @@ static const float KALMAN_AD[4][4] = {
 };
 static const float KALMAN_BD[4] = {1.24176475e-05f, 1.21893001e-02f, -4.13918426e-05f, -4.06307614e-02f};
 static const float KALMAN_L[4][2] = {
-  {6.13831911e-01f, 9.76193541e-04f},
-  {2.77232680e+01f, 5.72607512e-01f},
-  {1.47763966e-01f, 2.76787530e-01f},
-  {4.31392119e+01f, 2.12698513e+01f},
+  {5.23508705e-01f, 1.52847365e-03f},
+  {2.23613369e+01f, 5.93072909e-01f},
+  {1.30140686e-01f, 2.76969464e-01f},
+  {3.68478539e+01f, 2.13141726e+01f},
 };

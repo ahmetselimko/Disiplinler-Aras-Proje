@@ -18,6 +18,7 @@ from scipy.linalg import solve_discrete_are
 KALMAN_QN = (1e-9, 1e-5, 1e-9, 1e-4)       # [x, dx, th, dth] süreç gürültüsü kovaryans köşegeni
 KALMAN_ENC_RES = 1.25e-4                   # varsayılan enkoder çözünürlüğü [m]
 KALMAN_TH_RES = 2 * math.pi / 4096         # 12-bit AS5600 açı çözünürlüğü [rad]
+ENC_CPR_MOTOR = 48.0                       # motor milindeki enkoder (Pololu 25D: 48 CPR, 4x); firmware'deki ENC_CPR_MOTOR ile aynı
 
 
 def _wrap_angle(a: float) -> float:
@@ -29,7 +30,7 @@ def _kalman_noise_matrices(p, Qn, Rn) -> tuple[np.ndarray, np.ndarray]:
     Qn_mat = np.diag(Qn) if np.ndim(Qn) == 1 else np.atleast_2d(np.asarray(Qn, float))
     if Rn is None:
         x_res = (
-            2 * math.pi * p.motor.r_pulley / (64.0 * p.motor.gear)
+            2 * math.pi * p.motor.r_pulley / (ENC_CPR_MOTOR * p.motor.gear)
             if getattr(p, "input_mode", "") == "voltage"
             else KALMAN_ENC_RES
         )

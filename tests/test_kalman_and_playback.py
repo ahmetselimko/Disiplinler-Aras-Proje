@@ -307,3 +307,36 @@ def test_firmware_compiles_kalman_out_without_matrices():
     disabled, enabled = rest.split("#else", 1)
     assert not any(r in guard or r in disabled for r in refs)
     assert all(r in enabled for r in refs)
+
+
+def test_replay_config_ignores_removed_swingup_fields_and_reads_known_ones():
+    """Eski kayıtlardaki kaldırılmış alanlar (E_target) oynatmayı bozmamalı; tanınan alanlar okunmalı."""
+    from pendulum_lab.recorder import SWINGUP_FIELDS, _extract_replay_config
+
+    su = {"k_E": 25.0, "a_max": 7.0, "k_x": 9.0, "k_v": 5.0, "a_kick": 2.0, "E_target": 0.0, "eski_alan": 3.0}
+    swingup = _extract_replay_config({"swingup": su})[4]
+    assert swingup.k_E == 25.0 and swingup.a_max == 7.0
+    ack = {k: 1.0 for k in SWINGUP_FIELDS if k != "a_kick"}
+    swingup = _extract_replay_config({"swingup": su, "device_acknowledged_settings": ack})[4]
+    assert all(getattr(swingup, k) == 1.0 for k in ack)
+
+
+def test_replay_catch_limits_priority():
+    """Geçiş sınırları: cihazın onayladığı değer > kayıt başlığı > AppState; Supervisor'da olmayan atlanır."""
+    from pendulum_lab.recorder import _catch_limits
+
+    meta = {"catch_dth": 3.0, "catch_x": 0.2, "device_acknowledged_settings": {"catch_dth": 2.0}}
+    fb = SimpleNamespace(catch_dx=1.5)
+    assert _catch_limits(meta, fb) == {"catch_dth": 2.0, "catch_x": 0.2, "catch_dx": 1.5}
+    assert _catch_limits({}) == {}
+
+
+def test_kalman_encoder_cpr_matches_firmware():
+    """Kalman ölçüm gürültüsündeki enkoder çözünürlüğü firmware'deki ENC_CPR_MOTOR ile aynı olmalı."""
+    import re
+
+    from pendulum_lab.filters import ENC_CPR_MOTOR
+
+    ino = (FIRMWARE_DIR / "esp32_pendulum.ino").read_text(encoding="utf-8")
+    m = re.search(r"ENC_CPR_MOTOR\s*=\s*([\d.]+)f", ino)
+    assert m and float(m.group(1)) == ENC_CPR_MOTOR

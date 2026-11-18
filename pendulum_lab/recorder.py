@@ -10,6 +10,7 @@ import csv
 import json
 import math
 from dataclasses import asdict, dataclass
+from dataclasses import fields as dc_fields
 from dataclasses import replace as dc_replace
 import threading
 import time
@@ -76,6 +77,8 @@ class Recorder:
 
 
 ACTIVE_TRIAL_MODES = ("WAIT", "SWING_UP", "BALANCE")
+SWINGUP_FIELDS = tuple(f.name for f in dc_fields(EnergySwingUp))
+CATCH_LIMIT_KEYS = ("catch_dth", "catch_x", "catch_dx")
 
 
 @dataclass
@@ -217,8 +220,9 @@ def _extract_replay_config(meta: dict, fallback_state=None):
 
     su_raw = meta.get("swingup")
     if isinstance(su_raw, dict):
-        su_kw = {k: float(v) for k, v in su_raw.items()
-                 if k in ("k_E", "a_max", "k_x", "k_v", "a_kick", "E_target")}
+        # yalnız EnergySwingUp'ın bugün tanıdığı alanlar: eski kayıtlardaki kaldırılmış alanlar
+        # (ör. E_target) hata vermesin, yeni alanlar (ör. E_ratio) da kendiliğinden okunsun
+        su_kw = {k: float(v) for k, v in su_raw.items() if k in SWINGUP_FIELDS}
         swingup = EnergySwingUp(**su_kw)
     else:
         swingup = copy.deepcopy(fb_su) if fb_su is not None else EnergySwingUp()
@@ -247,7 +251,7 @@ def _extract_replay_config(meta: dict, fallback_state=None):
             catch_deg = float(ack["catch_deg"])
         if "release_deg" in ack:
             release_deg = float(ack["release_deg"])
-        for k in ("k_E", "a_max", "k_x", "k_v"):
+        for k in SWINGUP_FIELDS:
             if k in ack:
                 setattr(swingup, k, float(ack[k]))
         if "u_max" in ack:
@@ -260,6 +264,16 @@ def _extract_replay_config(meta: dict, fallback_state=None):
 
     return p, sup_p, K, Ts, swingup, catch_deg, release_deg, swingup_enabled, x_ref
 
+
+def _catch_limits(meta: dict, fallback_state=None) -> dict:
+    """LQR'a geçiş sınırları (catch_dth, catch_x, catch_dx): cihazın onayladığı > kayıt başlığı > AppState."""
+    ack = meta.get("device_acknowledged_settings") or {}
+    out = {}
+    for k in CATCH_LIMIT_KEYS:
+        v = ack.get(k, meta.get(k, getattr(fallback_state, k, None)))
+        if v is not None:
+            out[k] = float(v)
+    return out
 
 
 def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = None) -> tuple[dict, list[str]]:
@@ -351,6 +365,9 @@ def compare_recording_with_simulation(
         release_deg=release_deg,
         swingup_enabled=swingup_enabled,
     )
+    for k, v in _catch_limits(meta, fallback_state).items():
+        if hasattr(sup, k):                 # Supervisor'ın desteklediği geçiş sınırları
+            setattr(sup, k, v)
     lim = max(0.0, p.rail_half - 0.1)
     sup.x_ref = max(-lim, min(lim, x_ref))
     m_start = session.mode[i_start]
