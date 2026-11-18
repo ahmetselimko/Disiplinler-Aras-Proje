@@ -19,6 +19,8 @@ from enum import Enum
 import numpy as np
 
 from ..model.dynamics import accel_to_input, wrap_angle
+from ..model.params import PendulumParams
+from .swingup import EnergySwingUp
 
 START_X_MARGIN = 0.10     # BAŞLAT için rayın ucuna en az bu kadar uzak olmalı [m]
 START_MAX_SPEED = 0.2     # BAŞLAT için araba hızı bundan düşük olmalı [m/s]
@@ -27,8 +29,6 @@ START_MAX_SPEED = 0.2     # BAŞLAT için araba hızı bundan düşük olmalı [
 CATCH_DTH = 5.0           # LQR'a girişte açısal hız sınırı [rad/s]
 CATCH_X = 0.40            # LQR'a girişte araba konum sınırı |x| [m]
 CATCH_DX = 2.0            # LQR'a girişte araba hız sınırı |ẋ| [m/s]
-from ..model.params import PendulumParams
-from .swingup import EnergySwingUp
 
 
 class Mode(str, Enum):
