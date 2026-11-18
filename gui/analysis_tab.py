@@ -70,6 +70,12 @@ class SimulationPage(QtWidgets.QWidget):
         self.dist_F = spin(0.0, -20, 20, 2, 0.5, "N")
         self.dist_dur = spin(50.0, 1, 2000, 0, 10, "ms")
         self.dist_dur.setToolTip("Dürtme kuvvetinin ne kadar süre uygulanacağı")
+        self.dist_at = QtWidgets.QComboBox()
+        self.dist_at.addItem("sarkaca", "pole")
+        self.dist_at.addItem("arabaya", "cart")
+        self.dist_at.setToolTip("sarkaca: ağırlık merkezine yatay kuvvet\n"
+                                "arabaya: arabaya yatay kuvvet (Matlab'daki \"Apply push\" ile aynı; "
+                                "Matlab uyumlu denemede hep arabaya)")
         self.mismatch = spin(0.0, -50, 50, 0, 5, "%")
         self.mismatch.setToolTip("Gerçek sistemin m ve l değerleri tasarım modelinden bu kadar farklı olsun")
         self.matlab_cb = QtWidgets.QCheckBox("Matlab uyumlu (cart_pendulum_application.m)")
@@ -105,6 +111,7 @@ class SimulationPage(QtWidgets.QWidget):
         f.addRow("Dürtme anı", self.dist_t)
         f.addRow("Dürtme kuvveti", self.dist_F)
         f.addRow("Dürtme süresi", self.dist_dur)
+        f.addRow("Dürtme yeri", self.dist_at)
         f.addRow("Model uyumsuzluğu", self.mismatch)
         f.addRow(self.run_btn)
         self.info = QtWidgets.QLabel("")
@@ -164,11 +171,13 @@ class SimulationPage(QtWidgets.QWidget):
         state.params_changed.connect(lambda: self.view.set_geometry(state.p.rail_half, state.p.l))
 
     def _on_matlab_toggled(self, on: bool):
-        """Matlab denemesinde olmayan ayarları kapat; θ₀'ı Matlab'ın durma sınırının içine al."""
-        for w in (self.real_cb, self.kalman_cb, self.noise, self.delay, self.swing_cb,
-                  self.dist_t, self.dist_F, self.dist_dur):
+        """Matlab denemesinde olmayan ayarları kapat; θ₀'ı Matlab'ın durma sınırının içine al.
+        Dürtme açık kalır ama Matlab'daki "Apply push" gibi hep arabaya uygulanır."""
+        for w in (self.real_cb, self.kalman_cb, self.noise, self.delay, self.swing_cb, self.dist_at):
             w.setEnabled(not on)
         self.matlab_ref_cb.setEnabled(on)
+        if on:
+            self.dist_at.setCurrentIndex(self.dist_at.findData("cart"))
         if on and abs(self.th0.value()) >= 90:
             self.th0.setValue(10.0)
 
@@ -195,7 +204,9 @@ class SimulationPage(QtWidgets.QWidget):
         K, _, _ = design_lqr(design, Q, [[R]])
         K = K.ravel()
         s0 = [self.x0.value(), self.dx0.value(), math.radians(th0), math.radians(self.dth0.value())]
-        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref, f_max=f_max)
+        dist = pulse_disturbance(self.dist_t.value(), self.dist_F.value(), self.dist_dur.value() / 1000)
+        r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref, f_max=f_max,
+                                       disturbance=dist)       # arabaya (Matlab'daki "Apply push")
         Km = gain_to_matlab(K)
         reason = {"time": "süre doldu", "rail": f"|x| ≥ {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
         head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",
@@ -230,7 +241,8 @@ class SimulationPage(QtWidgets.QWidget):
         try:
             r = simulate_closed_loop(real, sup, s0,
                                      self.T.value(), dt=st.Ts, sensor=sensor, delay_steps=self.delay.value(),
-                                     disturbance=dist, use_kalman=self.kalman_cb.isChecked())
+                                     disturbance=dist, use_kalman=self.kalman_cb.isChecked(),
+                                     disturbance_target=self.dist_at.currentData())
         except FloatingPointError as e:
             QtWidgets.QMessageBox.warning(self, "Simülasyon", str(e))
             return

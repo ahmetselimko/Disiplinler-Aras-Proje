@@ -79,6 +79,7 @@ class MockDevice:
         self._home_i = 0.0                        # homing hız döngüsünün integrali [m/s²]
         self._manual_home = False                 # switch'siz: bir sonraki adımda bulunulan yer x = 0
         self._kick_F, self._kick_left = 0.0, 0.0  # süren dürtme: kuvvet [N] ve kalan süre [s]
+        self._kick_at = "pole"                    # dürtmenin uygulandığı yer: "pole" (sarkaç) / "cart" (araba)
         self._rx = bytearray()
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -206,12 +207,14 @@ class MockDevice:
             if "F" not in a:                      # eski biçim: açısal hıza anlık ekleme
                 self.s[3] += float(a.get("dth", 1.5))
                 return P.encode_ack("kick")
-            F, dur = float(a["F"]), float(a.get("dur", 0.05))
+            F, dur, at = float(a["F"]), float(a.get("dur", 0.05)), str(a.get("at", "pole"))
             if not (P.KICK_F_LIMITS[0] <= F <= P.KICK_F_LIMITS[1]):
                 return P.encode_ack("kick", False, "F aralık dışı [{}, {}] N".format(*P.KICK_F_LIMITS))
             if not (P.KICK_DUR_LIMITS[0] <= dur <= P.KICK_DUR_LIMITS[1]):
                 return P.encode_ack("kick", False, "dur aralık dışı [{}, {}] s".format(*P.KICK_DUR_LIMITS))
-            self._kick_F, self._kick_left = F, dur
+            if at not in P.KICK_TARGETS:
+                return P.encode_ack("kick", False, "at şunlardan biri olmalı: " + ", ".join(P.KICK_TARGETS))
+            self._kick_F, self._kick_left, self._kick_at = F, dur, at
             return P.encode_ack("kick")
         if cmd == "pause":
             self.paused = bool(int(a.get("on", 1)))
@@ -368,9 +371,11 @@ class MockDevice:
 
         h = self.Ts / 2
         for _ in range(2):
-            self.s = rk4_step(p, self.s, u_phys, h)
-            if self._kick_left > 0:   # simulator.simulate_closed_loop'taki bozucu ile aynı: tork F·l·cosθ
-                self.s[3] += self._kick_F * p.l * math.cos(self.s[2]) / p.J * h
+            # süren dürtme: simulator.simulate_closed_loop'taki bozucuyla aynı model (dynamics.accelerations)
+            F = self._kick_F if self._kick_left > 0 else 0.0
+            f_cart, f_pole = (F, 0.0) if self._kick_at == "cart" else (0.0, F)
+            self.s = rk4_step(p, self.s, u_phys, h, f_cart, f_pole)
+            if self._kick_left > 0:
                 self._kick_left -= h
         self._rail_end_stops()
 

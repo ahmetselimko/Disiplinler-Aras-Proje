@@ -42,10 +42,10 @@ class SensorModel:
         return self._q(x, self.x_resolution), self._q(th, self.th_resolution)
 
 
-def rk4_step(p: PendulumParams, s, u: float, h: float):
-    """Tek RK4 adımı (skaler, hızlı)."""
+def rk4_step(p: PendulumParams, s, u: float, h: float, f_cart: float = 0.0, f_pole: float = 0.0):
+    """Tek RK4 adımı (skaler, hızlı). f_cart / f_pole: dış itme kuvvetleri [N] (dynamics.accelerations)."""
     def f(z):
-        ddx, ddth = accelerations(p, z, u)
+        ddx, ddth = accelerations(p, z, u, f_cart, f_pole)
         return (z[1], ddx, z[3], ddth)
     k1 = f(s)
     k2 = f([s[i] + 0.5 * h * k1[i] for i in range(4)])
@@ -79,15 +79,18 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
                          substeps: int = 4, sensor: SensorModel | None = None,
                          delay_steps: int = 0, vel_fc_hz: float = 25.0,
                          disturbance=None, end_stops: bool = True,
-                         use_kalman: bool = True) -> SimResult:
+                         use_kalman: bool = True, disturbance_target: str = "pole") -> SimResult:
     """controller.update(s_hat) -> (u, mode)  veya  controller(s_hat) -> u.
 
-    sensor=None ise kontrolcü gerçek durumu görür (ideal). disturbance(t) -> ek kuvvet [N]
-    (ör. sarkaca dürtme testi); input_mode'dan bağımsız olarak kuvvet eklenir.
+    sensor=None ise kontrolcü gerçek durumu görür (ideal). disturbance(t) -> ek yatay kuvvet [N]
+    (dürtme testi); input_mode'dan bağımsız olarak kuvvet eklenir. disturbance_target: "pole" ise
+    sarkacın ağırlık merkezine, "cart" ise arabaya (Matlab'daki "Apply push" gibi) uygulanır.
     end_stops: araba ±rail_half'teki mekanik uçlarda durur (hız sıfırlanır), rayı aşamaz.
     use_kalman: True ise (firmware gibi) dik konum bölgesinde (|θ| < release) hız Kalman filtresiyle
     kestirilir; geniş açıda vel_fc_hz'lik türev filtresi kullanılır. Eski davranış için False verin.
     """
+    if disturbance_target not in ("pole", "cart"):
+        raise ValueError(f"disturbance_target 'pole' veya 'cart' olmalı, verilen {disturbance_target!r}")
     n = int(round(T / dt))
     t = np.arange(n + 1) * dt
     S = np.empty((n + 1, 4))
@@ -139,13 +142,12 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
         U[k] = u
         u_prev = 0.0 if modes[k] in ("IDLE", "FAULT") else u
         d = disturbance(t[k]) if disturbance else 0.0
+        f_cart, f_pole = (d, 0.0) if disturbance_target == "cart" else (0.0, d)
         # firmware IDLE/FAULT'ta sürücüyü kapatır → araba serbest (0 V gibi frenlemez)
         coast = modes[k] in ("IDLE", "FAULT") and p.input_mode == "voltage"
         for _ in range(substeps):
             u_phys = p.motor.beta * s[1] / p.motor.alpha if coast else u
-            s = rk4_step(p, s, u_phys, h)
-            if d:  # ağırlık merkezine yatay kuvvet → tork d·l·cosθ (arabaya etkisi ihmal)
-                s[3] += d * p.l * math.cos(s[2]) / p.J * h
+            s = rk4_step(p, s, u_phys, h, f_cart, f_pole)
             if end_stops and abs(s[0]) > p.rail_half:
                 s[0], s[1] = math.copysign(p.rail_half, s[0]), 0.0
         if not all(math.isfinite(v) for v in s):

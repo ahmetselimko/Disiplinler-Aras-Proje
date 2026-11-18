@@ -116,7 +116,8 @@ def test_matlab_mode_uses_initial_velocities_and_disables_unused_options(qapp):
     st = AppState("config/params.json")
     page = SimulationPage(st)
     page.matlab_cb.setChecked(True)
-    assert not page.kalman_cb.isEnabled() and not page.dist_dur.isEnabled()
+    assert not page.kalman_cb.isEnabled() and not page.dist_at.isEnabled()
+    assert page.dist_dur.isEnabled() and page.dist_at.currentData() == "cart"   # Matlab'daki "Apply push"
     assert page.dx0.isEnabled() and page.dth0.isEnabled()
     page.th0.setValue(10.0)
     page.T.setValue(0.5)
@@ -125,7 +126,7 @@ def test_matlab_mode_uses_initial_velocities_and_disables_unused_options(qapp):
     page.run()
     assert page.result.s[0] == pytest.approx([0.0, 0.1, math.radians(10.0), math.radians(20.0)])
     page.matlab_cb.setChecked(False)
-    assert page.kalman_cb.isEnabled() and page.dist_dur.isEnabled()
+    assert page.kalman_cb.isEnabled() and page.dist_at.isEnabled()
     page.close()
 
 
