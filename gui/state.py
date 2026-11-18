@@ -10,6 +10,7 @@ from PyQt5 import QtCore
 
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.control.lqr import design_lqr
+from pendulum_lab.control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
 from pendulum_lab.control.swingup import EnergySwingUp
 from pendulum_lab.model.params import PendulumParams, load_params
 
@@ -37,6 +38,9 @@ class AppState(QtCore.QObject):
         self.swingup = EnergySwingUp()
         self.catch_deg = 15.0
         self.release_deg = 30.0
+        self.catch_dth = CATCH_DTH      # LQR'a girişte |θ̇| sınırı [rad/s]
+        self.catch_x = CATCH_X          # LQR'a girişte |x| sınırı [m]
+        self.catch_dx = CATCH_DX        # LQR'a girişte |ẋ| sınırı [m/s]
         self.swingup_enabled = True
         self.x_ref = 0.0
         self.device_Ts: float | None = None     # cihazın bildirdiği kontrol periyodu
@@ -121,7 +125,9 @@ class AppState(QtCore.QObject):
         ok = self.send("set_gain", K=self.K.tolist())
         ok = ok and self.send("set_param", swingup=int(self.swingup_enabled))
         ok = ok and self.send("set_param", catch_deg=self.catch_deg, release_deg=self.release_deg)
-        ok = ok and self.send("set_param", k_E=su.k_E, a_max=su.a_max, k_x=su.k_x, k_v=su.k_v)
+        ok = ok and self.send("set_param", catch_dth=self.catch_dth, catch_x=self.catch_x, catch_dx=self.catch_dx)
+        ok = ok and self.send("set_param", k_E=su.k_E, a_max=su.a_max, k_x=su.k_x, k_v=su.k_v,
+                              E_ratio=su.E_ratio)
         ok = ok and self.send("set_param", u_max=self.p.u_max)
         if self.p.input_mode == "voltage":       # Coulomb telafisi, gerilim olarak (firmware: fc_N = fc_volt·α)
             ok = ok and self.send("set_param", fc_volt=min(6.0, self.p.F_coulomb / self.p.motor.alpha))
@@ -156,6 +162,9 @@ class AppState(QtCore.QObject):
             "Ts": float(self.Ts),
             "catch_deg": float(self.catch_deg),
             "release_deg": float(self.release_deg),
+            "catch_dth": float(self.catch_dth),
+            "catch_x": float(self.catch_x),
+            "catch_dx": float(self.catch_dx),
             "swingup_enabled": bool(self.swingup_enabled),
             "x_ref": float(self.x_ref),
             "swingup": {
@@ -164,7 +173,7 @@ class AppState(QtCore.QObject):
                 "k_x": float(su.k_x),
                 "k_v": float(su.k_v),
                 "a_kick": float(su.a_kick),
-                "E_target": float(su.E_target),
+                "E_ratio": float(su.E_ratio),
             },
             "params": self.p.to_dict(),
         }

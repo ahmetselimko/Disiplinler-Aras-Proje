@@ -75,7 +75,7 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 | `set_gain` | `{"cmd":"set_gain","K":[-9.57,-22.13,-56.44,-8.71]}` | LQR kazancı. Çalışırken de değiştirilebilir |
 | `set_param` | `{"cmd":"set_param","catch_deg":15,"release_deg":30}` | Aşağıdaki tablo |
 
-**Yalnız sanal ESP32 (firmware'de yok, gerçek kart `ok:false` döner):** `{"cmd":"kick","dth":1.0}` sarkacı dürter; `{"cmd":"pause","on":1}` / `"on":0` fiziği ve kontrolü dondurur / sürdürür (telemetri son değerlerle akmaya devam eder); `{"cmd":"reset","th0_deg":180}` IDLE'a döner, duraklatmayı kaldırır ve sarkacı θ₀ açısında durağan koyar. Liste: `protocol.py::SIM_ONLY_COMMANDS`.
+**Yalnız sanal ESP32 (firmware'de yok, gerçek kart `ok:false` döner):** `{"cmd":"kick","F":1.2,"dur":0.05}` sarkacın ağırlık merkezine F newton yatay kuvveti `dur` saniye uygular (F: ±20 N, dur: 0.001–2 s; Analiz sekmesindeki dürtmeyle aynı model; eski biçim `{"cmd":"kick","dth":1.0}` θ̇'ye anlık ekler ve hâlâ kabul edilir); `{"cmd":"pause","on":1}` / `"on":0` fiziği ve kontrolü dondurur / sürdürür (telemetri son değerlerle akmaya devam eder); `{"cmd":"reset","th0_deg":180}` IDLE'a döner, duraklatmayı kaldırır ve sarkacı θ₀ açısında durağan koyar. Liste: `protocol.py::SIM_ONLY_COMMANDS`.
 
 `set_param` alanları (bir mesajda birden fazla alan olabilir). **Ya hepsi uygulanır ya hiçbiri:** tek bir alan geçersizse mesajın tamamı reddedilir. Aralıkların tek kaynağı `pendulum_lab/comm/protocol.py::SET_PARAM_LIMITS`'tir; firmware'deki `PARAM_LIMITS` tablosunun aynı olduğunu bir test denetler.
 
@@ -83,10 +83,14 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 |---|---|---|
 | `catch_deg` | 1–45 | \|θ\| bu değerin altına inince LQR devreye girer |
 | `release_deg` | 2–90 | \|θ\| bu değeri aşınca LQR bırakılır. Her zaman `catch_deg < release_deg` olmalı (histerezis) |
+| `catch_dth` | 0.5–50 | LQR'a girişte \|θ̇\| sınırı [rad/s] (varsayılan 5) |
+| `catch_x` | 0.01–1 | LQR'a girişte araba konum sınırı \|x\| [m] (varsayılan 0.4: kısıtlamaz) |
+| `catch_dx` | 0.01–5 | LQR'a girişte araba hız sınırı \|ẋ\| [m/s] (varsayılan 2: kısıtlamaz) |
 | `swingup` | 0/1 | 0 ise sarkaç elle kaldırılana kadar beklenir (WAIT) |
 | `k_E` | 0–10000 | Swing-up enerji kazancı |
 | `a_max` | 0–50 | Swing-up ivme sınırı [m/s²] |
 | `k_x`, `k_v` | 0–1000 | Swing-up araba merkezleme kazançları |
+| `E_ratio` | 0.5–1.5 | Swing-up hedef enerji oranı: aşağıdan ölçülen hedef enerji / dik konum enerjisi (2mgl). 1 = tam dik konum |
 | `x_ref` | ±0.3 | Dengedeyken arabanın hedef konumu [m]. Cihaz ayrıca \|x_ref\| ≤ rail_half − 0.1 şartını arar |
 | `u_max` | 0–48 | Giriş doyumu [V]. Cihaz besleme geriliminden büyük değeri reddeder |
 | `telemetry_hz` | 1–500 | Telemetri hızı |
@@ -99,7 +103,7 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
   IDLE ──────────▶ HOMING ───────▶ IDLE
    ▲  │ start (homed)
    │  ▼
-   │ SWING_UP ── |θ|<catch & |θ̇|<5 ──▶ BALANCE
+   │ SWING_UP ── yakalama şartı ─────▶ BALANCE
    │    ▲                                 │
    │    └────────── |θ|>release ──────────┘
    │
@@ -108,6 +112,8 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
            friction (homed)        bitti / stop
   IDLE ───────────────────▶ FRICTION ─────────────▶ IDLE   (sonuç: friction olayı)
 ```
+
+Yakalama şartı (`Supervisor.can_catch`): |θ| < catch_deg, |θ̇| < catch_dth, |x| < catch_x ve |ẋ| < catch_dx.
 FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir.
 
 ## 6. Homing'i kim başlatır?

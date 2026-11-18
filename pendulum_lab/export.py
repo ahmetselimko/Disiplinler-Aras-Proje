@@ -12,23 +12,36 @@ from pathlib import Path
 
 import numpy as np
 
+from .control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
+from .filters import design_kalman
+
 
 PLACEHOLDER_COMMENT = "// UYARI: YER TUTUCU parametrelerle üretildi — gerçek ölçüler girilip yeniden üretilmeli."
 PLACEHOLDER_WARNING = ('#warning "gains.h YER TUTUCU parametrelerle uretildi: olculmus degerleri girip '
                        'arayuzden yeniden disa aktarin"')
 
 
+def _c_vec(v) -> str:
+    return "{" + ", ".join(f"{float(x):.8e}f" for x in v) + "}"
+
+
+def _c_mat(M) -> list[str]:
+    return [f"  {_c_vec(row)}," for row in M]
+
+
 def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float = 15.0,
-                 release_deg: float = 30.0) -> str:
+                 release_deg: float = 30.0, catch_dth: float = CATCH_DTH, catch_x: float = CATCH_X,
+                 catch_dx: float = CATCH_DX) -> str:
     K = np.asarray(K, dtype=float).ravel()
     period_ms = Ts * 1000
     if abs(period_ms - round(period_ms)) > 1e-9 or round(period_ms) < 1:
         # firmware vTaskDelayUntil ile 1 ms'lik FreeRTOS tikinde çalışır
         raise ValueError(f"Ts tam sayı milisaniye olmalı (≥ 1 ms), verilen {period_ms:g} ms")
+    Ad, Bd, L, _ = design_kalman(p, Ts)
     lines = [
         "// Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin",
         f"// {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        f"// Q = {list(np.ravel(Q)) if Q is not None else '-'}   R = {np.ravel(R).tolist() if R is not None else '-'}",
+        f"// Q = {np.ravel(Q).astype(float).tolist() if Q is not None else '-'}   R = {np.ravel(R).tolist() if R is not None else '-'}",
         f"// Parametreler: M={p.M} m={p.m} l={p.l} I={p.I} b={p.b} c={p.c} giriş={p.input_mode}"
         f" T_f={p.motor.T_f} B_m={p.motor.B_m}",
         "#pragma once",
@@ -41,6 +54,9 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
         "static const float LQR_K[4] = {" + ", ".join(f"{k:.6f}f" for k in K) + "};",
         f"#define CATCH_RAD          {math.radians(catch_deg):.6f}f",
         f"#define RELEASE_RAD        {math.radians(release_deg):.6f}f",
+        f"#define CATCH_DTH          {catch_dth:.4f}f   // LQR'a girişte |θ̇| sınırı [rad/s]",
+        f"#define CATCH_X            {catch_x:.4f}f   // LQR'a girişte |x| sınırı [m]",
+        f"#define CATCH_DX           {catch_dx:.4f}f   // LQR'a girişte |ẋ| sınırı [m/s]",
         f"#define U_MAX              {p.u_max:.4f}f",
         f"#define RAIL_HALF_M        {p.rail_half:.4f}f",
         "",
@@ -68,7 +84,20 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
             f"#define SU_K_X             {swingup.k_x:.4f}f",
             f"#define SU_K_V             {swingup.k_v:.4f}f",
             f"#define SU_A_KICK          {swingup.a_kick:.4f}f",
+            f"#define SU_E_RATIO         {swingup.E_ratio:.4f}f   // hedef enerji oranı (1 = dik konum)",
         ]
+    lines += [
+        "",
+        "// Ayrık kararlı hal Kalman filtresi (dik konum etrafında: s+ = Ad*s + Bd*u, s += L*(y - C*s))",
+        "#define KALMAN_AVAILABLE 1",
+        "static const float KALMAN_AD[4][4] = {",
+        *_c_mat(Ad),
+        "};",
+        f"static const float KALMAN_BD[4] = {_c_vec(Bd.ravel())};",
+        "static const float KALMAN_L[4][2] = {",
+        *_c_mat(L),
+        "};",
+    ]
     return "\n".join(lines) + "\n"
 
 
