@@ -1,6 +1,8 @@
-"""Motor karşılaştırması (#7): Pololu 37D, Pololu 35:1 motorlar ve NEMA17 (Pololu #1200).
+"""Motor karşılaştırması (#7): Pololu 37D, Pololu 25D (seçilen), Pololu 35:1 motorlar ve NEMA17 (Pololu #1200).
 
-    python tools/motor_karsilastirma.py [sonuclar.csv]
+    python tools/motor_karsilastirma.py [sonuclar.csv] [--sadece 25D]
+
+--sadece METİN: yalnız adında METİN geçen adayları dener (ör. 25D).
 
 Her aday için arayüzdeki adımlar toplu yapılır: K hesapla (varsayılan Q/R/Ts) → θ₀ = 180° ile 20 s
 simülasyon; iki ray boyunda (±0.4 / ±0.2 m), DC motorlarda sürtünmesiz ve sürtünmeli (telafi açık) olarak.
@@ -54,6 +56,18 @@ DC_ADAYLAR = [  # (ad, motor değerleri, redüktör, motor milinde enkoder CPR, 
     # DOĞRULANMADI: hangi motorun kastedildiği ve aşağıdaki datasheet değerleri mekatronikle teyit edilmeli.
     ("#1091 35:1 mini 6V", dc_motor(6.0, 350, 0.07, 1.5, 20 * OZIN, 35), 35, 12, (0.0,)),
     ("#1597 35:1 15.5D 6V", dc_motor(6.0, 460, 0.06, 0.8, 13 * OZIN, 35), 35, 12, (0.0,)),
+    # SEÇİLEN MOTOR (mekatronik, 16.11.2026): "Pololu 25D 48 CPR enkoderli 12V, 251 RPM". Pololu'nun 12V 25D
+    # listesinde tam 251 RPM'lik model yok; en yakın dört aday denenir. Hangisi olduğu ürün numarasıyla
+    # TEYİT EDİLMELİ. Değerler pololu.com/category/115 (boşta akım enkoderli sürüm; durma değerleri sayfaya göre
+    # teorik). Redüktör çıkışı değerleri kullanılır (dişli verimi dahil). J_rotor bilinmiyor → 0 ve 1e-6 kg·m²
+    # (25D rotoru 37D'ninkinden küçük; VARSAYIM).
+    *[(f"25D {ad}", dc_motor(12.0, rpm, I0, Is, T * KGCM, N), N, 48, (0.0, 1e-6))
+      for ad, rpm, I0, Is, T, N in (
+          ("HP 34:1 #4844", 300, 0.30, 5.0, 11.0, 34),
+          ("LP 20.4:1 #4883", 280, 0.06, 0.9, 2.4, 20.4),
+          ("MP 34:1 #4864", 230, 0.10, 1.8, 4.7, 34),
+          ("HP 47:1 #4845", 220, 0.30, 5.0, 15.0, 47),
+      )],
 ]
 # NEMA17, Pololu #1200: 200 adım/tur, 1.2 A/faz, 3.3 Ω, 2.8 mH, tutma torku 3.2 kg·cm
 NEMA17 = dict(T_hold=3.2 * KGCM, I=1.2, R=3.3, L=2.8e-3, J=68e-7)   # J sayfada yok: 48 mm NEMA17 için tipik — VARSAYIM
@@ -150,9 +164,19 @@ def stepper_kos(base, teeth, rail):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")   # Windows konsolu (cp1254) "→" yazamıyor
+    args = sys.argv[1:]
+    sadece = None
+    if "--sadece" in args:
+        i = args.index("--sadece")
+        sadece = args[i + 1]
+        del args[i:i + 2]
     base = load_params(ROOT / "config" / "params.json")
     rows = []
     for ad, mot, N, cpr, Js in DC_ADAYLAR:
+        if sadece and sadece not in ad:
+            continue
         for teeth in TEETH:
             for rail in RAILS:
                 for J in Js:
@@ -161,7 +185,7 @@ def main():
                         r_ = rows[-1]
                         print(f"{ad:<20} {teeth}diş ray=±{rail} J={J:.0e} sürtünme={r_['surtunme']:<10} "
                               f"→ {r_['sonuc']}", flush=True)
-    for teeth in TEETH:
+    for teeth in TEETH if not sadece or sadece in "NEMA17 #1200" else ():
         for rail in RAILS:
             rows.append(stepper_kos(base, teeth, rail))
             print(f"{'NEMA17 #1200':<20} {teeth}diş ray=±{rail} → {rows[-1]['sonuc']}", flush=True)
@@ -178,11 +202,11 @@ def main():
               f"{max(x.get('tork_orani_24V', 0) for x in g):.2f}")
         print(f"  {ad:<20} {teeth} diş: {sum(x['sonuc'] == 'denge' for x in g)}/{len(g)}   {ek}")
 
-    if len(sys.argv) > 1:
+    if args:
         alanlar: list = []
         for r_ in rows:
             alanlar += [k for k in r_ if k not in alanlar]
-        with open(sys.argv[1], "w", newline="", encoding="utf-8") as f:
+        with open(args[0], "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=alanlar)   # satırda olmayan alan boş kalır
             w.writeheader()
             w.writerows(rows)
