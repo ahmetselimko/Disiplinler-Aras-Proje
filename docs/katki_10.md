@@ -45,6 +45,7 @@ Bunu önlemek için `gain_from_matlab()` / `gain_to_matlab()` dönüşüm fonksi
 | Sensör | İdeal | Kuantalama, gürültü, gecikme seçilebilir |
 | İntegrasyon | RK4, dt = 2.5 ms | RK4 |
 | Durma | \|x\| ≥ 0.2 m veya \|θ\| ≥ 90° | Ray uç durdurucuları |
+| Dış itme | Arabaya ("Apply push") | Sarkaca veya arabaya (seçilebilir) |
 
 `simulate_matlab_compatible()` Matlab'daki denemeyi Python'da birebir tekrarlar. Arayüzde
 **Analiz ve Simülasyon → Matlab uyumlu** seçeneği bunu kullanır ve K'yı iki işaret kuralında da gösterir.
@@ -59,7 +60,7 @@ Q = diag(1/0.2², 1/0.5², 1/(10°)², 1) = diag(25, 4, 32.83, 1), R = 1/Fmax² 
 | Doğrusal olmayan hareket denklemleri | θ işareti dışında aynı |
 | LQR kazancı K | Matlab sonucu bağımsız modelden yeniden üretildi (fark < 0.01) |
 | Kapalı çevrim kutupları | −58.39, −5.65, −2.40 ± 0.99j (iki tarafta aynı) |
-| Sürekli (Matlab) ve 500 Hz ayrık (kütüphane) simülasyon, θ₀ = 8°, x₀ = 5 cm, 4 s | En büyük fark θ'da 0.08°, x'te 0.6 mm |
+| Sürekli (Matlab) ve 500 Hz ayrık (kütüphane) simülasyon, θ₀ = 8°, x₀ = 5 cm, 4 s, **kuvvet sınırı kapalı** | En büyük fark θ'da 0.08°, x'te 0.6 mm. Matlab tarafında ±10 N sınırı açıkken (kütüphanede sınır yok) fark θ'da 0.73°, x'te 5.5 mm |
 
 ### Matlab uyumlu deneme: başlangıç açısına göre
 Başlangıç hızı sıfır, araba merkezde, 10 s.
@@ -94,8 +95,17 @@ python -m pytest tests/test_matlab_compat.py -v
 
 ## Dikkat: Matlab K'sı ESP32 için yeterli değil
 İşaret dönüşümü yalnız işaret farkını giderir. Matlab modeli kuvvet girişlidir ve motor içermez; ESP32 ise motora
-gerilim uygular ve 2 ms örneklemeyle çalışır. Aynı Q, R ile bile motorlu modelden çıkan K farklıdır
-(proje parametreleriyle K ≈ [−50, −53.06, −148.25, −25.76]). Gerçek düzenekte kullanılacak K, arayüzün
+gerilim uygular ve 2 ms örneklemeyle çalışır. Aynı Q, R ile bile motorlu modelden çıkan K farklıdır. Proje
+parametreleriyle (Matlab işaret kuralında değil, proje işaretinde):
+
+| | $k_x$ | $k_{\dot x}$ | $k_\theta$ | $k_{\dot\theta}$ |
+|---|---|---|---|---|
+| Matlab K'sı (dönüştürülmüş) | −50.00 | −45.37 | −168.66 | −33.25 |
+| Motorlu model, sürekli zamanlı | −50.00 | −53.06 | −148.25 | −25.76 |
+| Motorlu model, ayrık ($T_s$ = 2 ms) — **ESP32'ye giden budur** | −40.58 | −44.75 | −121.20 | −21.04 |
+
+Motorlu modelde giriş gerilimdir, Matlab'da kuvvettir; aynı R değeri iki modelde farklı bir şeyi cezalandırır.
+Gerçek düzenekte kullanılacak K, arayüzün
 **Model ve LQR Tasarımı** sekmesinde motorlu modelle hesaplanmalıdır.
 
 ## Katkılar
