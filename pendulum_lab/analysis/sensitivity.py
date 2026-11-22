@@ -130,6 +130,18 @@ def evaluate_result(r, p, threshold_deg=2.0, hold_s=1.0):
     return CaseResult(balanced, settle, max_x, sat_time, str(r.mode[-1]), status, final_hold)
 
 
+def _sensor(nominal) -> SensorModel:
+    """Deneylerde kullanılan sensör: 12-bit açı, nominal redüktör/kasnakla 48 CPR enkoder, gürültüsüz."""
+    return SensorModel.for_params(nominal, seed=0)
+
+
+def _sensor_settings(nominal) -> dict:
+    """Rapora yazılan sensör ayarları: deneylerde gerçekten kullanılan SensorModel'den okunur."""
+    s = _sensor(nominal)
+    return {"th_resolution": s.th_resolution, "x_resolution": s.x_resolution,
+            "noise_std": s.th_noise_std, "seed": s.seed}
+
+
 def _run_case(nominal, real, K, sim_time, dt, initial_deg, threshold_deg, hold_s,
               swingup=None, catch_deg=15.0, release_deg=30.0):
     sup = Supervisor(copy.deepcopy(nominal), K, swingup=copy.deepcopy(swingup),
@@ -137,7 +149,7 @@ def _run_case(nominal, real, K, sim_time, dt, initial_deg, threshold_deg, hold_s
     sup.start()
     try:
         r = simulate_closed_loop(real, sup, [0., 0., math.radians(initial_deg), 0.], sim_time,
-                                 dt=dt, sensor=SensorModel.for_params(nominal, seed=0), end_stops=True)
+                                 dt=dt, sensor=_sensor(nominal), end_stops=True)
     except (FloatingPointError, OverflowError) as exc:
         return CaseResult(False, None, math.nan, math.nan, "HATA", "HATA", error=str(exc))
     return evaluate_result(r, nominal, threshold_deg, hold_s)
@@ -191,10 +203,9 @@ def run_sensitivity_sweep(nominal=None, K=None, params_to_test=DEFAULT_PARAMS_TO
                     K_source="nominal Q/R ile tasarlandı" if designed_here else "dışarıdan verilen sabit K",
                     K=K.tolist(), variations=variations,
                     swingup=asdict(su), catch_deg=catch_deg, release_deg=release_deg,
-                    sensor={"th_resolution": 2*math.pi/4096,
-                    "x_resolution": .000125, "noise_std": 0., "seed": 0},
+                    sensor=_sensor_settings(nominal),
                     initial_angles_deg={"swing": 180., "balance": 5.}, zero_scales=scales)
-    settings.update(substeps=4, vel_fc_hz=25., delay_steps=0, end_stops=True)
+    settings.update(substeps=4, vel_fc_hz=25., delay_steps=0, end_stops=True, use_kalman=True)
 
     def run(real, initial):
         return _run_case(nominal, real, K, sim_time, dt, initial, threshold_deg, hold_s,
@@ -249,7 +260,9 @@ def generate_markdown_report(results):
         import json
         cfg = results.settings
         lines += ["## Tekrarlanabilir deney ayarları", "",
-                  f"- Her deney: {cfg['sim_time']:g} s; Ts = {cfg['dt']:g} s; sensör: AS5600 12-bit, gürültü yok.",
+                  f"- Her deney: {cfg['sim_time']:g} s; Ts = {cfg['dt']:g} s; sensör: AS5600 12-bit ve 48 CPR motor "
+                  "enkoderi (kuantalama), gürültü yok; hız dik bölgede Kalman filtresiyle, geniş açıda 25 Hz türev "
+                  "filtresiyle kestirilir (firmware gibi).",
                   f"- Başarı: son en az {cfg['hold_s']:g} s boyunca BALANCE ve |θ| ≤ {cfg['threshold_deg']:g}°; FAULT ve ray teması yok.",
                   "- Ayrı başlangıçlar: aşağıdan 180° swing-up; dik çevresinde 5° denge.",
                   "- Doyum: sol örnek sabit kabul edilerek |u| ≥ u_max − 0.001 integralidir.",
