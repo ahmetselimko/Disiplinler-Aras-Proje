@@ -21,7 +21,7 @@ from ..model.params import PendulumParams
 
 @dataclass
 class SensorModel:
-    """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 48 CPR motor enkoderi, 10:1, 40 diş (~0.166 mm/sayım).
+    """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 48 CPR motor enkoderi, 10:1, HTD3M 20 diş (~0.125 mm/sayım).
     Parametrelerden (gerçek redüktör ve kasnakla, firmware gibi) kurmak için SensorModel.for_params(p)."""
     th_resolution: float = KALMAN_TH_RES
     x_resolution: float = KALMAN_ENC_RES
@@ -86,7 +86,8 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
                          substeps: int = 4, sensor: SensorModel | None = None,
                          delay_steps: int = 0, vel_fc_hz: float = 25.0,
                          disturbance=None, end_stops: bool = True,
-                         use_kalman: bool = True, disturbance_target: str = "pole") -> SimResult:
+                         use_kalman: bool = True, disturbance_target: str = "pole",
+                         kalman_Rn=None) -> SimResult:
     """controller.update(s_hat) -> (u, mode)  veya  controller(s_hat) -> u.
 
     sensor=None ise kontrolcü gerçek durumu görür (ideal). disturbance(t) -> ek yatay kuvvet [N]
@@ -107,7 +108,8 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
     vx = VelocityEstimator(dt, vel_fc_hz)
     vth = VelocityEstimator(dt, vel_fc_hz, angular=True)
     ctrl_p = getattr(controller, "p", p)
-    kf = KalmanFilter.from_params(ctrl_p, dt) if (use_kalman and sensor is not None) else None
+    # kalman_Rn: Kalman ölçüm gürültüsü [x, θ] (None: firmware gibi ENC_CPR_MOTOR ve 12-bit AS5600'dan)
+    kf = KalmanFilter.from_params(ctrl_p, dt, Rn=kalman_Rn) if (use_kalman and sensor is not None) else None
     in_kf = False
     u_prev = 0.0
     pending = [0.0] * delay_steps

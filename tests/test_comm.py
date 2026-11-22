@@ -447,6 +447,7 @@ def test_firmware_start_limits_and_messages_match_python():
 def test_start_rejected_near_rail_then_allowed_after_homing():
     dev, out = _homed_device()
     dev.s[0], dev.s[1] = dev.x_offset + dev.p.rail_half - START_X_MARGIN + 0.01, 0.0
+    dev.vx.prev = None   # araba "ışınlandı": hız kestirimi sıçramasın (homing kaçak koruması yanlış tetiklenmesin)
     out.clear()
     dev.feed(P.encode_command("start"))
     dev.step()

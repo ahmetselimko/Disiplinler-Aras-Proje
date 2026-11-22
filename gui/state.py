@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 from PyQt5 import QtCore
 
+from pendulum_lab.comm import protocol as P
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
@@ -75,16 +76,18 @@ class AppState(QtCore.QObject):
     def set_reader(self, reader):
         self.reader = reader
         self.device_Ts = None
+        self._last_info = -1e9          # yeni bağlantı: ilk cihaz bilgisi ayarları mutlaka yükler
         self.connection_changed.emit(reader is not None)
 
-    def on_device_info(self, data: dict):
+    def on_device_info(self, data: dict, boot: bool = False):
         """ping yanıtı veya boot olayı geldi: Ts'yi öğren ve ayarları (yeniden) yükle.
-        Cihaz yeniden başladıysa PC'den gelen ayarları kaybetmiştir; bu yüzden boot'ta da çağrılır."""
+        Cihaz yeniden başladıysa PC'den gelen ayarları kaybetmiştir; bu yüzden boot'ta HER ZAMAN yüklenir.
+        Bağlanırken boot olayı ve ping yanıtı art arda gelebilir: boot'tan sonraki 1 s içinde gelen ping
+        yanıtı aynı ayarları ikinci kez göndermez."""
         if "Ts" in data:
             self.device_Ts = float(data["Ts"])
-        # bağlanırken boot olayı ve ping yanıtı art arda gelebilir: aynı ayarları iki kez gönderme
         now = time.monotonic()
-        if now - self._last_info < 1.0:
+        if not boot and now - self._last_info < 1.0:
             return
         self._last_info = now
         ts = f"  Ts={self.device_Ts * 1000:g} ms" if self.device_Ts else "  (Ts bildirilmedi)"
@@ -122,24 +125,28 @@ class AppState(QtCore.QObject):
         self.x_ref = self.clamp_xref(self.x_ref)
         # Cihaz set_param'ı "hepsi ya da hiçbiri" uygular; güvenlik açısından önemli swing-up anahtarı
         # başka bir alanın reddiyle kaybolmasın diye AYRI mesajlarla gönderilir.
-        ok = self.send("set_gain", K=self.K.tolist())
-        ok = ok and self.send("set_param", swingup=int(self.swingup_enabled))
-        ok = ok and self.send("set_param", catch_deg=self.catch_deg, release_deg=self.release_deg)
-        ok = ok and self.send("set_param", catch_dth=self.catch_dth, catch_x=self.catch_x, catch_dx=self.catch_dx)
-        ok = ok and self.send("set_param", k_E=su.k_E, a_max=su.a_max, k_x=su.k_x, k_v=su.k_v,
-                              E_ratio=su.E_ratio)
-        ok = ok and self.send("set_param", u_max=self.p.u_max)
+        # Her mesaj bağımsız gönderilir: biri yerelde reddedilirse (ör. aralık dışı) diğerleri yine gider,
+        # cihaz yarı güncellenmiş kalmaz; gönderilemeyenler topluca bildirilir.
+        msgs = [("set_gain", dict(K=self.K.tolist())),
+                ("set_param", dict(swingup=int(self.swingup_enabled))),
+                ("set_param", dict(catch_deg=self.catch_deg, release_deg=self.release_deg)),
+                ("set_param", dict(catch_dth=self.catch_dth, catch_x=self.catch_x, catch_dx=self.catch_dx)),
+                ("set_param", dict(k_E=su.k_E, a_max=su.a_max, k_x=su.k_x, k_v=su.k_v, E_ratio=su.E_ratio)),
+                ("set_param", dict(u_max=self.p.u_max))]
         if self.p.input_mode == "voltage":       # Coulomb telafisi, gerilim olarak (firmware: fc_N = fc_volt·α)
-            ok = ok and self.send("set_param", fc_volt=min(6.0, self.p.F_coulomb / self.p.motor.alpha))
-        ok = ok and self.send("set_param", x_ref=self.x_ref)
-        if ok:
-            self.log.emit("K = [" + ", ".join(f"{k:.3f}" for k in self.K) + "] ve ayarlar gönderildi "
-                          "(reddedilen olursa aşağıda ✗ ile görünür).")
-        return ok
+            msgs.append(("set_param", dict(fc_volt=min(6.0, self.p.F_coulomb / self.p.motor.alpha))))
+        msgs.append(("set_param", dict(x_ref=self.x_ref)))
+        failed = [", ".join(f) for cmd, f in msgs if not self.send(cmd, **f)]
+        if failed:
+            self.log.emit("UYARI: şu ayarlar GÖNDERİLEMEDİ, cihaz eski değerlerini kullanıyor: " + "; ".join(failed))
+            return False
+        self.log.emit("K = [" + ", ".join(f"{k:.3f}" for k in self.K) + "] ve ayarlar gönderildi "
+                      "(reddedilen olursa aşağıda ✗ ile görünür).")
+        return True
 
     def clamp_xref(self, x: float) -> float:
-        """Cihazın kuralı: |x_ref| ≤ rail_half − 0.1 m."""
-        lim = max(0.0, self.p.rail_half - 0.1)
+        """Cihazın kuralları: |x_ref| ≤ rail_half − 0.1 m ve protokol aralığı (SET_PARAM_LIMITS x_ref)."""
+        lim = max(0.0, min(P.SET_PARAM_LIMITS["x_ref"][1], self.p.rail_half - 0.1))
         return max(-lim, min(lim, x))
 
     def get_metadata(self) -> dict:

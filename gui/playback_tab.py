@@ -143,6 +143,8 @@ class PlaybackTab(QtWidgets.QWidget):
         self._play_t0 = 0.0                       # oynatmanın başladığı kayıt zamanı [s]
         self.speed.currentIndexChanged.connect(self._rebase_clock)
         self.slider.sliderReleased.connect(self._rebase_clock)   # oynatırken elle sarma
+        # çubuğa tıklama / ok tuşları: değer actionTriggered'dan SONRA değişir → saat bir sonraki olayda kurulur
+        self.slider.actionTriggered.connect(lambda *_: QtCore.QTimer.singleShot(0, self._rebase_clock))
 
         self.b_refresh.clicked.connect(self.refresh_file_list)
         self.b_open.clicked.connect(self.open_dialog)
@@ -258,6 +260,11 @@ class PlaybackTab(QtWidgets.QWidget):
             lines += [
                 f"UYARI: deneme sırasında değişen ayar(lar): {', '.join(comp.changed_during_trial)}",
                 "  simülasyon BAŞLAT anındaki ayarlarla koşuldu; sonrası farklılık gösterebilir.",
+            ]
+        if comp.sim_actions_during_trial:
+            lines += [
+                f"UYARI: kayıtta {', '.join(comp.sim_actions_during_trial)} var; karşılaştırma simülasyonu "
+                "bunları içermez, RMSE yanıltıcı olabilir.",
             ]
         lines += [
             "Metrikler yalnız aktif deneme aralığında hesaplanır.",

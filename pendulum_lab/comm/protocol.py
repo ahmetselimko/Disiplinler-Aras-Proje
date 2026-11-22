@@ -8,6 +8,8 @@ ESP32 → PC
 PC → ESP32
   {"cmd":"set_gain","K":[k1,k2,k3,k4]}   {"cmd":"start"}  {"cmd":"stop"}  {"cmd":"estop"}
   {"cmd":"home"}  {"cmd":"ping"}  {"cmd":"calib"}  {"cmd":"set_param","catch_deg":15,...}
+  {"cmd":"hb"}  bağlantı bekçisi: PC bağlıyken HB_PERIOD_S'de bir gönderir, yanıt gelmez. Cihaz hareketli bir
+                moddayken LINK_TIMEOUT_S boyunca HİÇ satır almazsa FAULT "link" (USB koptu / arayüz çöktü)
   {"cmd":"friction"} → {"evt":"friction","ok":true,"v_pos":..,"v_neg":..,"v_c":..,"slope":..}
   yalnız simülasyon: {"cmd":"kick","F":2.0,"dur":0.1,"at":"pole"|"cart"} (veya eski biçim {"cmd":"kick","dth":1.0})  {"cmd":"pause","on":1}  {"cmd":"reset","th0_deg":180}
 
@@ -22,8 +24,13 @@ import math
 from dataclasses import dataclass, field
 
 TELEMETRY_KEYS = ("n", "t", "x", "dx", "th", "dth", "u", "mode")
-COMMANDS = ("ping", "start", "stop", "estop", "home", "calib", "set_gain", "set_param", "friction",
+COMMANDS = ("ping", "hb", "start", "stop", "estop", "home", "calib", "set_gain", "set_param", "friction",
             "kick", "pause", "reset")
+# bağlantı bekçisi: PC "hb"yi bu aralıkla gönderir; cihaz hareketli modda (HOMING, SWING_UP, WAIT, BALANCE,
+# FRICTION) bu süre boyunca hiç komut satırı almazsa motoru keser (FAULT "link"). Firmware'deki
+# LINK_TIMEOUT_MS ile aynı olmalı (test denetler).
+HB_PERIOD_S = 0.25
+LINK_TIMEOUT_S = 1.0
 # yalnız sanal ESP32'de geçerli komutlar (firmware'de yok): dürt, fiziği dondur/sürdür, başlangıç durumuna dön
 SIM_ONLY_COMMANDS = ("kick", "pause", "reset")
 # sanal ESP32'de dürtme: yatay kuvvet F [N], dur [s] boyunca; at = "pole" (sarkacın ağırlık merkezine,

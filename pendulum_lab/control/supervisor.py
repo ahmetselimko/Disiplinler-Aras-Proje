@@ -4,8 +4,9 @@ Toplantı kararı: LQR, sinθ≈θ varsayımı geçerli olduğu bölgede (|θ| <
 enerji bazlı swing-up çalışır. Geçiş yazılımsaldır ve histerezislidir (eşikte titreme olmasın):
     SWING_UP → BALANCE :  |θ| < catch_deg  ve |θ̇| < catch_dth  ve |x| < catch_x  ve |ẋ| < catch_dx
     BALANCE  → SWING_UP:  |θ| > release_deg
-    her mod  → FAULT   :  |x| > rail_half − soft_margin   (motor gücü kesilir)
-    FAULT → IDLE yalnız STOP ile; BAŞLAT yalnız IDLE'dan kabul edilir (hatadan doğrudan çıkılmaz).
+    WAIT/SWING_UP/BALANCE → FAULT : |x| > rail_half − soft_margin (motor gücü kesilir). Firmware ve sanal
+        ESP32 bunu FRICTION'da da, limit switch'i HOMING/FRICTION'da da denetler (bu sınıfın dışında).
+    FAULT'tan STOP (→ IDLE) ya da HOME (→ HOMING) ile çıkılır; BAŞLAT yalnız IDLE'dan kabul edilir.
     Cihaz BAŞLAT'ı araba ray ucuna yakınsa veya hâlâ hareket ediyorsa da reddeder (start_block_reason).
 
 ESP32 firmware'indeki mantık (firmware/esp32_pendulum) bu sınıfla BİREBİR aynı tutulmalıdır.
@@ -24,8 +25,8 @@ from .swingup import EnergySwingUp
 
 START_X_MARGIN = 0.10     # BAŞLAT için rayın ucuna en az bu kadar uzak olmalı [m]
 START_MAX_SPEED = 0.2     # BAŞLAT için araba hızı bundan düşük olmalı [m/s]
-# Geçiş (SWING_UP → BALANCE) varsayılanları. catch_x / catch_dx varsayılanda geçişi kısıtlamaz
-# (yazılımsal ray sınırı ve aracın en yüksek hızı zaten daha dar); gerçek denemelerde daraltılabilir.
+# Geçiş (SWING_UP → BALANCE) varsayılanları. catch_x / catch_dx, ray ±0.4 m iken geçişi kısıtlamaz
+# (yazılımsal ray sınırı ve aracın en yüksek hızı zaten daha dar); ray daha uzunsa catch_x de artırılmalı.
 CATCH_DTH = 5.0           # LQR'a girişte açısal hız sınırı [rad/s]
 CATCH_X = 0.40            # LQR'a girişte araba konum sınırı |x| [m]
 CATCH_DX = 2.0            # LQR'a girişte araba hız sınırı |ẋ| [m/s]

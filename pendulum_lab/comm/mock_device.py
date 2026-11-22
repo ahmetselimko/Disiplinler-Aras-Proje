@@ -37,10 +37,14 @@ from . import protocol as P
 
 DEFAULT_Q = (10.0, 1.0, 100.0, 1.0)
 DEFAULT_R = 0.1
+# bağlantı bekçisinin izlediği modlar (motor hareket ettirilirken); firmware'deki linkWatched() ile aynı
+LINK_WATCH_MODES = (Mode.HOMING, Mode.SWING_UP, Mode.WAIT, Mode.BALANCE, Mode.FRICTION)
 HOME_SPEED = 0.10        # [m/s]
 HOME_TIMEOUT = 20.0      # [s]
 HOME_KP = 20.0           # homing hız döngüsü oransal kazancı [1/s]
 HOME_KI = 30.0           # integral kazancı [1/s²]: araba hedef hıza ulaşamadıkça itme artar → sürtünmeyi yener (#30)
+HOME_RUNAWAY_V = 0.30    # homing'de |ẋ| bunu aşarsa (normal en çok 0.15) kontrol kaçmıştır: yön ters → FAULT
+HOME_SAT_S = 0.30        # homing'de gerilim bu süreden uzun doyumda kalırsa → FAULT (firmware ile aynı)
 HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
 HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı [m/s] (firmware ile aynı)
 FW_NAME = "mock-1.1"
@@ -49,8 +53,16 @@ FW_NAME = "mock-1.1"
 class MockDevice:
     def __init__(self, params: PendulumParams | None = None, Ts: float = 0.002, telemetry_hz: int = 200,
                  seed: int | None = None, realtime: bool = True, x0: float | None = None,
-                 limit_switches: bool = True):
+                 limit_switches: bool = True, link_timeout: float | None = None, enc_sign: float = 1.0):
         self.limit_switches = limit_switches
+        # enc_sign = −1: enkoder ters bağlanmış gibi (firmware'de X_SIGN yanlış) — kablolama hatası testleri için
+        self.enc_sign = enc_sign
+        self._home_sat = 0.0
+        # bağlantı bekçisi (protokol: hb, LINK_TIMEOUT_S). None: kapalı (testler adım adım sürer, hb göndermez);
+        # arayüzün sanal ESP32'si firmware gibi P.LINK_TIMEOUT_S ile açar.
+        self.link_timeout = link_timeout
+        self._last_rx_k = 0
+        self._calib_evt = False
         self.p = params or PendulumParams()
         self.Ts = Ts
         self.telemetry_hz = telemetry_hz
@@ -94,6 +106,7 @@ class MockDevice:
     def start(self):
         self._running = True
         self._emit(P.encode_event("boot", fw=FW_NAME, Ts=self.Ts))
+        self._emit(P.encode_event("calib", ok=True))   # firmware: açılış kalibrasyonunun sonucu (protokol §3.2)
         if self.realtime:
             self._thread = threading.Thread(target=self._run, name="MockDevice", daemon=True)
             self._thread.start()
@@ -140,15 +153,23 @@ class MockDevice:
         for line in lines:
             if not line.strip():
                 continue
+            self._last_rx_k = self.k               # bağlantı bekçisi: herhangi bir satır bağlantının canlı olduğunu gösterir
             try:
                 cmd, args = P.parse_command(line)
-                self._emit(self._handle(cmd, args))
+                reply = self._handle(cmd, args)
+                if reply:                          # hb yanıtsız
+                    self._emit(reply)
+                if self._calib_evt:                # firmware gibi: önce ACK, sonra calib olayı
+                    self._calib_evt = False
+                    self._emit(P.encode_event("calib", ok=True))
             except (P.ProtocolError, ValueError) as e:
                 self._emit(P.encode_ack("?", False, str(e)))
 
     def _handle(self, cmd: str, a: dict) -> bytes:
         sup = self.sup
         mode = sup.mode
+        if cmd == "hb":
+            return b""
         if cmd == "ping":
             return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, homed=self.homed)
         if cmd == "set_gain":  # çalışırken de kabul edilir (firmware kritik bölgede değiştirir)
@@ -170,12 +191,16 @@ class MockDevice:
                                         "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin")
                 self._manual_home = True          # firmware gibi: ACK önce, sıfırlama ve "homed" olayı kontrol adımında
                 return P.encode_ack("home")
+            # yeni homing: eski sıfır noktası artık geçersiz (yarıda stop edilirse start reddedilmeli)
+            self.homed = False
+            self._home_sat = 0.0
             sup.mode, self._home_phase, self._home_t0 = Mode.HOMING, 1, self.k * self.Ts
             self._home_r0, self._home_i = self._switch("R"), 0.0
             return P.encode_ack("home")
         if cmd == "calib":
             if mode != Mode.IDLE:
                 return P.encode_ack("calib", False, "yalnız IDLE modunda, sarkaç aşağıda ve hareketsizken")
+            self._calib_evt = True
             return P.encode_ack("calib")      # sanal sensör zaten doğru kalibre
         if cmd == "start":
             if not self.homed:
@@ -299,7 +324,7 @@ class MockDevice:
             return 0.0
         if self._home_phase == 1:
             if self._switch("L"):             # switch SEVİYESİ (zaten basılıysa da çalışır)
-                self.x_offset = self.s[0] + p.rail_half   # ölçülen konum artık −rail_half
+                self.x_offset = self.enc_sign * self.s[0] + p.rail_half   # ölçülen konum artık −rail_half
                 self._home_phase, self._home_i = 2, 0.0
                 self.vx.prev = None
                 self.kf.reset()
@@ -315,18 +340,29 @@ class MockDevice:
                 self.homed = True
                 self._emit(P.encode_event("homed"))
                 return 0.0
+        started = self.k * self.Ts - self._home_t0 > 0.2   # ilk 0.2 s: hız kestirimi oturuyor
+        if started and abs(s_hat[1]) > HOME_RUNAWAY_V:   # motor/enkoder yönü ters: hız döngüsü kontrolden çıktı
+            self._fault("homing_runaway")
+            return 0.0
         e = v_des - s_hat[1]
         self._home_i = max(-HOME_I_MAX, min(HOME_I_MAX, self._home_i + HOME_KI * e * self.Ts))
         # Coulomb telafisi yok: sürtünmeyi integral karşılar, T_f tahmini yanlış olsa da homing biter (#30).
         # Firmware gibi kontrolcünün modeli (sup.p) kullanılır, fiziğin gerçek sürtünmesi (self.p) değil.
         u = accel_to_input(self.sup.p, s_hat, HOME_KP * e + self._home_i, coulomb=False)
+        self._home_sat = self._home_sat + self.Ts if abs(u) >= 0.98 * p.u_max else 0.0
+        if self._home_sat > HOME_SAT_S:
+            self._fault("homing_runaway")
+            return 0.0
         return max(-p.u_max, min(p.u_max, u))
 
     def step(self):
         self._process_commands()
+        if (self.link_timeout is not None and self.sup.mode in LINK_WATCH_MODES
+                and (self.k - self._last_rx_k) * self.Ts > self.link_timeout):
+            self._fault("link")                   # PC'den satır gelmiyor: USB koptu / arayüz çöktü
         if self._manual_home:
             self._manual_home = False
-            self.x_offset = self.s[0]             # enkoderin şu anki okuması x = 0
+            self.x_offset = self.enc_sign * self.s[0]   # enkoderin şu anki okuması x = 0
             self.vx.prev = None
             self.sup.mode, self._home_phase, self.homed = Mode.IDLE, 0, True
             self._emit(P.encode_event("homed"))
@@ -334,7 +370,7 @@ class MockDevice:
             self._paused_step()
             return
         p, sup = self.p, self.sup
-        xm, thm = self.sensor.measure([self.s[0] - self.x_offset, 0, self.s[2], 0])
+        xm, thm = self.sensor.measure([self.enc_sign * self.s[0] - self.x_offset, 0, self.s[2], 0])
         dx_lp, dth_lp = self.vx.update(xm), self.vth.update(thm)
         th_wrap = math.atan2(math.sin(thm), math.cos(thm))
         if self.homed and sup.mode in (Mode.SWING_UP, Mode.WAIT, Mode.BALANCE) and abs(th_wrap) < sup.release:

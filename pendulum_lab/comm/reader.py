@@ -68,8 +68,13 @@ class RingBuffer:
 
 
 class TelemetryReader:
-    def __init__(self, transport: Transport, capacity: int = 120_000, u_max: float = 12.0):
+    def __init__(self, transport: Transport, capacity: int = 120_000, u_max: float = 12.0,
+                 heartbeat_s: float | None = None):
         self.transport = transport
+        # bağlantı bekçisi: hb bu thread'den gönderilir; arayüzün ana thread'i uzun bir hesapla (Analiz,
+        # Kayıt Oynatma) donsa bile cihaz motoru kesmez. Program kapanır / USB koparsa hb de kesilir.
+        self.heartbeat_s = heartbeat_s
+        self._hb_last = 0.0
         self.trials = LiveTrialTracker(u_max=u_max)
         self._command_lock = threading.Lock()
         self._pending_commands = deque(maxlen=512)
@@ -113,16 +118,25 @@ class TelemetryReader:
     def send(self, cmd: str, **fields) -> None:
         """GUI'den komut gönder (yazma thread-güvenli)."""
         encoded = P.encode_command(cmd, **fields)
+        if cmd == "hb":                    # bağlantı bekçisi: yanıtı yok, kayda ve bekleyenlere yazılmaz
+            with self._command_lock:
+                self.transport.write(encoded)
+            return
         with self._command_lock:
-            self.transport.write(encoded)
+            # kayda yazma GÖNDERMEDEN önce: yanıt (Ack) okuyucu thread'inde komuttan önce kaydedilemesin
+            for sink in list(self.sinks):
+                if hasattr(sink, "write_event"):
+                    try:
+                        sink.write_event("command_sent", {"cmd": cmd, "fields": fields,
+                                         "t": self.last.t if self.last is not None else None})
+                    except Exception as exc:
+                        self._sink_failed(sink, exc)
             self._pending_commands.append((cmd, fields))
-        for sink in list(self.sinks):
-            if hasattr(sink, "write_event"):
-                try:
-                    sink.write_event("command_sent", {"cmd": cmd, "fields": fields,
-                                     "t": self.last.t if self.last is not None else None})
-                except Exception as exc:
-                    self._sink_failed(sink, exc)
+            try:
+                self.transport.write(encoded)
+            except Exception:
+                self._pending_commands.pop()          # gönderilemedi: yanıt beklenmez
+                raise
 
     @property
     def rate_hz(self) -> float:
@@ -140,6 +154,9 @@ class TelemetryReader:
         pending = b""
         try:
             while self._running:
+                if self.heartbeat_s is not None and time.perf_counter() - self._hb_last >= self.heartbeat_s:
+                    self._hb_last = time.perf_counter()
+                    self.send("hb")
                 data = self.transport.read(0.05)
                 self._update_rate()
                 if not data:
@@ -160,6 +177,10 @@ class TelemetryReader:
             line = line.strip()
             if not line:
                 continue
+            if not line.startswith(b"{") and b"{" in line:
+                # ESP32 açılışta ROM mesajını 115200 baud'da basar; 921600'de bu çöp olarak görünür ve
+                # boot satırının başına yapışır. Çöpü at, JSON'u kurtar (yoksa boot olayı kaybolur).
+                line = line[line.index(b"{"):]
             self.lines += 1
             try:
                 msg = P.parse_line(line)
@@ -187,9 +208,7 @@ class TelemetryReader:
                     self.applied_settings = {}
                 if isinstance(msg, P.Ack):
                     with self._command_lock:
-                        request = next((r for r in self._pending_commands if r[0] == msg.cmd), None)
-                        if request is not None:
-                            self._pending_commands.remove(request)
+                        request = match_ack(self._pending_commands, msg.cmd)
                     if request is not None and msg.ok:
                         fields = request[1]
                         if msg.cmd in ("set_param", "set_gain"):
@@ -227,6 +246,26 @@ class TelemetryReader:
         if sink in self.sinks:
             self.sinks.remove(sink)
         self.messages.put(P.Event("recorder_error", {"msg": str(exc)}))
+
+
+def match_ack(pending: deque, ack_cmd: str):
+    """Cihaz komutları sırayla işler ve hb dışındaki her komuta tam bir yanıt verir: yanıt bekleyen EN ESKİ
+    komuta aittir. "?" (bozuk satır / satır çok uzun) en eski komutu tüketir. Yanıtın adı en eski komutla
+    tutmuyorsa arada yanıtı kaybolmuş komutlar vardır: aynı adlı ilk komuta kadar olanlar atılır. Böylece bir
+    kayıp, sonraki yanıtların hep bir önceki komuta bağlanmasına (kalıcı kayma) yol açmaz.
+    Dönüş: eşleşen (cmd, fields) ya da None."""
+    if not pending:
+        return None
+    if ack_cmd == "?":
+        pending.popleft()
+        return None
+    if not any(r[0] == ack_cmd for r in pending):
+        return None
+    while pending:
+        r = pending.popleft()
+        if r[0] == ack_cmd:
+            return r
+    return None
 
 
 def mode_name(code: float) -> str:

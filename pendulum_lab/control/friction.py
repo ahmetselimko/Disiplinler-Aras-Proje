@@ -12,8 +12,9 @@ yavaşça indirilir (ani duruş sarkacı sallar, sallanan sarkaç da arabayı it
 
 Sonuç GERİLİM olarak verilir: telafi de gerilime çevrilerek uygulandığı için (accelToVolt, α'ya bölünür)
 motor sabitlerindeki hata sonucu etkilemez. Eğim k, modeldeki (β + b_cart)/α ile karşılaştırılıp motor
-sabitleri kontrol edilebilir. Rampa yavaş olduğu için ivme payı küçüktür (1 V/s'de V_c birkaç % fazla
-çıkabilir). Gerçek düzenekte sürtünme konuma ve yöne göre değişebilir; sonuç ilk denemede kontrol edilmelidir.
+sabitleri kontrol edilebilir. Rampa ivmesi ve sarkacın tepkisi yüzünden V_c gerçek değerden
+~%5–10 fazla çıkabilir (yer tutucu değerlerle simülasyonda +%8); fazla telafi swing-up'ı bozabileceği için
+sonuç gerekirse biraz düşürülerek kullanılmalıdır. Gerçek düzenekte sürtünme konuma ve yöne göre değişebilir; sonuç ilk denemede kontrol edilmelidir.
 """
 
 from __future__ import annotations

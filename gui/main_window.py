@@ -33,6 +33,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.design = DesignTab(state)
         self.analysis = AnalysisTab(state)
         self.playback = PlaybackTab(state)
+        # Canlı sekmedeki "K'yı Cihaza Gönder" de Tasarım sekmesindeki gibi önce K'yı yeniden hesaplar:
+        # Q/R ya da geçiş açısı değiştirilip "K Hesapla"ya basılmadıysa eski K gönderilmesin
+        self.live.b_push.clicked.disconnect()
+        self.live.b_push.clicked.connect(self.design.send)
         self.tabs.addTab(self.live, "Canlı İzleme")
         self.tabs.addTab(self.design, "Model ve LQR Tasarımı")
         self.tabs.addTab(self.analysis, "Analiz ve Simülasyon")
@@ -67,6 +71,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self._tick)
         self.timer.start()
 
+        # bağlantı bekçisi (hb) okuyucu thread'inden gönderilir (connection_panel → TelemetryReader):
+        # buradaki uzun hesaplar (Analiz, Kayıt Oynatma) ana thread'i dondursa da cihaz motoru kesmez
+
     def _tick(self):
         reader = self.state.reader
         if reader is not None:
@@ -81,8 +88,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 except queue.Empty:
                     break
                 self.live.handle_message(msg)
-                if (isinstance(msg, P.Ack) and msg.cmd == "ping" and msg.ok) or \
-                        (isinstance(msg, P.Event) and msg.name == "boot"):
+                if isinstance(msg, P.Event) and msg.name == "boot":
+                    self.state.on_device_info(msg.data, boot=True)
+                elif isinstance(msg, P.Ack) and msg.cmd == "ping" and msg.ok:
                     self.state.on_device_info(msg.data)
             if self.tabs.currentWidget() is self.live:
                 self.live.refresh(reader)

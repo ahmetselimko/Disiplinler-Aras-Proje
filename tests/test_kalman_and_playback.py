@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import math
 import os
 from pathlib import Path
@@ -103,7 +104,8 @@ def test_firmware_kalman_matches_python():
 
 def _record_mock_session(csv_path: Path, st: AppState) -> None:
     """Sanal ESP32 ile homing + swing-up + denge kaydı üretir (depoya bağımlı olmayan test verisi)."""
-    dev = MockDevice(seed=0, realtime=False)
+    dev = MockDevice(params=copy.deepcopy(st.p), seed=0, realtime=False)   # arayüz gibi: aynı parametreler
+    dev.sup.set_gain(st.K)                                                  # ve aynı K (bağlanınca gönderilir)
     out: list[bytes] = []
     dev.output = out.append
     dev.start()
@@ -178,7 +180,8 @@ def _record_via_reader(csv_path: Path, st: AppState, *, before_start=(), after_s
     """Sanal ESP32'yi TelemetryReader üzerinden sürer: komutlar ve ACK'ler arayüzdeki gibi kayda olay
     olarak yazılır. Homing'den sonra kayıt açılır, idle_s beklenir, before_start komutları gönderilir,
     BAŞLAT verilir, 1 s sonra after_start komutları gönderilir."""
-    dev = MockDevice(seed=0, realtime=False)
+    dev = MockDevice(params=copy.deepcopy(st.p), seed=0, realtime=False)   # arayüz gibi: aynı parametreler
+    dev.sup.set_gain(st.K)                                                  # ve aynı K
     out: list[bytes] = []
     dev.output = out.append
 

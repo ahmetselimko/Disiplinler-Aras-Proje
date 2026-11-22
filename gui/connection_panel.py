@@ -6,6 +6,7 @@ import copy
 
 from PyQt5 import QtWidgets
 
+from pendulum_lab.comm import protocol as P
 from pendulum_lab.comm.mock_device import MockDevice
 from pendulum_lab.comm.reader import TelemetryReader
 from pendulum_lab.comm.transport import SerialTransport, SimTransport
@@ -62,10 +63,11 @@ class ConnectionPanel(QtWidgets.QWidget):
     def connect(self):
         dev = self.port.currentData()
         if dev == "SIM":
-            transport = SimTransport(MockDevice(params=copy.deepcopy(self.state.p), Ts=self.state.Ts))
+            transport = SimTransport(MockDevice(params=copy.deepcopy(self.state.p), Ts=self.state.Ts,
+                                                link_timeout=P.LINK_TIMEOUT_S))
         else:
             transport = SerialTransport(dev, int(self.baud.currentText()))
-        reader = TelemetryReader(transport, u_max=self.state.p.u_max)
+        reader = TelemetryReader(transport, u_max=self.state.p.u_max, heartbeat_s=P.HB_PERIOD_S)
         try:
             reader.start()
         except Exception as e:

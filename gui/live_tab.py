@@ -266,7 +266,12 @@ class LiveTab(QtWidgets.QWidget):
             real = st.real_device              # kaynak dosya adında ve başlıkta: kayıtlar karışmasın
             path = Recorder.default_path(st.base_dir / "kayitlar", prefix="gercek" if real else "sim")
             source = f"gerçek kart ({st.reader.transport.name})" if real else "simülasyon (sanal ESP32)"
-            st.recorder = Recorder(path, meta={"kaynak": source, **st.get_metadata()})
+            try:
+                st.recorder = Recorder(path, meta={"kaynak": source, **st.get_metadata()})
+            except OSError as e:                # klasör oluşturulamadı / yazma izni yok
+                self.b_rec.setChecked(False)
+                st.log.emit(f"✗ Kayıt başlatılamadı: {e}")
+                return
             st.reader.sinks.append(st.recorder)
             self.b_rec.setText("■ Kaydı Durdur")
             st.log.emit(f"Kayıt başladı: {path}")
@@ -302,7 +307,7 @@ class LiveTab(QtWidgets.QWidget):
     # ------------------------------------------------------------ güncelleme (60 FPS)
     def refresh(self, reader):
         self.refresh_summary(reader)
-        if self.pause_cb.isChecked() or reader is None:
+        if reader is None:
             return
         last = reader.last
         if last is not None:
@@ -311,6 +316,8 @@ class LiveTab(QtWidgets.QWidget):
             self.values.setText(
                 f"t={last.t:8.3f} s   θ={math.degrees(last.th):+7.2f}°   θ̇={last.dth:+6.2f} rad/s\n"
                 f"x={last.x:+.4f} m   ẋ={last.dx:+.3f} m/s   u={last.u:+6.2f}")
+        if self.pause_cb.isChecked():          # "Dondur" yalnız grafikleri dondurur; mod/animasyon/sayılar canlı
+            return
         rate = max(reader.rate_hz, 1.0)
         data = reader.buffer.latest(int(self.window.value() * rate * 1.2) + 10)
         if len(data) < 2:

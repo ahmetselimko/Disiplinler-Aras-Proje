@@ -112,7 +112,7 @@ RMSE büyükse önce parametreleri (özellikle motor değerleri ve sürtünme) g
 ## 6. Gerçek kartla ilk deneme (özet)
 1. Firmware'i yükleyin (`firmware/esp32_pendulum/README.md`), sarkaç aşağıda ve hareketsizken kartı açın.
 2. [protokol.md](protokol.md) §2'deki işaret kontrolünü yapın (θ ve x yönleri, motor yönü).
-3. Arayüzde portu seçip Bağlan → KALİBRE ET. Donanımsal acil stop olmadığı için bir eliniz Esc'de, motor beslemesinin fişi/anahtarı da erişebileceğiniz yerde olsun (Esc yalnız kart ve bağlantı çalışırken etkilidir).
+3. Arayüzde portu seçip Bağlan → KALİBRE ET. Donanımsal acil stop olmadığı için bir eliniz Esc'de, motor beslemesinin fişi/anahtarı da erişebileceğiniz yerde olsun (Esc yalnız kart ve bağlantı çalışırken etkilidir). Bağlantı koparsa (USB çekildi, program kapandı) kart 1 s içinde motoru kendisi keser (FAULT `link`). Ama arayüz açık kalıp tamamen donarsa kart çalışmaya devam eder ve Esc/DURDUR işlemez: o zaman **USB kablosunu çekin** (kart 1 s içinde durur) ya da motor beslemesini kesin.
 4. **Swing-up açık** kutusunu kaldırın, BAŞLAT'a basın, sarkacı elle dik tutup bırakın: yalnız LQR'ı deneyin.
 5. Sonra swing-up'ı açıp aşağıdan deneyin. Kayıt alıp **Kayıt Oynatma** sekmesinde simülasyonla karşılaştırın.
 

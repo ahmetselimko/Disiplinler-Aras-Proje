@@ -25,7 +25,7 @@ PARAM_FIELDS = [  # alan, etiket, birim, min, max, ondalık
     ("c", "Pivot sürtünmesi c", "N·m·s/rad", 0, 1, 5),
     ("g", "Yerçekimi ivmesi g", "m/s²", 1, 20, 3),
     ("rail_half", "Ray yarı boyu", "m", 0.05, 5, 3),
-    ("u_max", "Giriş sınırı u_max", "", 0.1, 200, 2),
+    ("u_max", "Giriş sınırı u_max", "", 0.1, 48, 2),   # protokol: set_param u_max 0–48 V
 ]
 MOTOR_FIELDS = [
     ("R", "Sargı direnci R", "Ω", 0.01, 100, 3),
@@ -230,7 +230,7 @@ class DesignTab(QtWidgets.QWidget):
             Kd, _, evd = design_lqr(p, Q, [[R]], Ts=Ts)
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "Tasarım hatası", str(e))
-            return
+            return False
         st.p, st.Q, st.R, st.Ts = p, Q, R, Ts
         st.swingup = EnergySwingUp(**{k: w.value() for k, w in self.w_su.items()})
         st.catch_deg, st.release_deg = self.w_catch.value(), self.w_release.value()
@@ -270,21 +270,28 @@ class DesignTab(QtWidgets.QWidget):
         self.report.setPlainText("\n".join(lines))
         self.ol.setData(ol.real, ol.imag)
         self.cl.setData(evc.real, evc.imag)
+        return True
 
     # ------------------------------------------------------------ dosya / cihaz
     def send(self):
-        self.calculate()
+        if not self.calculate():   # tasarım hatası: eski K/ayarlar gönderilmesin
+            return
         push_with_confirm(self, self.state)
 
     def export(self):
-        self.calculate()
+        if not self.calculate():
+            return
         st = self.state
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "gains.h kaydet", str(st.base_dir / "firmware" / "esp32_pendulum" / "gains.h"), "C header (*.h)", options=NO_NATIVE)
         if path:
-            write_gains_header(path, st.p, st.K, st.Ts, Q=st.Q, R=st.R, swingup=st.swingup,
-                               catch_deg=st.catch_deg, release_deg=st.release_deg,
-                               catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx)
+            try:
+                write_gains_header(path, st.p, st.K, st.Ts, Q=st.Q, R=st.R, swingup=st.swingup,
+                                   catch_deg=st.catch_deg, release_deg=st.release_deg,
+                                   catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx)
+            except (OSError, ValueError) as e:  # yazma izni yok / Ts aralık dışı
+                QtWidgets.QMessageBox.warning(self, "gains.h yazılamadı", str(e))
+                return
             st.log.emit(f"gains.h yazıldı: {path}")
 
     def load(self):
@@ -302,6 +309,11 @@ class DesignTab(QtWidgets.QWidget):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Parametreleri kaydet", str(self.state.params_path),
                                                         "JSON (*.json)", options=NO_NATIVE)
         if path:
-            self.calculate()
-            save_params(self.state.p, path)
+            if not self.calculate():
+                return
+            try:
+                save_params(self.state.p, path)
+            except OSError as e:
+                QtWidgets.QMessageBox.warning(self, "Kaydedilemedi", str(e))
+                return
             self.state.log.emit(f"Parametreler kaydedildi: {path}")

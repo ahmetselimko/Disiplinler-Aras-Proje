@@ -12,6 +12,7 @@ import math
 from dataclasses import asdict, dataclass
 from dataclasses import fields as dc_fields
 from dataclasses import replace as dc_replace
+from collections import deque
 import threading
 import time
 from pathlib import Path
@@ -19,7 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from .analysis.summary import TrialSummary, compute_trial_summary
-from .comm.reader import COLUMNS, mode_name
+from .comm.reader import COLUMNS, match_ack, mode_name
 from .control.lqr import design_lqr
 from .control.supervisor import Mode, Supervisor
 from .control.swingup import EnergySwingUp
@@ -131,6 +132,7 @@ class ReplayComparison:
     max_err_x: float
     t_start: float = 0.0                 # simülasyonun başladığı an (BAŞLAT), gösterilen eksende [s]
     changed_during_trial: list = None    # deneme sırasında cihazın onayladığı ayar anahtarları
+    sim_actions_during_trial: list = None  # deneme sırasında gönderilen dürt/duraklat/sıfırla (simülasyon içermez)
 
 
 def load_recording(path: str | Path) -> RecordedSession:
@@ -286,7 +288,7 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
     """
     meta = dict(session.meta)
     ack = dict(meta.get("device_acknowledged_settings") or {})
-    pending: list[tuple[str, dict]] = []
+    pending: deque = deque()
     later: set[str] = set()
     for ev in session.events:
         at = int(ev.get("_row", 0))
@@ -295,10 +297,9 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
         if kind == "command_sent":
             pending.append((ev.get("cmd"), dict(ev.get("fields") or {})))
         elif kind == "Ack":
-            req = next((r for r in pending if r[0] == ev.get("cmd")), None)
+            req = match_ack(pending, ev.get("cmd"))     # okuyucuyla aynı sıra kuralı ("?" dahil)
             if req is None:
                 continue
-            pending.remove(req)
             if not ev.get("ok", True) or req[0] not in ("set_param", "set_gain"):
                 continue
             if before:
@@ -315,6 +316,23 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
                 meta.update({k: v for k, v in snap.items() if k != "device_acknowledged_settings"})
     meta["device_acknowledged_settings"] = ack
     return meta, sorted(later)
+
+
+SIM_ACTION_NAMES = {"kick": "dürtme", "pause": "duraklatma", "reset": "sıfırlama"}
+
+
+def _sim_actions_between(session: RecordedSession, row: int, end_row: int | None) -> list[str]:
+    """[row, end_row) aralığında gönderilen yalnız-simülasyon komutları (kick/pause/reset). Karşılaştırma
+    simülasyonu bunları modellemez: dürtme yapılmaz, duraklatma kayıt zamanını kaydırır."""
+    found = []
+    for ev in session.events:
+        at = int(ev.get("_row", 0))
+        if ev.get("kind") == "command_sent" and ev.get("cmd") in SIM_ACTION_NAMES and at >= row \
+                and (end_row is None or at < end_row):
+            name = SIM_ACTION_NAMES[ev["cmd"]]
+            if name not in found:
+                found.append(name)
+    return found
 
 
 def compare_recording_with_simulation(
@@ -353,6 +371,7 @@ def compare_recording_with_simulation(
         meta, changed_later = _settings_at_row(session, i_start, act.stop)
     else:
         meta, changed_later = {}, []
+    sim_actions = _sim_actions_between(session, i_start, act.stop)
     p, sup_p, K, Ts, swingup, catch_deg, release_deg, swingup_enabled, x_ref = _extract_replay_config(
         meta, fallback_state=fallback_state
     )
@@ -426,6 +445,7 @@ def compare_recording_with_simulation(
         sim_summary=sim_summary,
         t_start=t_off,
         changed_during_trial=changed_later,
+        sim_actions_during_trial=sim_actions,
         rmse_th_deg=float(np.sqrt(np.mean(err_th_deg ** 2))),
         rmse_x=float(np.sqrt(np.mean(err_x ** 2))),
         rmse_u=float(np.sqrt(np.mean(err_u ** 2))),
