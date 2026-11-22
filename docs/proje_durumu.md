@@ -139,6 +139,15 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Firmware: açılışta sahte (θ = 0) ilk telemetri; komut kontrolleri bayat örneğe bakıyordu; switch'te parazit filtresi yoktu; yarım kalan homing eski sıfırı geçerli bırakıyordu | Hepsi düzeltildi (sanal ESP32 de aynı) |
 | Küçük | Sanal ESP32 `calib` olayını göndermiyordu; swingup'sız `gains.h` derlenmiyordu; Ts > 20 ms kabul ediliyordu | Düzeltildi |
 
+**İkinci tur (dış inceleme, 22.11.2026):**
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | `hb` arayüzün ana thread'inden gidiyordu: dengedeyken Analiz'de simülasyon (15 s'lik ~0.9 s) arayüzü dondurunca FAULT `link`, sarkaç düşüyordu (yeniden üretildi) | `hb` okuyucu thread'inden gönderilir; 60 s'lik analiz sırasında da denge sürüyor |
+| Önemli | ACK'ler yalnız komut adıyla eşleşiyordu: bozuk satıra gelen `"?"` yanıtından sonra her onay bir önceki komuta bağlanıyordu (u_max=5 onaylandı, arayüz 12 V sandı; yeniden üretildi) | Yanıt bekleyen en eski komutla eşleşir, `"?"` onun yerini tutar; kayıp yanıt kalıcı kaymaya yol açmaz. Kayıtta komut, yanıtından önce yazılır |
+| Küçük | Canlı sekmedeki "K'yı Cihaza Gönder" K'yı yeniden hesaplamadan gönderiyordu | Tasarım sekmesindeki gibi önce hesaplar |
+| Ek önlem | Homing'de ters bağlantıda 12 V çarpma iddiası simülasyonda doğrulanmadı (araba ≤ 0.07 m/s sürünüp `homing_wrong_side` veriyor) | Yine de `homing_runaway` koruması: \|ẋ\| > 0.3 m/s ya da 0.3 s doyum → FAULT |
+| Belge | Firmware README hâlâ "Pololu 25D" diyordu; enkoder 5 V uyarısı yoktu | Düzeltildi |
+
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
 ---

@@ -98,6 +98,8 @@ static const float HOME_TIMEOUT_S = 20.0f;
 static const float HOME_KP = 20.0f;                   // [1/s]
 static const float HOME_KI = 30.0f;                   // [1/s²]
 static const float HOME_I_MAX = 10.0f;                // integral sınırı [m/s²]
+static const float HOME_RUNAWAY_V = 0.30f;            // homing'de |ẋ| bunu aşarsa (normal ≤ 0.15) → FAULT (yön ters)
+static const float HOME_SAT_S = 0.30f;                // homing'de gerilim bu süreden uzun doyumda → FAULT
 static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba hızı bundan düşük olmalı [m/s] (mock ile aynı)
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 // bağlantı bekçisi: hareketli modda PC'den bu süre satır gelmezse FAULT "link" (protocol.py LINK_TIMEOUT_S ile aynı)
@@ -398,6 +400,7 @@ void ctrlTask(void *) {
   Mode mode = IDLE; bool homed = false; int home_phase = 0;
   float x_offset = 0, home_t0 = 0, home_x0 = 0, home_i = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
+  float home_sat = 0;                                  // homing'de gerilimin doyumda kaldığı süre [s]
   FrictionTest fr;
   bool limL_prev = false, limR_prev = false;
   int limL_cnt = 0, limR_cnt = 0;                      // uç sensörü parazit filtresi (LIM_DEBOUNCE)
@@ -425,6 +428,7 @@ void ctrlTask(void *) {
 #if LIMIT_SWITCHES
       mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT; home_i = 0;
       homed = false; SET_SHARED(homed, false);           // eski sıfır geçersiz: homing yarıda kalırsa start reddedilir
+      home_sat = 0;
       home_r0 = digitalRead(PIN_LIM_R) == LIM_PRESSED;
 #else
       // elle ortalama: araba elle ortaya konmuş ve durağan (iletişim görevi denetledi) → bu nokta x = 0
@@ -474,6 +478,10 @@ void ctrlTask(void *) {
       // sağ switch: yeni basıldıysa ya da başta basılıydı ama 1 s sola gidince hâlâ bırakmadıysa → yön ters
       else if (limR && (!home_r0 || k * dt - home_t0 > 1.0f))  mode = raiseFault(mode, "homing_wrong_side");
       else if (fabsf(x_enc - home_x0) > 2 * RAIL_HALF_M + 0.1f) mode = raiseFault(mode, "homing_travel");
+      // motor kabloları ya da X_SIGN ters: hız döngüsü pozitif geri beslemeye döner ve araba tam gerilimle
+      // uca koşar. Hız beklenenin 2 katını aşarsa ya da gerilim uzun süre doyumdaysa çarpmadan dur.
+      else if ((k * dt - home_t0 > 0.2f && fabsf(dx) > HOME_RUNAWAY_V) || home_sat > HOME_SAT_S)
+        mode = raiseFault(mode, "homing_runaway");   // ilk 0.2 s hız kestirimi oturuyor
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
         x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
       } else {
@@ -485,6 +493,7 @@ void ctrlTask(void *) {
           float e = v_des - dx;
           home_i = clampf(home_i + HOME_KI * e * dt, -HOME_I_MAX, HOME_I_MAX);
           u = accelToVolt(dx, th, dth, HOME_KP * e + home_i, false);   // sürtünmeyi integral karşılar (#30)
+          home_sat = fabsf(u) >= 0.98f * p.u_max ? home_sat + dt : 0.0f;
         }
       }
     } else if (mode == FRICTION) {

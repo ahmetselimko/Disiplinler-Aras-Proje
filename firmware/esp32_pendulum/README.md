@@ -34,15 +34,17 @@ Aynı derleme her push ve PR'da GitHub Actions'ta iki kart × iki core sürümü
 | `esp32_pendulum.ino` | 500 Hz kontrol görevi (çekirdek 1) + iletişim görevi (çekirdek 0) |
 | `gains.h` | LQR kazancı, eşikler ve LQR'a geçiş şartları (`CATCH_*`), swing-up kazançları ve hedef enerji oranı (`SU_*`), model sabitleri, redüktör oranı ve kasnak yarıçapı, Kalman matrisleri (`KALMAN_AD/BD/L`). PC arayüzünden üretilir (**gains.h Dışa Aktar**). Eski bir `gains.h`'de olmayan değerler için `.ino`'daki `#ifndef` varsayılanları kullanılır; Kalman matrisleri yoksa Kalman uyarıyla kapalı derlenir |
 
-Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`: seçilen Pololu 25D için 48; 37D'de 64 olurdu) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
+Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`: şimdilik 48, **yer tutucu**; motor teyit bekliyor: BOM v3'te JGB37-520 ya da DFRobot FIT0186) ise motora özgüdür. Yanlış CPR/redüktör x ölçeğini doğrudan bozar: ör. FIT0186 (16 CPR × 4 × 43.8 ≈ 2800 sayım/tur) 48 CPR × 10:1 (480) varsayımıyla ~6 kat büyük x okunur; motor değişirse `.ino`'da elle düzenlenir.
 
 ## Pinler (`board_pins.h` — kart türüne göre otomatik)
 | İşlev | ESP32-S3-DevKitC-1 N16R8 | Klasik ESP32 |
 |---|---|---|
 | I2C SDA / SCL (AS5600, ileride MPU6050) | 8 / 9 (400 kHz) | 21 / 22 |
-| Enkoder A / B (harici 10k pull-up) | 4 / 5 | 32 / 33 |
+| Enkoder A / B (harici 10k pull-up, **3.3 V'a**) | 4 / 5 | 32 / 33 |
 | BTS7960 RPWM / LPWM / EN | 6 / 7 / 15 | 25 / 26 / 27 |
 | Uç sensörü sol / sağ (INPUT_PULLUP) | 16 / 17 | 18 / 19 |
+
+**Enkoder gerilimi:** ESP32 / ESP32-S3 pinleri 5 V'a dayanıklı değildir. Motor enkoderi 5 V ile besleniyorsa çıkışları 5 V'a çekilmemeli: pull-up'lar 3.3 V'a bağlanmalı (açık kollektör çıkışta) ya da seviye dönüştürücü / gerilim bölücü kullanılmalı. Hall enkoder 3.3 V ile çalışabiliyorsa en basiti 3.3 V'tan beslemektir (datasheet'e bakın).
 
 **S3 N16R8'de neden eski pinler olmuyor:** 22–25 S3'te yok; 26–32 SPI flash'a, 33–37 8 MB oktal PSRAM'e bağlı. Ayrıca 0/3/45/46 (açılış), 19/20 (yerel USB), 43/44 (`Serial`), 38/48 (RGB LED) kullanılmadı. `board_pins.h` S3 pinlerini derleme anında denetler; yasak bir pin seçilirse derleme durur.
 
@@ -65,6 +67,7 @@ Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takıl
 | Uç sensöründe tek bir parazitli okuma | Dikkate alınmaz: art arda `LIM_DEBOUNCE` = 3 okuma (6 ms) basılıysa basılı sayılır |
 | Yeni `home` başladı | Önceki kalibrasyon geçersiz; homing yarıda `stop` edilirse `start` reddedilir |
 | Homing'de sağ switch'e basıldı | FAULT `homing_wrong_side` (motor veya enkoder yönü ters) |
+| Homing'de \|ẋ\| > 0.30 m/s ya da gerilim 0.3 s'den uzun doyumda | FAULT `homing_runaway` (hız döngüsü kontrolden çıktı; ek güvenlik) |
 | Homing 20 s'yi aştı / rayın 2 katından fazla yol gidildi | FAULT `homing_timeout` / `homing_travel` |
 | Homing başlarken sol switch zaten basılı | Hemen sıfırlanır (switch seviyesine bakılır) |
 | Yalnız `LIMIT_SWITCHES 0`: `home` gelirken araba hareket ediyor | `home` reddedilir; araba durunca tekrar |

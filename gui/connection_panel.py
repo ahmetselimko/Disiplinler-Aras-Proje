@@ -67,7 +67,7 @@ class ConnectionPanel(QtWidgets.QWidget):
                                                 link_timeout=P.LINK_TIMEOUT_S))
         else:
             transport = SerialTransport(dev, int(self.baud.currentText()))
-        reader = TelemetryReader(transport, u_max=self.state.p.u_max)
+        reader = TelemetryReader(transport, u_max=self.state.p.u_max, heartbeat_s=P.HB_PERIOD_S)
         try:
             reader.start()
         except Exception as e:

@@ -266,3 +266,85 @@ def test_replay_warns_about_kick_during_trial(tmp_path):
         {"_row": 7, "kind": "command_sent", "cmd": "set_param"},
     ])
     assert _sim_actions_between(session, 2, 10) == ["dürtme", "duraklatma"]
+
+
+# ------------------------------------------------------------------ ikinci tur (dış inceleme)
+def test_heartbeat_comes_from_reader_thread():
+    """hb okuyucu thread'inden gider: arayüzün ana thread'i donsa da cihaz motoru kesmez."""
+    sent = []
+
+    class _Tr:
+        is_open = True
+
+        def read(self, timeout):
+            time.sleep(timeout)
+            return b""
+
+        def write(self, data):
+            sent.append(data)
+
+        def close(self):
+            pass
+
+    rd = TelemetryReader(_Tr(), heartbeat_s=0.05)
+    rd.start()
+    time.sleep(0.4)                                                # ana thread "donmuş"
+    rd.stop()
+    assert sent.count(b'{"cmd":"hb"}\n') >= 3
+
+
+def test_ack_after_corrupted_line_does_not_shift():
+    rd = TelemetryReader(SimpleNamespace(write=lambda d: None), u_max=12.0)
+    rd.send("set_param", x_ref=0.1)                                # satır yolda bozuldu
+    rd._handle_lines([P.encode_ack("?", False, "json")])
+    rd.send("set_param", u_max=5.0)
+    rd._handle_lines([P.encode_ack("set_param")])
+    assert rd.applied_settings == {"u_max": 5.0}
+    assert not rd._pending_commands
+
+
+def test_lost_ack_is_skipped_not_shifted():
+    from collections import deque
+    from pendulum_lab.comm.reader import match_ack
+    q = deque([("start", {}), ("set_param", {"a": 1}), ("set_param", {"b": 2})])
+    assert match_ack(q, "set_param") == ("set_param", {"a": 1})    # start'ın yanıtı kayboldu
+    assert match_ack(q, "set_param") == ("set_param", {"b": 2})
+    assert not q
+
+
+def test_command_recorded_before_it_is_written():
+    order = []
+    rd = TelemetryReader(SimpleNamespace(write=lambda d: order.append("write")))
+    rd.sinks.append(SimpleNamespace(write_event=lambda kind, data: order.append(kind)))
+    rd.send("start")
+    assert order == ["command_sent", "write"]
+
+
+def test_homing_with_reversed_encoder_faults_slowly_not_at_full_speed():
+    from pendulum_lab import load_params
+    dev = MockDevice(load_params(ROOT / "config" / "params.json"), realtime=False, seed=1, enc_sign=-1)
+    out = []
+    dev.output = out.append
+    dev.start()
+    dev.feed(P.encode_command("home"))
+    vmax = 0.0
+    for _ in range(int(20 / dev.Ts)):
+        dev.step()
+        vmax = max(vmax, abs(dev.true_state[1]))
+        if dev.sup.mode.value == "FAULT":
+            break
+    assert dev.sup.mode.value == "FAULT" and not dev.homed
+    assert vmax < 0.3
+    assert 'raiseFault(mode, "homing_runaway")' in INO
+
+
+def test_live_push_recomputes_k(qapp, monkeypatch):
+    from gui.main_window import MainWindow
+    st = _state()
+    win = MainWindow(st)
+    calls = []
+    monkeypatch.setattr(win.design, "calculate", lambda: calls.append(1) or False)
+    win.live.b_push.clicked.emit(False)                            # buton bağlı değilken pasif; sinyal yeterli
+    assert calls == [1]
+    win.timer.stop()
+    win.close()

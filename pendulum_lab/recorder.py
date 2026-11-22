@@ -12,6 +12,7 @@ import math
 from dataclasses import asdict, dataclass
 from dataclasses import fields as dc_fields
 from dataclasses import replace as dc_replace
+from collections import deque
 import threading
 import time
 from pathlib import Path
@@ -19,7 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from .analysis.summary import TrialSummary, compute_trial_summary
-from .comm.reader import COLUMNS, mode_name
+from .comm.reader import COLUMNS, match_ack, mode_name
 from .control.lqr import design_lqr
 from .control.supervisor import Mode, Supervisor
 from .control.swingup import EnergySwingUp
@@ -287,7 +288,7 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
     """
     meta = dict(session.meta)
     ack = dict(meta.get("device_acknowledged_settings") or {})
-    pending: list[tuple[str, dict]] = []
+    pending: deque = deque()
     later: set[str] = set()
     for ev in session.events:
         at = int(ev.get("_row", 0))
@@ -296,10 +297,9 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
         if kind == "command_sent":
             pending.append((ev.get("cmd"), dict(ev.get("fields") or {})))
         elif kind == "Ack":
-            req = next((r for r in pending if r[0] == ev.get("cmd")), None)
+            req = match_ack(pending, ev.get("cmd"))     # okuyucuyla aynı sıra kuralı ("?" dahil)
             if req is None:
                 continue
-            pending.remove(req)
             if not ev.get("ok", True) or req[0] not in ("set_param", "set_gain"):
                 continue
             if before:
