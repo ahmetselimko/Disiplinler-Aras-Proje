@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from .control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
+from .control.swingup import EnergySwingUp
 from .filters import design_kalman
 
 
@@ -34,9 +35,11 @@ def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float
                  catch_dx: float = CATCH_DX) -> str:
     K = np.asarray(K, dtype=float).ravel()
     period_ms = Ts * 1000
-    if abs(period_ms - round(period_ms)) > 1e-9 or round(period_ms) < 1:
-        # firmware vTaskDelayUntil ile 1 ms'lik FreeRTOS tikinde çalışır
-        raise ValueError(f"Ts tam sayı milisaniye olmalı (≥ 1 ms), verilen {period_ms:g} ms")
+    if abs(period_ms - round(period_ms)) > 1e-9 or not 1 <= round(period_ms) <= 20:
+        # firmware vTaskDelayUntil ile 1 ms'lik FreeRTOS tikinde çalışır; protokol.md §7: 1–20 ms
+        raise ValueError(f"Ts tam sayı milisaniye ve 1–20 ms olmalı, verilen {period_ms:g} ms")
+    if swingup is None:   # firmware SU_* değerlerini gains.h'den bekler (varsayılanı yok): eksik kalmasın
+        swingup = EnergySwingUp()
     Ad, Bd, L, _ = design_kalman(p, Ts)
     lines = [
         "// Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin",

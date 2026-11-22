@@ -113,6 +113,10 @@ class TelemetryReader:
     def send(self, cmd: str, **fields) -> None:
         """GUI'den komut gönder (yazma thread-güvenli)."""
         encoded = P.encode_command(cmd, **fields)
+        if cmd == "hb":                    # bağlantı bekçisi: yanıtı yok, kayda ve bekleyenlere yazılmaz
+            with self._command_lock:
+                self.transport.write(encoded)
+            return
         with self._command_lock:
             self.transport.write(encoded)
             self._pending_commands.append((cmd, fields))
@@ -160,6 +164,10 @@ class TelemetryReader:
             line = line.strip()
             if not line:
                 continue
+            if not line.startswith(b"{") and b"{" in line:
+                # ESP32 açılışta ROM mesajını 115200 baud'da basar; 921600'de bu çöp olarak görünür ve
+                # boot satırının başına yapışır. Çöpü at, JSON'u kurtar (yoksa boot olayı kaybolur).
+                line = line[line.index(b"{"):]
             self.lines += 1
             try:
                 msg = P.parse_line(line)

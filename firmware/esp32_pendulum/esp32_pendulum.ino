@@ -49,6 +49,9 @@
 #if configTICK_RATE_HZ != 1000
 #error "FreeRTOS tik hızı 1000 Hz olmalı (Arduino-ESP32 varsayılanı)."
 #endif
+#if CTRL_PERIOD_MS < 1 || CTRL_PERIOD_MS > 20
+#error "CTRL_PERIOD_MS 1–20 ms olmalı (protokol.md §7). gains.h'i arayüzden yeniden dışa aktarın."
+#endif
 
 // ============================================================ PİNLER
 // Pin numaraları karta göre board_pins.h'de (ESP32-S3-DevKitC-1 N16R8 ya da klasik ESP32; derleme hedefinden seçilir).
@@ -71,7 +74,7 @@ static const char *FW_NAME = "ref-1.1";
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
-static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder (Pololu 25D: 48 CPR, 4x; 37D olsaydı 64). Motor değişirse düzenleyin
+static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder, 4x sayım. YER TUTUCU: motor teyit bekliyor (BOM v3: JGB37-520 ya da FIT0186); kesinleşince düzenleyin
 // redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
 static const float ENC_COUNTS_PER_REV = ENC_CPR_MOTOR * MOTOR_GEAR;
 static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;
@@ -97,6 +100,9 @@ static const float HOME_KI = 30.0f;                   // [1/s²]
 static const float HOME_I_MAX = 10.0f;                // integral sınırı [m/s²]
 static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba hızı bundan düşük olmalı [m/s] (mock ile aynı)
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
+// bağlantı bekçisi: hareketli modda PC'den bu süre satır gelmezse FAULT "link" (protocol.py LINK_TIMEOUT_S ile aynı)
+static const uint32_t LINK_TIMEOUT_MS = 1000;
+static const int   LIM_DEBOUNCE = 3;                  // uç sensörü bu kadar art arda okumada basılıysa basılı (6 ms)
 static const float CALIB_MAX_SPREAD = 0.02f;          // kalibrasyonda izin verilen sapma [rad] (~1.1°)
 
 // sürtünme ölçümü — pendulum_lab/control/friction.py ile AYNI (test denetler)
@@ -146,7 +152,9 @@ static const char *MODE_NAMES[] = {"IDLE", "HOMING", "WAIT", "SWING_UP", "BALANC
 // ============================================================ PAYLAŞILAN DURUM (her erişim mux içinde)
 struct Shared {
   // kontrol → iletişim
-  uint32_t n; float t, x, dx, th, dth, u; Mode mode;
+  uint32_t n; float t, x, dx, th, dth, u; Mode mode;   // telemetri örneği (telemetry_hz'de)
+  bool tel_valid;                                    // ilk gerçek örnek yazıldı mı (açılışta sıfırlar gönderilmesin)
+  float lx, ldx, lth, ldth;                          // HER adımda güncel durum (komut kabul kuralları için)
   bool homed, angle_ok;
   // iletişim → kontrol
   float K[4]; float catch_rad, release_rad, x_ref, u_max;
@@ -154,6 +162,7 @@ struct Shared {
   float su_kE, su_amax, su_kx, su_kv, su_akick, su_eratio; bool swingup_on;
   float fc_volt;                                     // sürtünme telafisi [V] (set_param fc_volt)
   bool req_start, req_stop, req_estop, req_home, req_calib, req_friction;
+  uint32_t last_rx_ms;                               // son komut satırının geldiği an (bağlantı bekçisi)
   // olaylar (kontrol üretir, iletişim gönderir)
   bool ev_homed, ev_fault, ev_limitL, ev_limitR, ev_calib, ev_friction;
   bool fr_ok; const char *fr_reason; float fr_v_pos, fr_v_neg, fr_v_c, fr_slope;   // sürtünme ölçümü sonucu
@@ -391,6 +400,7 @@ void ctrlTask(void *) {
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
   FrictionTest fr;
   bool limL_prev = false, limR_prev = false;
+  int limL_cnt = 0, limR_cnt = 0;                      // uç sensörü parazit filtresi (LIM_DEBOUNCE)
   int sensor_fails = 0; uint16_t raw = 0;
 
   // açılış kalibrasyonu: sarkaç aşağıda ve hareketsiz olmalı → o konum θ = π
@@ -414,6 +424,7 @@ void ctrlTask(void *) {
     if (p.req_home && (mode == IDLE || mode == FAULT)) {
 #if LIMIT_SWITCHES
       mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT; home_i = 0;
+      homed = false; SET_SHARED(homed, false);           // eski sıfır geçersiz: homing yarıda kalırsa start reddedilir
       home_r0 = digitalRead(PIN_LIM_R) == LIM_PRESSED;
 #else
       // elle ortalama: araba elle ortaya konmuş ve durağan (iletişim görevi denetledi) → bu nokta x = 0
@@ -430,6 +441,8 @@ void ctrlTask(void *) {
     if (p.req_friction && mode == IDLE && homed) { mode = FRICTION; fr.reset(); }
     if (p.req_stop) { mode = IDLE; home_phase = 0; }
     fc_N = p.fc_volt * MOTOR_ALPHA;
+    if ((mode == HOMING || mode == SWING_UP || mode == WAIT || mode == BALANCE || mode == FRICTION)
+        && millis() - p.last_rx_ms > LINK_TIMEOUT_MS) mode = raiseFault(mode, "link");   // PC sustu: USB koptu / arayüz çöktü
     if (p.req_estop) mode = raiseFault(mode, "estop");
 
     // ---------- sensörler
@@ -443,7 +456,9 @@ void ctrlTask(void *) {
     bool kf_en = USE_KALMAN && homed && (mode == SWING_UP || mode == WAIT || mode == BALANCE) && (fabsf(th) < p.release_rad);
     kf.update(x, dx, th, dth, u_prev, kf_en, dx, dth);
 #if LIMIT_SWITCHES
-    bool limL = digitalRead(PIN_LIM_L) == LIM_PRESSED, limR = digitalRead(PIN_LIM_R) == LIM_PRESSED;
+    limL_cnt = digitalRead(PIN_LIM_L) == LIM_PRESSED ? min(limL_cnt + 1, LIM_DEBOUNCE) : 0;
+    limR_cnt = digitalRead(PIN_LIM_R) == LIM_PRESSED ? min(limR_cnt + 1, LIM_DEBOUNCE) : 0;
+    bool limL = limL_cnt >= LIM_DEBOUNCE, limR = limR_cnt >= LIM_DEBOUNCE;   // tek parazitli okuma tetiklemez
 #else
     const bool limL = false, limR = false;               // switch yok: takılı olmayan pin "basılı" okunurdu
 #endif
@@ -508,9 +523,10 @@ void ctrlTask(void *) {
     tel_acc += telemetry_hz * dt;
     portENTER_CRITICAL(&mux);
     S.mode = mode;                                     // komut doğrulaması için her adımda güncel
+    S.lx = x; S.ldx = dx; S.lth = th; S.ldth = dth;
     if (tel_acc >= 1.0f) {
       tel_acc -= 1.0f;
-      S.n = n++; S.t = k * dt; S.x = x; S.dx = dx; S.th = th; S.dth = dth; S.u = u;
+      S.n = n++; S.t = k * dt; S.x = x; S.dx = dx; S.th = th; S.dth = dth; S.u = u; S.tel_valid = true;
     }
     portEXIT_CRITICAL(&mux);
   }
@@ -582,6 +598,7 @@ static void handleCommand(const char *line) {
   const char *cmd = d["cmd"] | "";
   Shared s; portENTER_CRITICAL(&mux); s = S; portEXIT_CRITICAL(&mux);
 
+  if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
     char extra[64];
     snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s", CTRL_PERIOD_MS / 1000.0f, FW_NAME,
@@ -603,17 +620,17 @@ static void handleCommand(const char *line) {
     if (!s.angle_ok)       { sendAck("start", false, "açı kalibrasyonu başarısız: sarkacı aşağıda sabit tutup calib gönderin"); return; }
     if (s.mode == FAULT)   { sendAck("start", false, "hata modunda: önce stop"); return; }
     if (s.mode != IDLE)    { sendAck("start", false, "IDLE dışında başlatılamaz"); return; }
-    if (fabsf(s.x) > RAIL_HALF_M - START_X_MARGIN) { sendAck("start", false, "araba ray ucuna çok yakın: KALİBRE ET ile ortaya alın"); return; }
-    if (fabsf(s.dx) > START_MAX_SPEED) { sendAck("start", false, "araba hâlâ hareket ediyor: durmasını bekleyin"); return; }
+    if (fabsf(s.lx) > RAIL_HALF_M - START_X_MARGIN) { sendAck("start", false, "araba ray ucuna çok yakın: KALİBRE ET ile ortaya alın"); return; }
+    if (fabsf(s.ldx) > START_MAX_SPEED) { sendAck("start", false, "araba hâlâ hareket ediyor: durmasını bekleyin"); return; }
     SET_SHARED(req_start, true); sendAck("start", true); return;
   }
   if (!strcmp(cmd, "friction")) {                      // control/friction.py::start_block_reason ile aynı
     if (!s.homed)          { sendAck("friction", false, "önce home (kalibrasyon) yapılmalı"); return; }
     if (!s.angle_ok)       { sendAck("friction", false, "açı kalibrasyonu başarısız: sarkacı aşağıda sabit tutup calib gönderin"); return; }
     if (s.mode != IDLE)    { sendAck("friction", false, "yalnız IDLE modunda"); return; }
-    if (fabsf(s.x) > RAIL_HALF_M - FR_TRAVEL - FR_X_MARGIN) { sendAck("friction", false, "araba ortada değil: önce KALİBRE ET"); return; }
-    if (fabsf(s.dx) > FR_STILL_DX) { sendAck("friction", false, "araba hareket ediyor: durmasını bekleyin"); return; }
-    if (fabsf(PI - fabsf(wrapAngle(s.th))) > FR_SWING_MAX || fabsf(s.dth) > FR_STILL_DTH) {
+    if (fabsf(s.lx) > RAIL_HALF_M - FR_TRAVEL - FR_X_MARGIN) { sendAck("friction", false, "araba ortada değil: önce KALİBRE ET"); return; }
+    if (fabsf(s.ldx) > FR_STILL_DX) { sendAck("friction", false, "araba hareket ediyor: durmasını bekleyin"); return; }
+    if (fabsf(PI - fabsf(wrapAngle(s.lth))) > FR_SWING_MAX || fabsf(s.ldth) > FR_STILL_DTH) {
       sendAck("friction", false, "sarkaç aşağıda ve hareketsiz olmalı"); return;
     }
     SET_SHARED(req_friction, true); sendAck("friction", true); return;
@@ -621,7 +638,7 @@ static void handleCommand(const char *line) {
   if (!strcmp(cmd, "home")) {
     if (s.mode != IDLE && s.mode != FAULT) { sendAck("home", false, "önce stop"); return; }
 #if !LIMIT_SWITCHES
-    if (fabsf(s.dx) > HOME_STILL_DX) { sendAck("home", false, "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin"); return; }
+    if (fabsf(s.ldx) > HOME_STILL_DX) { sendAck("home", false, "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin"); return; }
 #endif
     SET_SHARED(req_home, true); sendAck("home", true); return;
   }
@@ -642,6 +659,7 @@ void commTask(void *) {
       char ch = Serial.read();
       if (ch == '\n') {
         line[len] = 0;
+        if (len || overflow) SET_SHARED(last_rx_ms, millis());   // bağlantı bekçisi: PC canlı
         if (overflow) sendAck("?", false, "satır çok uzun");
         else if (len) handleCommand(line);
         len = 0; overflow = false;
@@ -662,7 +680,7 @@ void commTask(void *) {
                                  s.fr_v_pos, s.fr_v_neg, s.fr_v_c, s.fr_slope);
       else         Serial.printf("{\"evt\":\"friction\",\"ok\":false,\"reason\":\"%s\"}\n", s.fr_reason ? s.fr_reason : "?");
     }
-    if (s.n != last_n) {                                // yeni telemetri
+    if (s.tel_valid && s.n != last_n) {                 // yeni telemetri (açılıştaki boş yapı gönderilmez)
       last_n = s.n;
       int l = snprintf(buf, sizeof buf,
         "{\"n\":%lu,\"t\":%.4f,\"x\":%.5f,\"dx\":%.4f,\"th\":%.5f,\"dth\":%.4f,\"u\":%.3f,\"mode\":\"%s\"}\n",
@@ -702,6 +720,7 @@ void setup() {
   S.fc_volt = P_FC / MOTOR_ALPHA;                     // gains.h'deki telafi, gerilim olarak
   S.mode = IDLE;
 
+  Serial.print("\n");   // ROM'un 115200 baud açılış mesajı 921600'de çöp görünür: boot satırına yapışmasın
   Serial.printf("{\"evt\":\"boot\",\"fw\":\"%s\",\"Ts\":%.4f}\n", FW_NAME, CTRL_PERIOD_MS / 1000.0f);
   xTaskCreatePinnedToCore(ctrlTask, "ctrl", 4096, nullptr, configMAX_PRIORITIES - 1, nullptr, 1);
   xTaskCreatePinnedToCore(commTask, "comm", 6144, nullptr, 2, nullptr, 0);

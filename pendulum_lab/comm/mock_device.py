@@ -37,6 +37,8 @@ from . import protocol as P
 
 DEFAULT_Q = (10.0, 1.0, 100.0, 1.0)
 DEFAULT_R = 0.1
+# bağlantı bekçisinin izlediği modlar (motor hareket ettirilirken); firmware'deki linkWatched() ile aynı
+LINK_WATCH_MODES = (Mode.HOMING, Mode.SWING_UP, Mode.WAIT, Mode.BALANCE, Mode.FRICTION)
 HOME_SPEED = 0.10        # [m/s]
 HOME_TIMEOUT = 20.0      # [s]
 HOME_KP = 20.0           # homing hız döngüsü oransal kazancı [1/s]
@@ -49,8 +51,13 @@ FW_NAME = "mock-1.1"
 class MockDevice:
     def __init__(self, params: PendulumParams | None = None, Ts: float = 0.002, telemetry_hz: int = 200,
                  seed: int | None = None, realtime: bool = True, x0: float | None = None,
-                 limit_switches: bool = True):
+                 limit_switches: bool = True, link_timeout: float | None = None):
         self.limit_switches = limit_switches
+        # bağlantı bekçisi (protokol: hb, LINK_TIMEOUT_S). None: kapalı (testler adım adım sürer, hb göndermez);
+        # arayüzün sanal ESP32'si firmware gibi P.LINK_TIMEOUT_S ile açar.
+        self.link_timeout = link_timeout
+        self._last_rx_k = 0
+        self._calib_evt = False
         self.p = params or PendulumParams()
         self.Ts = Ts
         self.telemetry_hz = telemetry_hz
@@ -94,6 +101,7 @@ class MockDevice:
     def start(self):
         self._running = True
         self._emit(P.encode_event("boot", fw=FW_NAME, Ts=self.Ts))
+        self._emit(P.encode_event("calib", ok=True))   # firmware: açılış kalibrasyonunun sonucu (protokol §3.2)
         if self.realtime:
             self._thread = threading.Thread(target=self._run, name="MockDevice", daemon=True)
             self._thread.start()
@@ -140,15 +148,23 @@ class MockDevice:
         for line in lines:
             if not line.strip():
                 continue
+            self._last_rx_k = self.k               # bağlantı bekçisi: herhangi bir satır bağlantının canlı olduğunu gösterir
             try:
                 cmd, args = P.parse_command(line)
-                self._emit(self._handle(cmd, args))
+                reply = self._handle(cmd, args)
+                if reply:                          # hb yanıtsız
+                    self._emit(reply)
+                if self._calib_evt:                # firmware gibi: önce ACK, sonra calib olayı
+                    self._calib_evt = False
+                    self._emit(P.encode_event("calib", ok=True))
             except (P.ProtocolError, ValueError) as e:
                 self._emit(P.encode_ack("?", False, str(e)))
 
     def _handle(self, cmd: str, a: dict) -> bytes:
         sup = self.sup
         mode = sup.mode
+        if cmd == "hb":
+            return b""
         if cmd == "ping":
             return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, homed=self.homed)
         if cmd == "set_gain":  # çalışırken de kabul edilir (firmware kritik bölgede değiştirir)
@@ -170,12 +186,15 @@ class MockDevice:
                                         "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin")
                 self._manual_home = True          # firmware gibi: ACK önce, sıfırlama ve "homed" olayı kontrol adımında
                 return P.encode_ack("home")
+            # yeni homing: eski sıfır noktası artık geçersiz (yarıda stop edilirse start reddedilmeli)
+            self.homed = False
             sup.mode, self._home_phase, self._home_t0 = Mode.HOMING, 1, self.k * self.Ts
             self._home_r0, self._home_i = self._switch("R"), 0.0
             return P.encode_ack("home")
         if cmd == "calib":
             if mode != Mode.IDLE:
                 return P.encode_ack("calib", False, "yalnız IDLE modunda, sarkaç aşağıda ve hareketsizken")
+            self._calib_evt = True
             return P.encode_ack("calib")      # sanal sensör zaten doğru kalibre
         if cmd == "start":
             if not self.homed:
@@ -324,6 +343,9 @@ class MockDevice:
 
     def step(self):
         self._process_commands()
+        if (self.link_timeout is not None and self.sup.mode in LINK_WATCH_MODES
+                and (self.k - self._last_rx_k) * self.Ts > self.link_timeout):
+            self._fault("link")                   # PC'den satır gelmiyor: USB koptu / arayüz çöktü
         if self._manual_home:
             self._manual_home = False
             self.x_offset = self.s[0]             # enkoderin şu anki okuması x = 0

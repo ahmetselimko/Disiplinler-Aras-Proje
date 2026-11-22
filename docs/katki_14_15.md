@@ -1,5 +1,7 @@
 # Kalman Filtresi ile Titreşim Azaltma (#14) ve Kayıt Oynatma Sekmesi (#15)
 
+> **Not (22.11.2026):** Bu belgedeki sayılar eski kasnakla (GT2 40 diş, r = 12.7 mm) üretildi. `config/params.json` artık BOM v3'teki HTD3M 20 dişi (r = 9.55 mm) kullanıyor; sonuçlar yeniden üretilirse değişebilir.
+
 Bu belge #14 ve #15 görevleri kapsamında yapılan değişiklikleri, deneysel ölçümleri ve doğrulama yöntemlerini özetler.
 
 ---

@@ -51,7 +51,7 @@ python main.py
 Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kartın COM portu seçilir, denge döngüsü kartta çalışır, arayüz izler ve komut gönderir. **Ancak bu yol henüz denenmedi.** Şimdiye kadarki bütün sonuçlar simülasyondan geliyor. Gerçek sistemde çalışması için:
 
 1. Firmware karta yüklenmeli (derleme CI'da doğrulanıyor).
-2. Pinler gerçek kablolamaya uyarlanmalı. Seçilen donanım (16.11.2026): Pololu 25D 12V 48 CPR enkoderli motor, BTS7960 sürücü, AS5600 açı sensörü; kod bunlara göre yazıldı (enkoder 48 CPR, firmware ve simülasyonda aynı). **Motorun redüktör oranı/ürün numarası teyit edilmeli:** o gelene kadar `config/params.json`'daki motor değerleri (R, Kt, Ke, redüktör 10:1) eski 37D yer tutucusudur.
+2. Kablolama `firmware/esp32_pendulum/board_pins.h`'deki pinlere göre yapılmalı. Donanım (BOM v3, 13.11.2026): ESP32-S3-DevKitC-1 N16R8, BTS7960 sürücü, AS5600 açı sensörü, HTD3M 20 dişli kasnak (`config/params.json`'da r = 9.55 mm). **Motor teyit bekliyor** (JGB37-520 ya da DFRobot FIT0186): o gelene kadar motor değerleri (R, Kt, Ke, redüktör 10:1) eski 37D yer tutucusu, enkoder 48 CPR yer tutucusudur.
 3. `config/params.json` gerçek ölçülerle doldurulmalı, K yeniden hesaplanıp karta gönderilmeli.
 4. Limit switch'ler takılacak (firmware varsayılanı `LIMIT_SWITCHES 1`; switch tipi ve pinleri teyit edilmeli). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
 5. [İlk açılış kontrol listesi](firmware/esp32_pendulum/README.md#i̇lk-açılış-kontrol-listesi) sırayla uygulanmalı: işaret kontrolü → homing → yalnız LQR → swing-up.
@@ -85,5 +85,5 @@ kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 
 ## Bekleyen işler (diğer ekipten)
 * Gerçek fiziksel parametreler → `config/params.json` (`docs/parametre_tablosu.md`).
-* Seçilen Pololu 25D motorun ürün numarası / redüktör oranı (motor değerleri ve kazançlar buna göre yeniden hesaplanacak).
+* Motorun kesinleşmesi (JGB37-520 / FIT0186) ve datasheet'i: tork, akım, redüktör oranı, enkoder CPR (motor değerleri, `ENC_CPR_MOTOR` ve kazançlar buna göre yeniden hesaplanacak).
 * Montaj sonrası işaret kontrolü (`docs/protokol.md` §2).

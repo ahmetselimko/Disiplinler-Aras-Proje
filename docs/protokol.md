@@ -50,15 +50,15 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 ### 3.2 Olaylar
 | Mesaj | Ne zaman |
 |---|---|
-| `{"evt":"boot","fw":"ref-1.1","Ts":0.002}` | Açılışta. PC sıra sayacını ve grafiği sıfırlar, Ts'yi kontrol eder, K ve ayarları **yeniden yükler** (cihaz resetlenince PC'den gelen ayarlar kaybolur) |
+| `{"evt":"boot","fw":"ref-1.1","Ts":0.002}` | Açılışta. Firmware boot satırından önce boş bir satır (`\n`) basar: ESP32'nin 115200 baud'daki ROM açılış mesajı 921600'de çöp olarak görünür ve PC çöpü `{`'den önce keser. İlk telemetri satırı ancak ilk gerçek ölçümden sonra gelir. PC sıra sayacını ve grafiği sıfırlar, Ts'yi kontrol eder, K ve ayarları **yeniden yükler** (cihaz resetlenince PC'den gelen ayarlar kaybolur) |
 | `{"evt":"friction","ok":true,"v_pos":0.51,"v_neg":0.47,"v_c":0.49,"slope":8.6}` | Sürtünme ölçümü bittiğinde. `v_c`: kayma sürtünmesini yenen gerilim [V] (iki yönün ortalaması), `slope`: (β + b)/α [V·s/m]. Başarısızsa `{"ok":false,"reason":"…"}`, mod IDLE'a döner |
 | `{"evt":"calib","ok":true}` | Açı kalibrasyonu bittiğinde (açılışta ve `calib` komutundan sonra). `ok:false` → `start` reddedilir |
 | `{"evt":"limit","side":"L"}` / `"R"` | Limit switch'e ilk basıldığında |
 | `{"evt":"homed"}` | Homing tamamlandığında |
-| `{"evt":"fault","reason":"…"}` | FAULT moduna geçildiğinde, **bir kez**. Sebepler: `estop`, `rail` (yazılımsal ray sınırı), `limit` (çalışırken limit switch), `sensor` (AS5600 art arda 3 kez okunamadı), `homing_timeout` (20 s), `homing_wrong_side` (homing'de sağ switch → motor/enkoder yönü ters), `homing_travel` (rayın 2 katından fazla yol → sol switch kablosu kopuk olabilir) |
+| `{"evt":"fault","reason":"…"}` | FAULT moduna geçildiğinde, **bir kez**. Sebepler: `estop`, `rail` (yazılımsal ray sınırı), `limit` (çalışırken limit switch), `sensor` (AS5600 art arda 3 kez okunamadı), `homing_timeout` (20 s), `homing_wrong_side` (homing'de sağ switch → motor/enkoder yönü ters), `homing_travel` (rayın 2 katından fazla yol → sol switch kablosu kopuk olabilir), `link` (hareketli modda 1 s boyunca PC'den hiç satır gelmedi: USB koptu ya da arayüz çöktü; bkz. §4 `hb`) |
 
 ### 3.3 Komut yanıtları
-Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":"start","ok":false,"msg":"önce home (kalibrasyon) yapılmalı"}`.
+`hb` dışındaki her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":"start","ok":false,"msg":"önce home (kalibrasyon) yapılmalı"}`.
 `ok:true` yalnızca komut gerçekten uygulanacaksa döner; cihaz o anki modda komutu kabul etmiyorsa `ok:false` ve sebep gönderir. Yanıt ek alan taşıyabilir (ör. `ping`).
 
 ## 4. PC → ESP32 komutları
@@ -66,7 +66,8 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 | Komut | Örnek | Etki |
 |---|---|---|
 | `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.1","homed":false}`. PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
-| `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları. **Switch'siz derlenmiş firmware'de (`LIMIT_SWITCHES 0`):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir; `limit` olayı ve `limit`/`homing_*` hataları oluşmaz |
+| `hb` | `{"cmd":"hb"}` | **Bağlantı bekçisi, yanıtsız.** PC bağlıyken 0.25 s'de bir gönderir (`protocol.py::HB_PERIOD_S`). Cihaz HOMING, SWING_UP, WAIT, BALANCE veya FRICTION modundayken **1 s** (`LINK_TIMEOUT_S`, firmware `LINK_TIMEOUT_MS`) boyunca hiç komut satırı almazsa motoru keser: FAULT `link`. IDLE/FAULT'ta denetlenmez. Herhangi bir komut satırı da sayacı sıfırlar |
+| `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Yeni homing başlarken önceki kalibrasyon geçersiz sayılır (homing yarıda `stop` edilirse `start` reddedilir). Araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları. **Switch'siz derlenmiş firmware'de (`LIMIT_SWITCHES 0`):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir; `limit` olayı ve `limit`/`homing_*` hataları oluşmaz |
 | `calib` | `{"cmd":"calib"}` | Yalnız IDLE modunda. Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (açılıştaki kalibrasyon başarısız olduysa) |
 | `friction` | `{"cmd":"friction"}` | Yalnız **IDLE**'da, homing ve açı kalibrasyonu yapılmışsa; araba ray ucundan en az 0.23 m uzakta ve duruyor, sarkaç aşağıda ve hareketsiz olmalı. Gerilim 1 V/s ile artırılır; araba hızı 4–10 cm/s iken (gerilim, hız) çiftlerine doğru oturtulur, önce +x sonra −x (yön başına ≤ 8 cm + yumuşak duruş). Sonuç `friction` olayıyla gelir. `stop` iptal eder, `estop` FAULT'a geçirir. Ayrıntı: `pendulum_lab/control/friction.py` |
 | `start` | `{"cmd":"start"}` | Yalnız **IDLE** modunda, homing ve açı kalibrasyonu yapılmışsa. FAULT'tan doğrudan başlatılamaz (önce `stop`). Araba ray ucuna 0.10 m'den yakınsa veya 0.2 m/s'den hızlı gidiyorsa reddedilir. Swing-up açıksa SWING_UP, kapalıysa WAIT |
@@ -84,7 +85,7 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
 | `catch_deg` | 1–45 | \|θ\| bu değerin altına inince LQR devreye girer |
 | `release_deg` | 2–90 | \|θ\| bu değeri aşınca LQR bırakılır. Her zaman `catch_deg < release_deg` olmalı (histerezis) |
 | `catch_dth` | 0.5–50 | LQR'a girişte \|θ̇\| sınırı [rad/s] (varsayılan 5) |
-| `catch_x` | 0.01–1 | LQR'a girişte araba konum sınırı \|x\| [m] (varsayılan 0.4: kısıtlamaz) |
+| `catch_x` | 0.01–1 | LQR'a girişte araba konum sınırı \|x\| [m] (varsayılan 0.4: ray ±0.4 m iken kısıtlamaz; ray daha uzunsa artırılmalı) |
 | `catch_dx` | 0.01–5 | LQR'a girişte araba hız sınırı \|ẋ\| [m/s] (varsayılan 2: kısıtlamaz) |
 | `swingup` | 0/1 | 0 ise sarkaç elle kaldırılana kadar beklenir (WAIT) |
 | `k_E` | 0–10000 | Swing-up enerji kazancı |
@@ -107,7 +108,8 @@ Her komut tam olarak bir yanıt alır: `{"ack":"start","ok":true}` veya `{"ack":
    │    ▲                                 │
    │    └────────── |θ|>release ──────────┘
    │
-  stop        her mod ── |x| > rail_half − 3 cm, limit switch, sensör hatası, estop ──▶ FAULT (motor kapalı)
+  stop        her mod ── |x| > rail_half − 3 cm, limit switch, sensör hatası, estop,
+                          1 s PC sessizliği (link, yalnız hareketli modlarda) ──▶ FAULT (motor kapalı)
 
            friction (homed)        bitti / stop
   IDLE ───────────────────▶ FRICTION ─────────────▶ IDLE   (sonuç: friction olayı)

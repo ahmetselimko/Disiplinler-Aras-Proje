@@ -1,5 +1,5 @@
 // Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin
-// 2026-11-18 10:42:04
+// 2026-11-22 17:09:37
 // Q = [10.0, 1.0, 100.0, 1.0]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage T_f=0.0 B_m=0.0
 #pragma once
@@ -10,7 +10,7 @@
 #define CTRL_PERIOD_MS     2
 #define CTRL_RATE_HZ       500
 // u = -(K0*(x - x_ref) + K1*dx + K2*th + K3*dth)
-static const float LQR_K[4] = {-9.545742f, -22.272552f, -56.221807f, -8.686515f};
+static const float LQR_K[4] = {-9.515838f, -27.286601f, -61.490548f, -9.737244f};
 #define CATCH_RAD          0.261799f
 #define RELEASE_RAD        0.523599f
 #define CATCH_DTH          5.0000f   // LQR'a girişte |θ̇| sınırı [rad/s]
@@ -28,11 +28,11 @@ static const float LQR_K[4] = {-9.545742f, -22.272552f, -56.221807f, -8.686515f}
 #define P_C                0.000500f
 #define P_FC               0.000000f   // Coulomb sürtünme kuvveti T_f·N/r [N] (telafi)
 #define P_G                9.8100f
-#define MOTOR_ALPHA        3.221845f   // N/V
-#define MOTOR_BETA         28.007219f   // N·s/m
+#define MOTOR_ALPHA        4.284996f   // N/V
+#define MOTOR_BETA         49.540644f   // N·s/m
 #define MOTOR_V_MAX        12.000f   // besleme gerilimi [V] (PWM ölçeği)
 #define MOTOR_GEAR         10.0000f   // redüktör oranı (enkoder sayımı → araba konumu)
-#define PULLEY_R_M         0.012700f   // kasnak yarıçapı [m]
+#define PULLEY_R_M         0.009549f   // kasnak yarıçapı [m]
 #define INPUT_MODE_VOLTAGE 1
 
 #define SU_K_E             100.0000f
@@ -45,15 +45,15 @@ static const float LQR_K[4] = {-9.545742f, -22.272552f, -56.221807f, -8.686515f}
 // Ayrık kararlı hal Kalman filtresi (dik konum etrafında: s+ = Ad*s + Bd*u, s += L*(y - C*s))
 #define KALMAN_AVAILABLE 1
 static const float KALMAN_AD[4][4] = {
-  {1.00000000e+00f, 1.89166905e-03f, -7.56189039e-06f, 1.33548753e-09f},
-  {0.00000000e+00f, 8.93661137e-01f, -7.42284820e-03f, -1.25637884e-06f},
-  {0.00000000e+00f, 3.61100428e-04f, 1.00009061e+00f, 1.99998359e-03f},
-  {0.00000000e+00f, 3.54460792e-01f, 9.01422908e-02f, 1.00001403e+00f},
+  {1.00000000e+00f, 1.81395300e-03f, -7.35327737e-06f, 1.26420140e-09f},
+  {0.00000000e+00f, 8.19908828e-01f, -7.11789370e-03f, -1.30681653e-06f},
+  {0.00000000e+00f, 6.20151926e-04f, 1.00008991e+00f, 1.99998383e-03f},
+  {0.00000000e+00f, 6.00300420e-01f, 8.91257836e-02f, 1.00001420e+00f},
 };
-static const float KALMAN_BD[4] = {1.24176475e-05f, 1.21893001e-02f, -4.13918426e-05f, -4.06307614e-02f};
+static const float KALMAN_BD[4] = {1.60596371e-05f, 1.55455283e-02f, -5.35317151e-05f, -5.18181266e-02f};
 static const float KALMAN_L[4][2] = {
-  {5.23508705e-01f, 1.52847365e-03f},
-  {2.23613369e+01f, 5.93072909e-01f},
-  {1.30140686e-01f, 2.76969464e-01f},
-  {3.68478539e+01f, 2.13141726e+01f},
+  {6.00114924e-01f, 1.00930496e-03f},
+  {1.81326672e+01f, 5.37426724e-01f},
+  {1.52008964e-01f, 2.86539414e-01f},
+  {4.84340427e+01f, 2.30280969e+01f},
 };

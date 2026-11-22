@@ -233,6 +233,7 @@ class SimulationPage(QtWidgets.QWidget):
         sup = Supervisor(st.p, st.K, swingup=copy.deepcopy(st.swingup), catch_deg=st.catch_deg,
                          catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
+        sup.x_ref = st.x_ref   # cihaza gönderilen hedef konumla aynı (Matlab dalı da kullanıyor)
         sup.start()
         sensor = (SensorModel.for_params(st.p, th_noise_std=math.radians(self.noise.value()))
                   if self.real_cb.isChecked() else None)

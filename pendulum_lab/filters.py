@@ -17,9 +17,10 @@ from scipy.linalg import solve_discrete_are
 
 KALMAN_QN = (1e-9, 1e-5, 1e-9, 1e-4)       # [x, dx, th, dth] süreç gürültüsü kovaryans köşegeni
 KALMAN_TH_RES = 2 * math.pi / 4096         # 12-bit AS5600 açı çözünürlüğü [rad]
-ENC_CPR_MOTOR = 48.0                       # motor milindeki enkoder (Pololu 25D: 48 CPR, 4x); firmware'deki ENC_CPR_MOTOR ile aynı
-# motor parametresi olmayan modeller için varsayılan enkoder çözünürlüğü [m/sayım]: 48 CPR, 10:1, GT2 40 diş
-KALMAN_ENC_RES = 2 * math.pi * 0.0127 / (ENC_CPR_MOTOR * 10.0)
+ENC_CPR_MOTOR = 48.0                       # motor milindeki enkoder, 4x sayım; firmware'deki ENC_CPR_MOTOR ile aynı. YER TUTUCU: motor teyit bekliyor (BOM v3: JGB37-520 / FIT0186)
+# motor parametresi olmayan modeller için varsayılan enkoder çözünürlüğü [m/sayım]: 48 CPR, 10:1, HTD3M 20 diş
+# (r = 20·3 mm / 2π ≈ 9.55 mm, BOM v3; config/params.json ile aynı)
+KALMAN_ENC_RES = 2 * math.pi * 0.009549 / (ENC_CPR_MOTOR * 10.0)
 
 
 def encoder_resolution(p) -> float:

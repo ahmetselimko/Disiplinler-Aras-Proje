@@ -67,6 +67,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self._tick)
         self.timer.start()
 
+        # bağlantı bekçisi: cihaz hareketli moddayken LINK_TIMEOUT_S boyunca satır almazsa motoru keser
+        self.hb_timer = QtCore.QTimer(self)
+        self.hb_timer.setInterval(int(P.HB_PERIOD_S * 1000))
+        self.hb_timer.timeout.connect(self._heartbeat)
+        self.hb_timer.start()
+
     def _tick(self):
         reader = self.state.reader
         if reader is not None:
@@ -81,8 +87,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 except queue.Empty:
                     break
                 self.live.handle_message(msg)
-                if (isinstance(msg, P.Ack) and msg.cmd == "ping" and msg.ok) or \
-                        (isinstance(msg, P.Event) and msg.name == "boot"):
+                if isinstance(msg, P.Event) and msg.name == "boot":
+                    self.state.on_device_info(msg.data, boot=True)
+                elif isinstance(msg, P.Ack) and msg.cmd == "ping" and msg.ok:
                     self.state.on_device_info(msg.data)
             if self.tabs.currentWidget() is self.live:
                 self.live.refresh(reader)
@@ -96,6 +103,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self._fps = self._frames / (now - self._fps_t0)
             self._frames, self._fps_t0 = 0, now
             self.s_fps.setText(f"  Çizim: {self._fps:4.0f} FPS" if reader is not None else "")
+
+    def _heartbeat(self):
+        reader = self.state.reader
+        if reader is not None and reader.error is None:
+            try:
+                reader.send("hb")
+            except Exception:   # port hatası: _tick reader.error ile bağlantıyı kapatır
+                pass
 
     def _esc_pressed(self):
         if self.state.connected:

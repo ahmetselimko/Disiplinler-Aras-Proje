@@ -34,6 +34,7 @@ sys.path.insert(0, str(ROOT))
 
 from pendulum_lab import MotorParams, SensorModel, Supervisor, load_params, simulate_closed_loop  # noqa: E402
 from pendulum_lab.control.lqr import design_lqr  # noqa: E402
+from pendulum_lab.filters import KALMAN_TH_RES  # noqa: E402
 from pendulum_lab.model.motor import max_cart_force, max_cart_speed, stepper_max_accel  # noqa: E402
 
 OZIN = 0.00706155   # 1 oz·in [N·m]
@@ -58,9 +59,8 @@ DC_ADAYLAR = [  # (ad, motor değerleri, redüktör, motor milinde enkoder CPR, 
     # DOĞRULANMADI: hangi motorun kastedildiği ve aşağıdaki datasheet değerleri mekatronikle teyit edilmeli.
     ("#1091 35:1 mini 6V", dc_motor(6.0, 350, 0.07, 1.5, 20 * OZIN, 35), 35, 12, (0.0,)),
     ("#1597 35:1 15.5D 6V", dc_motor(6.0, 460, 0.06, 0.8, 13 * OZIN, 35), 35, 12, (0.0,)),
-    # SEÇİLEN MOTOR (mekatronik, 16.11.2026): "Pololu 25D 48 CPR enkoderli 12V, 251 RPM". Pololu'nun 12V 25D
-    # listesinde tam 251 RPM'lik model yok; en yakın dört aday denenir. Hangisi olduğu ürün numarasıyla
-    # TEYİT EDİLMELİ. Değerler pololu.com/category/115 (boşta akım enkoderli sürüm; durma değerleri sayfaya göre
+    # ESKİ BİLGİ (16.11.2026): "Pololu 25D 48 CPR enkoderli 12V, 251 RPM". BOM v3'e göre bu aslında DFRobot
+    # FIT0186'ydı (yukarıda BOM_ADAYLAR); 25D adayları karşılaştırma için duruyor. Değerler pololu.com/category/115 (boşta akım enkoderli sürüm; durma değerleri sayfaya göre
     # teorik). Redüktör çıkışı değerleri kullanılır (dişli verimi dahil). J_rotor bilinmiyor → 0 ve 1e-6 kg·m²
     # (25D rotoru 37D'ninkinden küçük; VARSAYIM).
     *[(f"25D {ad}", dc_motor(12.0, rpm, I0, Is, T * KGCM, N), N, 48, (0.0, 1e-6))
@@ -109,8 +109,10 @@ def calistir(p, x_cozunurluk):
     K, _, _ = design_lqr(p, Q, [[R_LQR]], Ts=TS)
     sup = Supervisor(p, K)
     sup.start()
+    # firmware'in ENC_CPR_MOTOR'u adayın enkoderine göre ayarlanacağı için Kalman da aynı çözünürlükle kurulur
+    Rn = [x_cozunurluk ** 2 / 12.0, KALMAN_TH_RES ** 2 / 12.0]
     return simulate_closed_loop(p, sup, [0, 0, math.pi, 0], T_SIM, dt=TS,
-                                sensor=SensorModel(x_resolution=x_cozunurluk))
+                                sensor=SensorModel(x_resolution=x_cozunurluk), kalman_Rn=Rn)
 
 
 def dc_kos(base, ad, mot, N, cpr, J, teeth, rail, surtunme, adim=0.002):

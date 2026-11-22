@@ -1,5 +1,7 @@
 # Parametre Hassasiyet Analizi Raporu
 
+> **Not (22.11.2026):** Bu belgedeki sayılar eski kasnakla (GT2 40 diş, r = 12.7 mm) üretildi. `config/params.json` artık BOM v3'teki HTD3M 20 dişi (r = 9.55 mm) kullanıyor; sonuçlar yeniden üretilirse değişebilir.
+
 Issue #13 — Tek seferde bir fiziksel parametre değiştirilir; nominal model ve K sabit kalır.
 Gerçek donanım doğrulaması değildir. Parametreler yer tutucu olabilir; sonuçlar yalnız bu modele,
 başlangıç durumlarına, sensöre ve deney süresine aittir. Birleşik hatalar ayrıca test edilmelidir.

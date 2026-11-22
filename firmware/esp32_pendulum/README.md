@@ -61,6 +61,9 @@ Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takıl
 ## Güvenlik davranışları (inceleme sonrası eklendi)
 | Durum | Davranış |
 |---|---|
+| Hareketli modda (HOMING/SWING_UP/WAIT/BALANCE/FRICTION) 1 s boyunca PC'den satır gelmedi (USB koptu, arayüz çöktü) | FAULT `link`, motor kesilir. Arayüz bağlıyken 0.25 s'de bir `{"cmd":"hb"}` gönderir (`LINK_TIMEOUT_MS`, protokol.md §4) |
+| Uç sensöründe tek bir parazitli okuma | Dikkate alınmaz: art arda `LIM_DEBOUNCE` = 3 okuma (6 ms) basılıysa basılı sayılır |
+| Yeni `home` başladı | Önceki kalibrasyon geçersiz; homing yarıda `stop` edilirse `start` reddedilir |
 | Homing'de sağ switch'e basıldı | FAULT `homing_wrong_side` (motor veya enkoder yönü ters) |
 | Homing 20 s'yi aştı / rayın 2 katından fazla yol gidildi | FAULT `homing_timeout` / `homing_travel` |
 | Homing başlarken sol switch zaten basılı | Hemen sıfırlanır (switch seviyesine bakılır) |

@@ -302,7 +302,7 @@ class LiveTab(QtWidgets.QWidget):
     # ------------------------------------------------------------ güncelleme (60 FPS)
     def refresh(self, reader):
         self.refresh_summary(reader)
-        if self.pause_cb.isChecked() or reader is None:
+        if reader is None:
             return
         last = reader.last
         if last is not None:
@@ -311,6 +311,8 @@ class LiveTab(QtWidgets.QWidget):
             self.values.setText(
                 f"t={last.t:8.3f} s   θ={math.degrees(last.th):+7.2f}°   θ̇={last.dth:+6.2f} rad/s\n"
                 f"x={last.x:+.4f} m   ẋ={last.dx:+.3f} m/s   u={last.u:+6.2f}")
+        if self.pause_cb.isChecked():          # "Dondur" yalnız grafikleri dondurur; mod/animasyon/sayılar canlı
+            return
         rate = max(reader.rate_hz, 1.0)
         data = reader.buffer.latest(int(self.window.value() * rate * 1.2) + 10)
         if len(data) < 2:

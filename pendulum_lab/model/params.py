@@ -26,10 +26,9 @@ class MotorParams:
     """Redüktörlü DC motor + kayış kasnağı (input_mode='voltage' için).
 
     Varsayılanlar Pololu 37D 12V katalog değerlerinden türetilmiş YER TUTUCULARDIR (config/params.json ile
-    aynı; tools/motor_karsilastirma.py MOTOR_CATALOG). Seçilen motor Pololu 25D 48 CPR'dir; ürün numarası ve
-    redüktör oranı teyit edilince hem burası hem params.json güncellenmeli.
-    Not: 30:1 redüktör + 20 dişli kasnakla araba en fazla ~0.2 m/s gidebilir; sarkaç için
-    yetersiz. Bu yüzden yer tutucu olarak 10:1 + GT2 40 diş (~1.4 m/s) seçildi.
+    aynı; tools/motor_karsilastirma.py MOTOR_CATALOG). Motor teyit bekliyor (BOM v3: JGB37-520 / FIT0186);
+    kesinleşince hem burası hem params.json güncellenmeli. Kasnak: config/params.json'da BOM v3'teki
+    HTD3M 20 diş (r = 9.55 mm); buradaki varsayılan eski GT2 40 diş değeridir (testler buna dayanır).
     """
     R: float = 2.18         # sargı direnci [ohm]
     Kt: float = 0.00892     # tork sabiti, motor mili [N·m/A]

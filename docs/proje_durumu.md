@@ -120,7 +120,26 @@ Son PR'lar (#35, #36, #37) yapay zekâ araçlarıyla hazırlandığı için, esk
 * **Matlab uyumlu deneme:** Matlab'ın parametreleri, Q, R'si ve ±10 N kuvvet sınırı yoktu; eklendi.
 * **Motor varsayılanları:** `params.py` ile `params.json` farklı yer tutucular kullanıyordu; eşitlendi. `gains.h` güncel dışa aktarımla yeniden üretildi.
 
-Küçük, bilinen farklar: sanal ESP32'de homing yol sınırı hatası, sürtünme ölçümündeki switch denetimi ve açılıştaki `calib` olayı yok (firmware'de var). `hassasiyet_raporu.md` 22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi: 168 deneyden başarılı olanlar (120) ve parametre sınıfları değişmedi; raporun ayarlar bölümündeki elle yazılmış eski enkoder çözünürlüğü de düzeltildi.
+Küçük, bilinen farklar: sanal ESP32'de homing yol sınırı hatası ve sürtünme ölçümündeki switch denetimi yok (firmware'de var; `calib` olayı 22.11.2026'da eklendi). `hassasiyet_raporu.md` 22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi: 168 deneyden başarılı olanlar (120) ve parametre sınıfları değişmedi; raporun ayarlar bölümündeki elle yazılmış eski enkoder çözünürlüğü de düzeltildi.
+
+### 4.2 Uçtan uca test ve bağımsız inceleme (22.11.2026)
+Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → homing → swing-up → denge → dürt → duraklat → durdur → acil stop → sıfırla → sürtünme ölçümü → tüm sekmeler → kayıt oynatma) ve kod üç ayrı ajana (model/kontrol, haberleşme/firmware, arayüz) inceletildi. Model, LQR, Kalman, swing-up, mod geçişleri, Matlab işaret dönüşümü ve protokol uyumu doğru bulundu. Düzeltilenler:
+
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | PC bağlantısı koparsa (USB çekildi, arayüz çöktü) motor durmuyordu | Bağlantı bekçisi: arayüz 0.25 s'de bir `hb` gönderir; cihaz hareketli modda 1 s satır almazsa FAULT `link` (protokol.md §4) |
+| Önemli | Kart resetlenince ROM'un 115200 baud mesajı boot satırına yapışıyor, PC reseti görmüyor, ayarlar yüklenmiyordu | Firmware boot'tan önce `\n` basar; okuyucu satırı ilk `{`'den keser |
+| Önemli | 1 s içinde yeniden bağlanma ya da reset olursa ayarlar gönderilmiyordu | Yeni bağlantıda sayaç sıfırlanır; boot her zaman ayarları yükler |
+| Önemli | Kasnak eski GT2 40 diş (12.7 mm) değerindeydi | `params.json` HTD3M 20 diş (9.55 mm), `gains.h` yeniden üretildi. Enkoder 48 CPR motor kesinleşene kadar yer tutucu |
+| Küçük | Tasarım hatası uyarısına rağmen eski K gönderiliyor / dışa aktarılıyordu | Hata varsa gönderim, dışa aktarma ve kaydetme durur |
+| Küçük | Bir ayar reddedilince geri kalanı gönderilmiyordu; u_max ve x_ref arayüzde protokolden geniş | Her ayar ayrı gönderilir, gönderilemeyenler uyarıyla listelenir; u_max ≤ 48, \|x_ref\| ≤ 0.3 |
+| Küçük | "Dondur" mod göstergesini de donduruyordu (FAULT görünmüyordu) | Yalnız grafikler donar |
+| Küçük | Analiz simülasyonu x_ref'i yok sayıyordu | Cihaza gönderilen x_ref kullanılır |
+| Küçük | Kayıt oynatma dürtme/duraklatmayı uyarısız yok sayıyordu; çubuğa tıklayınca geri atlıyordu | Uyarı eklendi; saat tıklamada yeniden kurulur |
+| Küçük | Firmware: açılışta sahte (θ = 0) ilk telemetri; komut kontrolleri bayat örneğe bakıyordu; switch'te parazit filtresi yoktu; yarım kalan homing eski sıfırı geçerli bırakıyordu | Hepsi düzeltildi (sanal ESP32 de aynı) |
+| Küçük | Sanal ESP32 `calib` olayını göndermiyordu; swingup'sız `gains.h` derlenmiyordu; Ts > 20 ms kabul ediliyordu | Düzeltildi |
+
+Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
 ---
 

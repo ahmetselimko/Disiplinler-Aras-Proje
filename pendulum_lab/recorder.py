@@ -131,6 +131,7 @@ class ReplayComparison:
     max_err_x: float
     t_start: float = 0.0                 # simülasyonun başladığı an (BAŞLAT), gösterilen eksende [s]
     changed_during_trial: list = None    # deneme sırasında cihazın onayladığı ayar anahtarları
+    sim_actions_during_trial: list = None  # deneme sırasında gönderilen dürt/duraklat/sıfırla (simülasyon içermez)
 
 
 def load_recording(path: str | Path) -> RecordedSession:
@@ -317,6 +318,23 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
     return meta, sorted(later)
 
 
+SIM_ACTION_NAMES = {"kick": "dürtme", "pause": "duraklatma", "reset": "sıfırlama"}
+
+
+def _sim_actions_between(session: RecordedSession, row: int, end_row: int | None) -> list[str]:
+    """[row, end_row) aralığında gönderilen yalnız-simülasyon komutları (kick/pause/reset). Karşılaştırma
+    simülasyonu bunları modellemez: dürtme yapılmaz, duraklatma kayıt zamanını kaydırır."""
+    found = []
+    for ev in session.events:
+        at = int(ev.get("_row", 0))
+        if ev.get("kind") == "command_sent" and ev.get("cmd") in SIM_ACTION_NAMES and at >= row \
+                and (end_row is None or at < end_row):
+            name = SIM_ACTION_NAMES[ev["cmd"]]
+            if name not in found:
+                found.append(name)
+    return found
+
+
 def compare_recording_with_simulation(
     session: RecordedSession,
     *,
@@ -353,6 +371,7 @@ def compare_recording_with_simulation(
         meta, changed_later = _settings_at_row(session, i_start, act.stop)
     else:
         meta, changed_later = {}, []
+    sim_actions = _sim_actions_between(session, i_start, act.stop)
     p, sup_p, K, Ts, swingup, catch_deg, release_deg, swingup_enabled, x_ref = _extract_replay_config(
         meta, fallback_state=fallback_state
     )
@@ -426,6 +445,7 @@ def compare_recording_with_simulation(
         sim_summary=sim_summary,
         t_start=t_off,
         changed_during_trial=changed_later,
+        sim_actions_during_trial=sim_actions,
         rmse_th_deg=float(np.sqrt(np.mean(err_th_deg ** 2))),
         rmse_x=float(np.sqrt(np.mean(err_x ** 2))),
         rmse_u=float(np.sqrt(np.mean(err_u ** 2))),
