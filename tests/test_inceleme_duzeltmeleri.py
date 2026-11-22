@@ -405,3 +405,32 @@ def test_excepthook_keeps_app_alive(qapp, monkeypatch):
     finally:
         sys.excepthook = old
     assert shown and "RuntimeError: deneme" in shown[0]
+
+
+def test_excepthook_shows_one_window_at_a_time(qapp, monkeypatch):
+    """Pencere açıkken (iç olay döngüsünde) tekrar eden hatalar yeni pencere açmamalı."""
+    import sys
+    from PyQt5 import QtWidgets
+    from gui.widgets import install_excepthook
+    opened = []
+
+    def fake_exec(self):
+        opened.append(self.text())
+        if len(opened) == 1:                                       # pencere açıkken _tick yine hata veriyor
+            for _ in range(5):
+                try:
+                    raise RuntimeError("tekrar")
+                except RuntimeError:
+                    sys.excepthook(*sys.exc_info())
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec_", fake_exec)
+    old = sys.excepthook
+    try:
+        install_excepthook(qapp)
+        for _ in range(2):                                         # kapandıktan sonraki hata yine gösterilir
+            try:
+                raise RuntimeError("ilk")
+            except RuntimeError:
+                sys.excepthook(*sys.exc_info())
+    finally:
+        sys.excepthook = old
+    assert len(opened) == 2

@@ -12,17 +12,28 @@ from PyQt5 import QtGui, QtWidgets
 def install_excepthook(app) -> None:
     """Bir buton/zamanlayıcı fonksiyonundaki yakalanmamış hata PyQt5 ≥ 5.5'te uygulamayı KAPATIR. Kapanınca
     bağlantı da kesilir ve cihaz (dengedeyse) bağlantı bekçisiyle motoru keser. Bunun yerine hatayı göster,
-    uygulama açık kalsın."""
+    uygulama açık kalsın.
+    Aynı anda TEK pencere: pencere açıkken zamanlayıcılar (ör. 60 FPS'lik _tick) çalışmaya devam eder; her
+    tetiklemedeki hata yeni bir pencere açsaydı pencereler iç içe birikir, Esc/DURDUR'a ulaşmak zorlaşırdı.
+    Pencere açıkken gelen hatalar yalnız stderr'e yazılır."""
+    showing = [False]
+
     def hook(exc_type, exc, tb):
         text = "".join(traceback.format_exception(exc_type, exc, tb))
         sys.stderr.write(text)
+        if showing[0]:
+            return
+        showing[0] = True
         try:
             box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Beklenmeyen hata",
-                                        f"{exc_type.__name__}: {exc}\n\nUygulama açık kaldı; işlem yapılmadı.")
+                                        f"{exc_type.__name__}: {exc}\n\nUygulama açık kaldı; işlem yapılmadı. "
+                                        "Pencere açıkken gelen başka hatalar yalnız konsola yazılır.")
             box.setDetailedText(text)
             box.exec_()
         except Exception:                      # pencere de açılamazsa yalnız stderr'e yazılmış olur
             pass
+        finally:
+            showing[0] = False
     sys.excepthook = hook
 
 

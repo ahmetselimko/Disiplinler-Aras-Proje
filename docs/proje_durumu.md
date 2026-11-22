@@ -147,7 +147,7 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Canlı sekmedeki "K'yı Cihaza Gönder" K'yı yeniden hesaplamadan gönderiyordu | Tasarım sekmesindeki gibi önce hesaplar |
 | Ek önlem | Homing'de ters bağlantıda 12 V çarpma iddiası simülasyonda doğrulanmadı (araba ≤ 0.07 m/s sürünüp `homing_wrong_side` veriyor) | Yine de `homing_runaway` koruması: \|ẋ\| > 0.3 m/s ya da 0.3 s doyum → FAULT |
 | Belge | Firmware README hâlâ "Pololu 25D" diyordu; enkoder 5 V uyarısı yoktu | Düzeltildi |
-| Önemli | Dosya yazılamazsa (izin yok, kayıt klasörü) PyQt uygulamayı kapatıyordu; kapanınca bağlantı bekçisi motoru keser | Kayıt, gains.h ve parametre kaydında hata yakalanır; genel hata penceresi (`install_excepthook`) uygulamayı açık tutar |
+| Önemli | Dosya yazılamazsa (izin yok, kayıt klasörü) PyQt uygulamayı kapatıyordu; kapanınca bağlantı bekçisi motoru keser | Kayıt, gains.h ve parametre kaydında hata yakalanır; genel hata penceresi (`install_excepthook`, aynı anda tek pencere) uygulamayı açık tutar |
 | Belge | Arayüz donarsa Esc/DURDUR işlemez; bozuk `hb` satırı bir komutun onayını tüketebilir | Kullanım kılavuzuna "USB'yi çekin" notu, protokole bilinen sınırlama notu |
 
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
