@@ -62,7 +62,7 @@ Mekatronik ekibe başlangıç noktası. İki FreeRTOS görevi var: 500 Hz kontro
 | `matlab_karsiliklari.md` | Herkes | Matlab fonksiyonu → kütüphanedeki karşılığı; mekatronik Matlab modeliyle karşılaştırma |
 | `kullanim_kilavuzu.md` | Herkes | Ekran görüntülü arayüz anlatımı |
 | `katki_3_6_13.md`, `katki_10.md`, `katki_14_15.md` | Bilgisayar ekibi | Enerji grafiği, deneme özeti, hassasiyet analizi; Matlab karşılaştırması; Kalman ve kayıt oynatma ayrıntıları |
-| `hassasiyet_raporu.md` | Herkes | Parametre hassasiyet taramasının sonuçları (02.11.2026'da, Kalman eklenmeden önce üretildi) |
+| `hassasiyet_raporu.md` | Herkes | Parametre hassasiyet taramasının sonuçları (22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi) |
 | `../matlab/README.md` | İki ekip | Matlab dosyaları, θ işareti farkı, K dönüşümü |
 
 ---
@@ -120,7 +120,7 @@ Son PR'lar (#35, #36, #37) yapay zekâ araçlarıyla hazırlandığı için, esk
 * **Matlab uyumlu deneme:** Matlab'ın parametreleri, Q, R'si ve ±10 N kuvvet sınırı yoktu; eklendi.
 * **Motor varsayılanları:** `params.py` ile `params.json` farklı yer tutucular kullanıyordu; eşitlendi. `gains.h` güncel dışa aktarımla yeniden üretildi.
 
-Küçük, bilinen farklar: sanal ESP32'de homing yol sınırı hatası, sürtünme ölçümündeki switch denetimi ve açılıştaki `calib` olayı yok (firmware'de var). `hassasiyet_raporu.md` Kalman'dan önce üretildi, yeniden üretilmesi gerekiyor.
+Küçük, bilinen farklar: sanal ESP32'de homing yol sınırı hatası, sürtünme ölçümündeki switch denetimi ve açılıştaki `calib` olayı yok (firmware'de var). `hassasiyet_raporu.md` 22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi: 168 deneyden başarılı olanlar (120) ve parametre sınıfları değişmedi; raporun ayarlar bölümündeki elle yazılmış eski enkoder çözünürlüğü de düzeltildi.
 
 ---
 
@@ -161,7 +161,7 @@ Aşağıdaki işler gerçek ölçüleri ya da mekanizmayı beklemeden, yer tutuc
 |---|---|---|---|
 | 1 | ~~**Motor karşılaştırması**~~ ✔ *yapıldı* | `python tools/motor_karsilastirma.py` tüm adaylarla θ₀ = 180° swing-up'ı dener; sonuç ve tablo issue #7'de | Gerçek ölçüler gelince aynı betik yeniden çalıştırılır |
 | 2 | ~~**Firmware'i derlemek**~~ ✔ *yapıldı* | Core 3.3.12 ve 2.0.17 ile hatasız derleniyor; sürümler `firmware/esp32_pendulum/README.md`'de | Derleme her push'ta GitHub Actions'ta tekrarlanıyor |
-| 3 | ~~**Hassasiyet analizi**~~ ✔ *yapıldı (#13)* | `python tools/hassasiyet_analizi.py`; sonuç `docs/hassasiyet_raporu.md`. Rapor Kalman'dan önce üretildi, **yeniden üretilmeli** | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
+| 3 | ~~**Hassasiyet analizi**~~ ✔ *yapıldı (#13)* | `python tools/hassasiyet_analizi.py`; sonuç `docs/hassasiyet_raporu.md` (22.11.2026, Kalman + 48 CPR). Gerçek parametreler gelince yeniden çalıştırılmalı | Mekatronik ekibe "şunları özellikle dikkatli ölçün" listesi |
 | 4 | ~~**Kalman filtresi**~~ ✔ *yapıldı (#14)* | `pendulum_lab/filters.py::KalmanFilter` ile hız kestirimi simülasyonda denenir, motor gerilimi titreşimi ölçülür, sonra firmware'e taşınır | Dengedeki ±1–1.5 V titreşimi azaltır. Gerçek değerler gelince yalnızca sayılar değişir |
 | 5 | ~~**Kayıt oynatma sekmesi**~~ ✔ *yapıldı (#15)* | Arayüze CSV kaydını açıp aynı başlangıç koşullu simülasyonla üst üste çizen bir sekme eklenir; sanal cihazdan alınan kayıtla denenir | Gerçek denemeler başlayınca modelin doğrulanmasını kolaylaştırır |
 | 6 | ~~**Matlab karşılaştırması**~~ ✔ *yapıldı (#37)* | Matlab dosyaları `matlab/`'da; doğrusal ve doğrusal olmayan model testle karşılaştırılıyor; Analiz sekmesinde Matlab uyumlu deneme; sonuçlar `katki_10.md`'de | İki ekip aynı modeli kullandığından emin olur |

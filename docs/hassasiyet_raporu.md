@@ -6,13 +6,13 @@ başlangıç durumlarına, sensöre ve deney süresine aittir. Birleşik hatalar
 
 ## Tekrarlanabilir deney ayarları
 
-- Her deney: 12 s; Ts = 0.002 s; sensör: AS5600 12-bit, gürültü yok.
+- Her deney: 12 s; Ts = 0.002 s; sensör: AS5600 12-bit ve 48 CPR motor enkoderi (kuantalama), gürültü yok; hız dik bölgede Kalman filtresiyle, geniş açıda 25 Hz türev filtresiyle kestirilir (firmware gibi).
 - Başarı: son en az 1 s boyunca BALANCE ve |θ| ≤ 2°; FAULT ve ray teması yok.
 - Ayrı başlangıçlar: aşağıdan 180° swing-up; dik çevresinde 5° denge.
 - Doyum: sol örnek sabit kabul edilerek |u| ≥ u_max − 0.001 integralidir.
 - Nominal kontroller:
-  - swing: BAŞARILI; son denge süresi 7.784 s
-  - balance: BAŞARILI; son denge süresi 11.930 s
+  - swing: BAŞARILI; son denge süresi 7.928 s
+  - balance: BAŞARILI; son denge süresi 11.928 s
 
 Tüm fiziksel parametreler, K, Q/R ve kontrol ayarları:
 
@@ -76,13 +76,13 @@ Tüm fiziksel parametreler, K, Q/R ve kontrol ayarları:
       "k_x": 10.0,
       "k_v": 6.0,
       "a_kick": 2.0,
-      "E_target": 0.0
+      "E_ratio": 1.0
     },
     "catch_deg": 15.0,
     "release_deg": 30.0,
     "sensor": {
       "th_resolution": 0.0015339807878856412,
-      "x_resolution": 0.000125,
+      "x_resolution": 0.00016624261125245987,
       "noise_std": 0.0,
       "seed": 0
     },
@@ -101,7 +101,8 @@ Tüm fiziksel parametreler, K, Q/R ve kontrol ayarları:
     "substeps": 4,
     "vel_fc_hz": 25.0,
     "delay_steps": 0,
-    "end_stops": true
+    "end_stops": true,
+    "use_kalman": true
   }
 }
 ```
@@ -156,52 +157,52 @@ Sıfır nominal satırlarda +% değerleri, aşağıda belirtilen mutlak referans
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.21 | swing-up | BAŞARISIZ | — | 0.000 | 0.1398 | 0.000 |
-| -30% | 0.21 | denge | BAŞARILI | 0.086 | 11.914 | 0.0482 | 0.000 |
-| -20% | 0.24 | swing-up | BAŞARISIZ | — | 0.000 | 0.1794 | 0.000 |
-| -20% | 0.24 | denge | BAŞARILI | 0.082 | 11.918 | 0.0484 | 0.000 |
-| -10% | 0.27 | swing-up | BAŞARISIZ | — | 0.000 | 0.1535 | 0.000 |
-| -10% | 0.27 | denge | BAŞARILI | 0.076 | 11.924 | 0.0490 | 0.000 |
-| +10% | 0.33 | swing-up | BAŞARILI | 5.330 | 6.670 | 0.1995 | 0.000 |
-| +10% | 0.33 | denge | BAŞARILI | 0.068 | 11.932 | 0.0500 | 0.000 |
-| +20% | 0.36 | swing-up | BAŞARILI | 5.402 | 6.598 | 0.2400 | 0.000 |
-| +20% | 0.36 | denge | BAŞARILI | 0.064 | 11.936 | 0.0510 | 0.000 |
-| +30% | 0.39 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.212 |
-| +30% | 0.39 | denge | BAŞARILI | 0.062 | 11.938 | 0.0522 | 0.000 |
+| -30% | 0.21 | swing-up | BAŞARISIZ | — | 0.000 | 0.1393 | 0.000 |
+| -30% | 0.21 | denge | BAŞARILI | 0.084 | 11.916 | 0.0477 | 0.000 |
+| -20% | 0.24 | swing-up | BAŞARISIZ | — | 0.000 | 0.1845 | 0.000 |
+| -20% | 0.24 | denge | BAŞARILI | 0.080 | 11.920 | 0.0483 | 0.000 |
+| -10% | 0.27 | swing-up | BAŞARISIZ | — | 0.000 | 0.1542 | 0.000 |
+| -10% | 0.27 | denge | BAŞARILI | 0.074 | 11.926 | 0.0485 | 0.000 |
+| +10% | 0.33 | swing-up | BAŞARILI | 5.352 | 6.648 | 0.2023 | 0.000 |
+| +10% | 0.33 | denge | BAŞARILI | 0.070 | 11.930 | 0.0496 | 0.000 |
+| +20% | 0.36 | swing-up | BAŞARILI | 5.426 | 6.574 | 0.2437 | 0.000 |
+| +20% | 0.36 | denge | BAŞARILI | 0.068 | 11.932 | 0.0504 | 0.000 |
+| +30% | 0.39 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.236 |
+| +30% | 0.39 | denge | BAŞARILI | 0.068 | 11.932 | 0.0520 | 0.000 |
 ### m — Sarkaç kütlesi
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.14 | swing-up | BAŞARILI | 4.184 | 7.816 | 0.1742 | 0.000 |
-| -30% | 0.14 | denge | BAŞARILI | 0.070 | 11.930 | 0.0493 | 0.000 |
-| -20% | 0.16 | swing-up | BAŞARILI | 4.022 | 7.978 | 0.1686 | 0.000 |
-| -20% | 0.16 | denge | BAŞARILI | 0.070 | 11.930 | 0.0493 | 0.000 |
-| -10% | 0.18 | swing-up | BAŞARILI | 4.178 | 7.822 | 0.1639 | 0.000 |
-| -10% | 0.18 | denge | BAŞARILI | 0.072 | 11.928 | 0.0494 | 0.000 |
-| +10% | 0.22 | swing-up | BAŞARILI | 5.096 | 6.904 | 0.2106 | 0.006 |
-| +10% | 0.22 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
-| +20% | 0.24 | swing-up | BAŞARILI | 4.496 | 7.504 | 0.1529 | 0.000 |
-| +20% | 0.24 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| +30% | 0.26 | swing-up | BAŞARISIZ | — | 0.000 | 0.1514 | 0.000 |
-| +30% | 0.26 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
+| -30% | 0.14 | swing-up | BAŞARILI | 4.180 | 7.820 | 0.1736 | 0.000 |
+| -30% | 0.14 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| -20% | 0.16 | swing-up | BAŞARILI | 4.030 | 7.970 | 0.1686 | 0.000 |
+| -20% | 0.16 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| -10% | 0.18 | swing-up | BAŞARILI | 4.198 | 7.802 | 0.1638 | 0.000 |
+| -10% | 0.18 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +10% | 0.22 | swing-up | BAŞARILI | 5.020 | 6.980 | 0.1957 | 0.002 |
+| +10% | 0.22 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
+| +20% | 0.24 | swing-up | BAŞARILI | 4.494 | 7.506 | 0.1528 | 0.000 |
+| +20% | 0.24 | denge | BAŞARILI | 0.072 | 11.928 | 0.0488 | 0.000 |
+| +30% | 0.26 | swing-up | BAŞARISIZ | — | 0.000 | 0.1513 | 0.000 |
+| +30% | 0.26 | denge | BAŞARILI | 0.072 | 11.928 | 0.0491 | 0.000 |
 ### M — Araba kütlesi
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.35 | swing-up | BAŞARILI | 3.940 | 8.060 | 0.1616 | 0.000 |
-| -30% | 0.35 | denge | BAŞARILI | 0.070 | 11.930 | 0.0493 | 0.000 |
-| -20% | 0.4 | swing-up | BAŞARILI | 4.016 | 7.984 | 0.1627 | 0.000 |
-| -20% | 0.4 | denge | BAŞARILI | 0.070 | 11.930 | 0.0493 | 0.000 |
-| -10% | 0.45 | swing-up | BAŞARILI | 3.824 | 8.176 | 0.1629 | 0.000 |
-| -10% | 0.45 | denge | BAŞARILI | 0.072 | 11.928 | 0.0496 | 0.000 |
-| +10% | 0.55 | swing-up | BAŞARILI | 5.328 | 6.672 | 0.2409 | 0.016 |
-| +10% | 0.55 | denge | BAŞARILI | 0.072 | 11.928 | 0.0494 | 0.000 |
-| +20% | 0.6 | swing-up | BAŞARILI | 4.960 | 7.040 | 0.1708 | 0.000 |
-| +20% | 0.6 | denge | BAŞARILI | 0.072 | 11.928 | 0.0496 | 0.000 |
-| +30% | 0.65 | swing-up | BAŞARILI | 4.586 | 7.414 | 0.1601 | 0.000 |
-| +30% | 0.65 | denge | BAŞARILI | 0.074 | 11.926 | 0.0498 | 0.000 |
+| -30% | 0.35 | swing-up | BAŞARILI | 3.918 | 8.082 | 0.1620 | 0.000 |
+| -30% | 0.35 | denge | BAŞARILI | 0.072 | 11.928 | 0.0488 | 0.000 |
+| -20% | 0.4 | swing-up | BAŞARILI | 4.022 | 7.978 | 0.1625 | 0.000 |
+| -20% | 0.4 | denge | BAŞARILI | 0.072 | 11.928 | 0.0491 | 0.000 |
+| -10% | 0.45 | swing-up | BAŞARILI | 3.832 | 8.168 | 0.1628 | 0.000 |
+| -10% | 0.45 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +10% | 0.55 | swing-up | BAŞARILI | 5.278 | 6.722 | 0.2445 | 0.006 |
+| +10% | 0.55 | denge | BAŞARILI | 0.074 | 11.926 | 0.0491 | 0.000 |
+| +20% | 0.6 | swing-up | BAŞARILI | 4.638 | 7.362 | 0.1597 | 0.000 |
+| +20% | 0.6 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +30% | 0.65 | swing-up | BAŞARILI | 4.584 | 7.416 | 0.1596 | 0.000 |
+| +30% | 0.65 | denge | BAŞARILI | 0.074 | 11.926 | 0.0490 | 0.000 |
 ### I — Sarkacın ağırlık merkezi etrafındaki ataleti
 
 Sıfır nominal için mutlak referans: 0.018 kg·m²; yalnız pozitif ekleme yapılır.
@@ -217,131 +218,131 @@ Sıfır nominal için mutlak referans: 0.018 kg·m²; yalnız pozitif ekleme yap
 
 -10%: Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır.
 
-| +10% | 0.0018 | swing-up | BAŞARILI | 5.490 | 6.510 | 0.1719 | 0.000 |
-| +10% | 0.0018 | denge | BAŞARILI | 0.068 | 11.932 | 0.0500 | 0.000 |
-| +20% | 0.0036 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.156 |
-| +20% | 0.0036 | denge | BAŞARILI | 0.066 | 11.934 | 0.0511 | 0.000 |
+| +10% | 0.0018 | swing-up | BAŞARILI | 5.512 | 6.488 | 0.1718 | 0.000 |
+| +10% | 0.0018 | denge | BAŞARILI | 0.070 | 11.930 | 0.0499 | 0.000 |
+| +20% | 0.0036 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.134 |
+| +20% | 0.0036 | denge | BAŞARILI | 0.070 | 11.930 | 0.0506 | 0.000 |
 | +30% | 0.0054 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.186 |
-| +30% | 0.0054 | denge | BAŞARILI | 0.064 | 11.936 | 0.0523 | 0.000 |
+| +30% | 0.0054 | denge | BAŞARILI | 0.068 | 11.932 | 0.0524 | 0.000 |
 ### b — Araba viskoz sürtünmesi
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.07 | swing-up | BAŞARILI | 4.104 | 7.896 | 0.1613 | 0.000 |
-| -30% | 0.07 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| -20% | 0.08 | swing-up | BAŞARILI | 4.144 | 7.856 | 0.1616 | 0.000 |
-| -20% | 0.08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0494 | 0.000 |
-| -10% | 0.09 | swing-up | BAŞARILI | 4.172 | 7.828 | 0.1623 | 0.000 |
-| -10% | 0.09 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| +10% | 0.11 | swing-up | BAŞARILI | 4.242 | 7.758 | 0.1596 | 0.008 |
-| +10% | 0.11 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
-| +20% | 0.12 | swing-up | BAŞARILI | 4.294 | 7.706 | 0.1776 | 0.010 |
-| +20% | 0.12 | denge | BAŞARILI | 0.072 | 11.928 | 0.0494 | 0.000 |
-| +30% | 0.13 | swing-up | BAŞARILI | 4.284 | 7.716 | 0.1748 | 0.010 |
-| +30% | 0.13 | denge | BAŞARILI | 0.070 | 11.930 | 0.0492 | 0.000 |
+| -30% | 0.07 | swing-up | BAŞARILI | 3.776 | 8.224 | 0.1613 | 0.000 |
+| -30% | 0.07 | denge | BAŞARILI | 0.070 | 11.930 | 0.0490 | 0.000 |
+| -20% | 0.08 | swing-up | BAŞARILI | 3.774 | 8.226 | 0.1615 | 0.000 |
+| -20% | 0.08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| -10% | 0.09 | swing-up | BAŞARILI | 4.068 | 7.932 | 0.1623 | 0.000 |
+| -10% | 0.09 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
+| +10% | 0.11 | swing-up | BAŞARILI | 4.180 | 7.820 | 0.1596 | 0.002 |
+| +10% | 0.11 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +20% | 0.12 | swing-up | BAŞARILI | 4.242 | 7.758 | 0.1658 | 0.006 |
+| +20% | 0.12 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +30% | 0.13 | swing-up | BAŞARILI | 4.304 | 7.696 | 0.1883 | 0.010 |
+| +30% | 0.13 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
 ### c — Pivot viskoz sürtünmesi
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.00035 | swing-up | BAŞARILI | 3.796 | 8.204 | 0.1622 | 0.000 |
-| -30% | 0.00035 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| -20% | 0.0004 | swing-up | BAŞARILI | 3.788 | 8.212 | 0.1622 | 0.000 |
-| -20% | 0.0004 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
-| -10% | 0.00045 | swing-up | BAŞARILI | 4.096 | 7.904 | 0.1621 | 0.000 |
-| -10% | 0.00045 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| +10% | 0.00055 | swing-up | BAŞARILI | 4.296 | 7.704 | 0.1793 | 0.014 |
-| +10% | 0.00055 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
-| +20% | 0.0006 | swing-up | BAŞARILI | 4.356 | 7.644 | 0.2075 | 0.022 |
-| +20% | 0.0006 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
-| +30% | 0.00065 | swing-up | BAŞARILI | 5.400 | 6.600 | 0.2206 | 0.014 |
-| +30% | 0.00065 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
+| -30% | 0.00035 | swing-up | BAŞARILI | 3.790 | 8.210 | 0.1625 | 0.000 |
+| -30% | 0.00035 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| -20% | 0.0004 | swing-up | BAŞARILI | 3.782 | 8.218 | 0.1622 | 0.000 |
+| -20% | 0.0004 | denge | BAŞARILI | 0.072 | 11.928 | 0.0487 | 0.000 |
+| -10% | 0.00045 | swing-up | BAŞARILI | 3.774 | 8.226 | 0.1621 | 0.000 |
+| -10% | 0.00045 | denge | BAŞARILI | 0.072 | 11.928 | 0.0491 | 0.000 |
+| +10% | 0.00055 | swing-up | BAŞARILI | 4.206 | 7.794 | 0.1615 | 0.002 |
+| +10% | 0.00055 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +20% | 0.0006 | swing-up | BAŞARILI | 4.342 | 7.658 | 0.2077 | 0.016 |
+| +20% | 0.0006 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
+| +30% | 0.00065 | swing-up | BAŞARILI | 4.398 | 7.602 | 0.2355 | 0.026 |
+| +30% | 0.00065 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
 ### motor.R — Motor direnci
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 1.526 | swing-up | BAŞARILI | 3.604 | 8.396 | 0.1772 | 0.000 |
-| -30% | 1.526 | denge | BAŞARILI | 0.070 | 11.930 | 0.0492 | 0.000 |
-| -20% | 1.744 | swing-up | BAŞARILI | 3.292 | 8.708 | 0.1721 | 0.000 |
-| -20% | 1.744 | denge | BAŞARILI | 0.070 | 11.930 | 0.0493 | 0.000 |
-| -10% | 1.962 | swing-up | BAŞARILI | 3.980 | 8.020 | 0.1671 | 0.000 |
-| -10% | 1.962 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| +10% | 2.398 | swing-up | BAŞARILI | 4.556 | 7.444 | 0.1568 | 0.000 |
-| +10% | 2.398 | denge | BAŞARILI | 0.072 | 11.928 | 0.0495 | 0.000 |
-| +20% | 2.616 | swing-up | BAŞARILI | 6.126 | 5.874 | 0.2758 | 0.032 |
-| +20% | 2.616 | denge | BAŞARILI | 0.072 | 11.928 | 0.0495 | 0.000 |
-| +30% | 2.834 | swing-up | BAŞARILI | 5.110 | 6.890 | 0.1487 | 0.000 |
-| +30% | 2.834 | denge | BAŞARILI | 0.074 | 11.926 | 0.0499 | 0.000 |
+| -30% | 1.526 | swing-up | BAŞARILI | 3.626 | 8.374 | 0.1776 | 0.000 |
+| -30% | 1.526 | denge | BAŞARILI | 0.072 | 11.928 | 0.0487 | 0.000 |
+| -20% | 1.744 | swing-up | BAŞARILI | 3.290 | 8.710 | 0.1721 | 0.000 |
+| -20% | 1.744 | denge | BAŞARILI | 0.072 | 11.928 | 0.0487 | 0.000 |
+| -10% | 1.962 | swing-up | BAŞARILI | 3.982 | 8.018 | 0.1669 | 0.000 |
+| -10% | 1.962 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
+| +10% | 2.398 | swing-up | BAŞARILI | 4.542 | 7.458 | 0.1569 | 0.000 |
+| +10% | 2.398 | denge | BAŞARILI | 0.074 | 11.926 | 0.0489 | 0.000 |
+| +20% | 2.616 | swing-up | BAŞARILI | 6.126 | 5.874 | 0.2872 | 0.034 |
+| +20% | 2.616 | denge | BAŞARILI | 0.074 | 11.926 | 0.0490 | 0.000 |
+| +30% | 2.834 | swing-up | BAŞARILI | 5.102 | 6.898 | 0.1487 | 0.000 |
+| +30% | 2.834 | denge | BAŞARILI | 0.074 | 11.926 | 0.0491 | 0.000 |
 ### motor.Kt — Motor tork sabiti
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.006244 | swing-up | BAŞARILI | 6.312 | 5.688 | 0.1896 | 0.014 |
-| -30% | 0.006244 | denge | BAŞARILI | 0.076 | 11.924 | 0.0502 | 0.000 |
-| -20% | 0.007136 | swing-up | BAŞARILI | 5.516 | 6.484 | 0.1494 | 0.000 |
-| -20% | 0.007136 | denge | BAŞARILI | 0.074 | 11.926 | 0.0497 | 0.000 |
-| -10% | 0.008028 | swing-up | BAŞARILI | 4.542 | 7.458 | 0.1550 | 0.000 |
-| -10% | 0.008028 | denge | BAŞARILI | 0.072 | 11.928 | 0.0495 | 0.000 |
-| +10% | 0.009812 | swing-up | BAŞARILI | 4.008 | 7.992 | 0.1646 | 0.000 |
-| +10% | 0.009812 | denge | BAŞARILI | 0.072 | 11.928 | 0.0493 | 0.000 |
-| +20% | 0.010704 | swing-up | BAŞARILI | 4.426 | 7.574 | 0.1839 | 0.000 |
-| +20% | 0.010704 | denge | BAŞARILI | 0.072 | 11.928 | 0.0491 | 0.000 |
-| +30% | 0.011596 | swing-up | BAŞARILI | 3.608 | 8.392 | 0.1746 | 0.000 |
-| +30% | 0.011596 | denge | BAŞARILI | 0.070 | 11.930 | 0.0493 | 0.000 |
+| -30% | 0.006244 | swing-up | BAŞARILI | 6.272 | 5.728 | 0.1850 | 0.006 |
+| -30% | 0.006244 | denge | BAŞARILI | 0.074 | 11.926 | 0.0492 | 0.000 |
+| -20% | 0.007136 | swing-up | BAŞARILI | 5.516 | 6.484 | 0.1544 | 0.000 |
+| -20% | 0.007136 | denge | BAŞARILI | 0.074 | 11.926 | 0.0491 | 0.000 |
+| -10% | 0.008028 | swing-up | BAŞARILI | 4.536 | 7.464 | 0.1544 | 0.000 |
+| -10% | 0.008028 | denge | BAŞARILI | 0.074 | 11.926 | 0.0491 | 0.000 |
+| +10% | 0.009812 | swing-up | BAŞARILI | 4.014 | 7.986 | 0.1645 | 0.000 |
+| +10% | 0.009812 | denge | BAŞARILI | 0.072 | 11.928 | 0.0492 | 0.000 |
+| +20% | 0.010704 | swing-up | BAŞARILI | 4.114 | 7.886 | 0.1926 | 0.000 |
+| +20% | 0.010704 | denge | BAŞARILI | 0.072 | 11.928 | 0.0488 | 0.000 |
+| +30% | 0.011596 | swing-up | BAŞARILI | 3.632 | 8.368 | 0.1789 | 0.000 |
+| +30% | 0.011596 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
 ### motor.Ke — Motor ters EMK sabiti
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
 | -30% | 0.007728 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.136 |
-| -30% | 0.007728 | denge | BAŞARILI | 0.060 | 11.940 | 0.0439 | 0.000 |
-| -20% | 0.008832 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.106 |
-| -20% | 0.008832 | denge | BAŞARILI | 0.064 | 11.936 | 0.0455 | 0.000 |
+| -30% | 0.007728 | denge | BAŞARILI | 0.062 | 11.938 | 0.0444 | 0.000 |
+| -20% | 0.008832 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.104 |
+| -20% | 0.008832 | denge | BAŞARILI | 0.064 | 11.936 | 0.0458 | 0.000 |
 | -10% | 0.009936 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.000 |
-| -10% | 0.009936 | denge | BAŞARILI | 0.066 | 11.934 | 0.0474 | 0.000 |
-| +10% | 0.012144 | swing-up | BAŞARILI | 8.976 | 3.024 | 0.2485 | 0.020 |
-| +10% | 0.012144 | denge | BAŞARILI | 0.076 | 11.924 | 0.0516 | 0.000 |
-| +20% | 0.013248 | swing-up | BAŞARISIZ | — | 0.000 | 0.0701 | 0.000 |
-| +20% | 0.013248 | denge | BAŞARILI | 0.080 | 11.920 | 0.0540 | 0.000 |
-| +30% | 0.014352 | swing-up | BAŞARISIZ | — | 0.000 | 0.0535 | 0.000 |
-| +30% | 0.014352 | denge | BAŞARILI | 0.084 | 11.916 | 0.0565 | 0.000 |
+| -10% | 0.009936 | denge | BAŞARILI | 0.068 | 11.932 | 0.0476 | 0.000 |
+| +10% | 0.012144 | swing-up | BAŞARILI | 8.796 | 3.204 | 0.2042 | 0.002 |
+| +10% | 0.012144 | denge | BAŞARILI | 0.076 | 11.924 | 0.0508 | 0.000 |
+| +20% | 0.013248 | swing-up | BAŞARISIZ | — | 0.000 | 0.0703 | 0.000 |
+| +20% | 0.013248 | denge | BAŞARILI | 0.080 | 11.920 | 0.0526 | 0.000 |
+| +30% | 0.014352 | swing-up | BAŞARISIZ | — | 0.000 | 0.0536 | 0.000 |
+| +30% | 0.014352 | denge | BAŞARILI | 0.084 | 11.916 | 0.0549 | 0.000 |
 ### motor.gear — Redüktör oranı
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 7 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.118 |
-| -30% | 7 | denge | BAŞARILI | 0.064 | 11.936 | 0.0446 | 0.000 |
+| -30% | 7 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.116 |
+| -30% | 7 | denge | BAŞARILI | 0.064 | 11.936 | 0.0443 | 0.000 |
 | -20% | 8 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.076 |
-| -20% | 8 | denge | BAŞARILI | 0.066 | 11.934 | 0.0458 | 0.000 |
+| -20% | 8 | denge | BAŞARILI | 0.066 | 11.934 | 0.0457 | 0.000 |
 | -10% | 9 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.000 |
-| -10% | 9 | denge | BAŞARILI | 0.070 | 11.930 | 0.0475 | 0.000 |
-| +10% | 11 | swing-up | BAŞARILI | 8.194 | 3.806 | 0.1846 | 0.000 |
-| +10% | 11 | denge | BAŞARILI | 0.076 | 11.924 | 0.0513 | 0.000 |
-| +20% | 12 | swing-up | BAŞARISIZ | — | 0.000 | 0.0721 | 0.000 |
-| +20% | 12 | denge | BAŞARILI | 0.080 | 11.920 | 0.0538 | 0.000 |
-| +30% | 13 | swing-up | BAŞARISIZ | — | 0.000 | 0.0590 | 0.000 |
-| +30% | 13 | denge | BAŞARILI | 0.082 | 11.918 | 0.0563 | 0.000 |
+| -10% | 9 | denge | BAŞARILI | 0.068 | 11.932 | 0.0472 | 0.000 |
+| +10% | 11 | swing-up | BAŞARILI | 8.052 | 3.948 | 0.1763 | 0.000 |
+| +10% | 11 | denge | BAŞARILI | 0.074 | 11.926 | 0.0510 | 0.000 |
+| +20% | 12 | swing-up | BAŞARISIZ | — | 0.000 | 0.0722 | 0.000 |
+| +20% | 12 | denge | BAŞARILI | 0.080 | 11.920 | 0.0528 | 0.000 |
+| +30% | 13 | swing-up | BAŞARISIZ | — | 0.000 | 0.0588 | 0.000 |
+| +30% | 13 | denge | BAŞARILI | 0.082 | 11.918 | 0.0547 | 0.000 |
 ### motor.r_pulley — Kasnak yarıçapı
 
 
 | Sapma | Gerçek değer | Deney | Durum | İlk denge [s] | Son denge [s] | max abs(x) [m] | Doyum [s] |
 |---|---|---|---|---|---|---|---|
-| -30% | 0.00889 | swing-up | BAŞARISIZ | — | 0.000 | 0.0440 | 0.000 |
-| -30% | 0.00889 | denge | BAŞARILI | 0.086 | 11.914 | 0.0598 | 0.000 |
+| -30% | 0.00889 | swing-up | BAŞARISIZ | — | 0.000 | 0.0439 | 0.000 |
+| -30% | 0.00889 | denge | BAŞARILI | 0.088 | 11.912 | 0.0575 | 0.000 |
 | -20% | 0.01016 | swing-up | BAŞARISIZ | — | 0.000 | 0.0646 | 0.000 |
-| -20% | 0.01016 | denge | BAŞARILI | 0.080 | 11.920 | 0.0550 | 0.000 |
-| -10% | 0.01143 | swing-up | BAŞARILI | 7.352 | 4.648 | 0.0903 | 0.000 |
-| -10% | 0.01143 | denge | BAŞARILI | 0.076 | 11.924 | 0.0516 | 0.000 |
+| -20% | 0.01016 | denge | BAŞARILI | 0.080 | 11.920 | 0.0537 | 0.000 |
+| -10% | 0.01143 | swing-up | BAŞARILI | 7.408 | 4.592 | 0.0897 | 0.000 |
+| -10% | 0.01143 | denge | BAŞARILI | 0.076 | 11.924 | 0.0510 | 0.000 |
 | +10% | 0.01397 | swing-up | RAY SINIRI | — | 0.000 | 0.4000 | 0.000 |
-| +10% | 0.01397 | denge | BAŞARILI | 0.070 | 11.930 | 0.0477 | 0.000 |
-| +20% | 0.01524 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.040 |
-| +20% | 0.01524 | denge | BAŞARILI | 0.066 | 11.934 | 0.0463 | 0.000 |
-| +30% | 0.01651 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.098 |
-| +30% | 0.01651 | denge | BAŞARILI | 0.066 | 11.934 | 0.0454 | 0.000 |
+| +10% | 0.01397 | denge | BAŞARILI | 0.070 | 11.930 | 0.0474 | 0.000 |
+| +20% | 0.01524 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.042 |
+| +20% | 0.01524 | denge | BAŞARILI | 0.068 | 11.932 | 0.0462 | 0.000 |
+| +30% | 0.01651 | swing-up | FAULT | — | 0.000 | 0.4000 | 0.096 |
+| +30% | 0.01651 | denge | BAŞARILI | 0.066 | 11.934 | 0.0453 | 0.000 |
 ### motor.J_rotor — Motor rotor ataleti
 
 Sıfır nominal için mutlak referans: 8.0645e-07 kg·m²; yalnız pozitif ekleme yapılır.
@@ -357,12 +358,12 @@ Sıfır nominal için mutlak referans: 8.0645e-07 kg·m²; yalnız pozitif eklem
 
 -10%: Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır.
 
-| +10% | 8.0645e-08 | swing-up | BAŞARILI | 5.328 | 6.672 | 0.2409 | 0.016 |
-| +10% | 8.0645e-08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0494 | 0.000 |
-| +20% | 1.6129e-07 | swing-up | BAŞARILI | 4.960 | 7.040 | 0.1708 | 0.000 |
-| +20% | 1.6129e-07 | denge | BAŞARILI | 0.072 | 11.928 | 0.0496 | 0.000 |
-| +30% | 2.41935e-07 | swing-up | BAŞARILI | 4.586 | 7.414 | 0.1601 | 0.000 |
-| +30% | 2.41935e-07 | denge | BAŞARILI | 0.074 | 11.926 | 0.0498 | 0.000 |
+| +10% | 8.0645e-08 | swing-up | BAŞARILI | 5.278 | 6.722 | 0.2445 | 0.006 |
+| +10% | 8.0645e-08 | denge | BAŞARILI | 0.074 | 11.926 | 0.0491 | 0.000 |
+| +20% | 1.6129e-07 | swing-up | BAŞARILI | 4.638 | 7.362 | 0.1597 | 0.000 |
+| +20% | 1.6129e-07 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +30% | 2.41935e-07 | swing-up | BAŞARILI | 4.584 | 7.416 | 0.1596 | 0.000 |
+| +30% | 2.41935e-07 | denge | BAŞARILI | 0.074 | 11.926 | 0.0490 | 0.000 |
 ### motor.T_f — Motor Coulomb sürtünme torku
 
 Sıfır nominal için mutlak referans: 0.00892 N·m; yalnız pozitif ekleme yapılır.
@@ -378,12 +379,12 @@ Sıfır nominal için mutlak referans: 0.00892 N·m; yalnız pozitif ekleme yap�
 
 -10%: Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır.
 
-| +10% | 0.000892 | swing-up | BAŞARILI | 8.838 | 3.162 | 0.1846 | 0.010 |
-| +10% | 0.000892 | denge | BAŞARILI | 0.076 | 11.924 | 0.0531 | 0.000 |
+| +10% | 0.000892 | swing-up | BAŞARILI | 7.552 | 4.448 | 0.1755 | 0.000 |
+| +10% | 0.000892 | denge | BAŞARILI | 0.076 | 11.924 | 0.0521 | 0.000 |
 | +20% | 0.001784 | swing-up | BAŞARISIZ | — | 0.000 | 0.0013 | 0.000 |
-| +20% | 0.001784 | denge | BAŞARILI | 0.080 | 11.920 | 0.0585 | 0.000 |
+| +20% | 0.001784 | denge | BAŞARILI | 0.080 | 11.920 | 0.0565 | 0.000 |
 | +30% | 0.002676 | swing-up | BAŞARISIZ | — | 0.000 | 0.0013 | 0.000 |
-| +30% | 0.002676 | denge | BAŞARILI | 0.086 | 11.914 | 0.0667 | 0.000 |
+| +30% | 0.002676 | denge | BAŞARILI | 0.084 | 11.916 | 0.0625 | 0.000 |
 ### motor.B_m — Motor viskoz sürtünmesi
 
 Sıfır nominal için mutlak referans: 1.6129e-07 N·m·s/rad; yalnız pozitif ekleme yapılır.
@@ -399,12 +400,12 @@ Sıfır nominal için mutlak referans: 1.6129e-07 N·m·s/rad; yalnız pozitif e
 
 -10%: Sıfır nominalde negatif sapma fiziksel değil; pozitif mutlak tarama kullanılır.
 
-| +10% | 1.6129e-08 | swing-up | BAŞARILI | 4.242 | 7.758 | 0.1596 | 0.008 |
-| +10% | 1.6129e-08 | denge | BAŞARILI | 0.070 | 11.930 | 0.0494 | 0.000 |
-| +20% | 3.2258e-08 | swing-up | BAŞARILI | 4.294 | 7.706 | 0.1776 | 0.010 |
-| +20% | 3.2258e-08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0494 | 0.000 |
-| +30% | 4.8387e-08 | swing-up | BAŞARILI | 4.284 | 7.716 | 0.1748 | 0.010 |
-| +30% | 4.8387e-08 | denge | BAŞARILI | 0.070 | 11.930 | 0.0492 | 0.000 |
+| +10% | 1.6129e-08 | swing-up | BAŞARILI | 4.180 | 7.820 | 0.1596 | 0.002 |
+| +10% | 1.6129e-08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +20% | 3.2258e-08 | swing-up | BAŞARILI | 4.242 | 7.758 | 0.1658 | 0.006 |
+| +20% | 3.2258e-08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0489 | 0.000 |
+| +30% | 4.8387e-08 | swing-up | BAŞARILI | 4.304 | 7.696 | 0.1883 | 0.010 |
+| +30% | 4.8387e-08 | denge | BAŞARILI | 0.072 | 11.928 | 0.0490 | 0.000 |
 
 ## Sınırlar ve yeniden çalıştırma
 

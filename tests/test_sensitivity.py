@@ -161,3 +161,14 @@ def test_coulomb_sweep_covers_37d_estimate():
     scale = _zero_scales(p)["motor.T_f"]
     assert 0.2 * scale == pytest.approx(estimate)
     assert 0.3 * scale == pytest.approx(1.5 * estimate)
+
+
+def test_report_sensor_settings_match_the_sensor_actually_used():
+    """Rapora yazılan sensör ayarı elle girilmemeli; deneylerde kullanılan SensorModel'den gelmeli (48 CPR)."""
+    from pendulum_lab.analysis.sensitivity import _sensor, _sensor_settings
+    from pendulum_lab.filters import encoder_resolution
+    from pendulum_lab.model.params import load_params
+    p = load_params("config/params.json")
+    cfg = _sensor_settings(p)
+    assert cfg["x_resolution"] == _sensor(p).x_resolution == encoder_resolution(p)
+    assert cfg["x_resolution"] != 1.25e-4                                   # eski 37D enkoderi değil
