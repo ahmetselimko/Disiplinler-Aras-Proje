@@ -9,31 +9,70 @@ import traceback
 import pyqtgraph as pg
 from PyQt5 import QtGui, QtWidgets
 
-def install_excepthook(app) -> None:
+def install_excepthook(app, log=None, log_path=None) -> None:
     """Bir buton/zamanlayıcı fonksiyonundaki yakalanmamış hata PyQt5 ≥ 5.5'te uygulamayı KAPATIR. Kapanınca
     bağlantı da kesilir ve cihaz (dengedeyse) bağlantı bekçisiyle motoru keser. Bunun yerine hatayı göster,
     uygulama açık kalsın.
     Aynı anda TEK pencere: pencere açıkken zamanlayıcılar (ör. 60 FPS'lik _tick) çalışmaya devam eder; her
     tetiklemedeki hata yeni bir pencere açsaydı pencereler iç içe birikir, Esc/DURDUR'a ulaşmak zorlaşırdı.
-    Pencere açıkken gelen hatalar yalnız stderr'e yazılır."""
+    Hiçbir hata kaybolmaz: hepsi stderr'e ve (log_path verilmişse) tam ayrıntısıyla dosyaya yazılır; pencere
+    açıkken gelenler ayrıca log(metin) ile arayüzdeki log alanına tek satır düşer, pencere kapanınca da kaç
+    hata daha olduğu özetlenir."""
     showing = [False]
+    in_hook = [False]          # log/dosya yazarken yeni bir hata olursa sonsuz döngüye girme
+    suppressed = [0]
+
+    def note(msg: str) -> None:
+        if log is not None:
+            try:
+                log(msg)
+            except Exception:
+                pass
+
+    def to_file(text: str) -> None:
+        if log_path is None:
+            return
+        try:
+            from pathlib import Path
+            import time
+            path = Path(log_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(f"===== {time.strftime('%Y-%m-%d %H:%M:%S')}\n{text}\n")
+        except Exception:
+            pass
 
     def hook(exc_type, exc, tb):
         text = "".join(traceback.format_exception(exc_type, exc, tb))
         sys.stderr.write(text)
-        if showing[0]:
+        if in_hook[0]:
             return
-        showing[0] = True
+        in_hook[0] = True
         try:
+            to_file(text)
+            if showing[0]:
+                suppressed[0] += 1
+                note(f"!!! Hata: {exc_type.__name__}: {exc}" + (f"  (ayrıntı: {log_path})" if log_path else ""))
+                return
+        finally:
+            in_hook[0] = False
+        showing[0] = True
+        suppressed[0] = 0
+        note(f"!!! Hata: {exc_type.__name__}: {exc}")
+        try:
+            where = f" Tüm hatalar ayrıntısıyla {log_path} dosyasına yazılır." if log_path else ""
             box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Beklenmeyen hata",
                                         f"{exc_type.__name__}: {exc}\n\nUygulama açık kaldı; işlem yapılmadı. "
-                                        "Pencere açıkken gelen başka hatalar yalnız konsola yazılır.")
+                                        f"Pencere açıkken gelen başka hatalar log alanına düşer.{where}")
             box.setDetailedText(text)
             box.exec_()
-        except Exception:                      # pencere de açılamazsa yalnız stderr'e yazılmış olur
+        except Exception:                      # pencere de açılamazsa stderr/dosya/log'a yazılmış olur
             pass
         finally:
             showing[0] = False
+            if suppressed[0]:
+                note(f"!!! Hata penceresi açıkken {suppressed[0]} hata daha oldu"
+                     + (f"; ayrıntı: {log_path}" if log_path else ""))
     sys.excepthook = hook
 
 

@@ -434,3 +434,35 @@ def test_excepthook_shows_one_window_at_a_time(qapp, monkeypatch):
     finally:
         sys.excepthook = old
     assert len(opened) == 2
+
+
+def test_excepthook_logs_every_error_to_panel_and_file(qapp, monkeypatch, tmp_path):
+    """Pencere açıkken gelen hatalar da kaybolmamalı: log alanına satır, dosyaya ayrıntı, kapanınca özet."""
+    import sys
+    from PyQt5 import QtWidgets
+    from gui.widgets import install_excepthook
+    logs, opened = [], []
+    log_path = tmp_path / "kayitlar" / "hatalar.log"
+
+    def raise_and_hook(msg):
+        try:
+            raise RuntimeError(msg)
+        except RuntimeError:
+            sys.excepthook(*sys.exc_info())
+
+    def fake_exec(self):
+        opened.append(1)
+        raise_and_hook("ikinci")
+        raise_and_hook("üçüncü")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec_", fake_exec)
+    old = sys.excepthook
+    try:
+        install_excepthook(qapp, log=logs.append, log_path=log_path)
+        raise_and_hook("ilk")
+    finally:
+        sys.excepthook = old
+    assert opened == [1]
+    text = log_path.read_text(encoding="utf-8")
+    assert all(m in text for m in ("ilk", "ikinci", "üçüncü"))
+    assert any("ikinci" in m for m in logs) and any("üçüncü" in m for m in logs)
+    assert any("2 hata daha" in m for m in logs)

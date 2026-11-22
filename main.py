@@ -25,13 +25,16 @@ def main(argv=None) -> int:
     pg.setConfigOptions(antialias=False, background="w", foreground="k")
 
     from gui.widgets import install_excepthook
-    install_excepthook(app)                    # yakalanmamış hata uygulamayı kapatmasın
+    error_log = ROOT / "kayitlar" / "hatalar.log"
+    install_excepthook(app, log_path=error_log)   # yakalanmamış hata uygulamayı kapatmasın
 
     from gui.main_window import MainWindow
     from gui.state import AppState
 
     state = AppState(args.params)
     win = MainWindow(state)
+    # pencere hazır: hatalar ayrıca Canlı İzleme'deki log alanına da düşsün
+    install_excepthook(app, log=state.log.emit, log_path=error_log)
     win.show()
 
     if args.demo or args.screenshot:
