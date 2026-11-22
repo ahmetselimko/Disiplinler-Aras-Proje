@@ -58,7 +58,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 | `{"evt":"fault","reason":"…"}` | FAULT moduna geçildiğinde, **bir kez**. Sebepler: `estop`, `rail` (yazılımsal ray sınırı), `limit` (çalışırken limit switch), `sensor` (AS5600 art arda 3 kez okunamadı), `homing_timeout` (20 s), `homing_wrong_side` (homing'de sağ switch → motor/enkoder yönü ters), `homing_travel` (rayın 2 katından fazla yol → sol switch kablosu kopuk olabilir), `link` (hareketli modda 1 s boyunca PC'den hiç satır gelmedi: USB koptu ya da program kapandı; bkz. §4 `hb`), `homing_runaway` (homing'de \|ẋ\| > 0.3 m/s ya da gerilim 0.3 s'den uzun doyumda) |
 
 ### 3.3 Komut yanıtları
-`hb` dışındaki her komut **sırayla** tam olarak bir yanıt alır; PC yanıtı bekleyen en eski komutla eşleştirir. Bozuk ya da çok uzun satıra `{"ack":"?","ok":false,...}` döner ve o satırın yerini tutar: `{"ack":"start","ok":true}` veya `{"ack":"start","ok":false,"msg":"önce home (kalibrasyon) yapılmalı"}`.
+`hb` dışındaki her komut **sırayla** tam olarak bir yanıt alır; PC yanıtı bekleyen en eski komutla eşleştirir. Bozuk ya da çok uzun satıra `{"ack":"?","ok":false,...}` döner ve o satırın yerini tutar. Bilinen sınırlama: yanıtsız `hb` satırı yolda bozulursa onun `"?"` yanıtı bekleyen en eski gerçek komutu tüketir; o komut arayüzde "uygulanmadı" görünür (cihaz davranışı etkilenmez, olasılık çok düşük): `{"ack":"start","ok":true}` veya `{"ack":"start","ok":false,"msg":"önce home (kalibrasyon) yapılmalı"}`.
 `ok:true` yalnızca komut gerçekten uygulanacaksa döner; cihaz o anki modda komutu kabul etmiyorsa `ok:false` ve sebep gönderir. Yanıt ek alan taşıyabilir (ör. `ping`).
 
 ## 4. PC → ESP32 komutları

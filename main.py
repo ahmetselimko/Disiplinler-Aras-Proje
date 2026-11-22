@@ -24,6 +24,9 @@ def main(argv=None) -> int:
     app.setStyle("Fusion")
     pg.setConfigOptions(antialias=False, background="w", foreground="k")
 
+    from gui.widgets import install_excepthook
+    install_excepthook(app)                    # yakalanmamış hata uygulamayı kapatmasın
+
     from gui.main_window import MainWindow
     from gui.state import AppState
 

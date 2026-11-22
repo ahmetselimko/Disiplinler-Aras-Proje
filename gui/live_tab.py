@@ -266,7 +266,12 @@ class LiveTab(QtWidgets.QWidget):
             real = st.real_device              # kaynak dosya adında ve başlıkta: kayıtlar karışmasın
             path = Recorder.default_path(st.base_dir / "kayitlar", prefix="gercek" if real else "sim")
             source = f"gerçek kart ({st.reader.transport.name})" if real else "simülasyon (sanal ESP32)"
-            st.recorder = Recorder(path, meta={"kaynak": source, **st.get_metadata()})
+            try:
+                st.recorder = Recorder(path, meta={"kaynak": source, **st.get_metadata()})
+            except OSError as e:                # klasör oluşturulamadı / yazma izni yok
+                self.b_rec.setChecked(False)
+                st.log.emit(f"✗ Kayıt başlatılamadı: {e}")
+                return
             st.reader.sinks.append(st.recorder)
             self.b_rec.setText("■ Kaydı Durdur")
             st.log.emit(f"Kayıt başladı: {path}")

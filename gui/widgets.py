@@ -3,9 +3,28 @@
 from __future__ import annotations
 
 import math
+import sys
+import traceback
 
 import pyqtgraph as pg
 from PyQt5 import QtGui, QtWidgets
+
+def install_excepthook(app) -> None:
+    """Bir buton/zamanlayıcı fonksiyonundaki yakalanmamış hata PyQt5 ≥ 5.5'te uygulamayı KAPATIR. Kapanınca
+    bağlantı da kesilir ve cihaz (dengedeyse) bağlantı bekçisiyle motoru keser. Bunun yerine hatayı göster,
+    uygulama açık kalsın."""
+    def hook(exc_type, exc, tb):
+        text = "".join(traceback.format_exception(exc_type, exc, tb))
+        sys.stderr.write(text)
+        try:
+            box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Beklenmeyen hata",
+                                        f"{exc_type.__name__}: {exc}\n\nUygulama açık kaldı; işlem yapılmadı.")
+            box.setDetailedText(text)
+            box.exec_()
+        except Exception:                      # pencere de açılamazsa yalnız stderr'e yazılmış olur
+            pass
+    sys.excepthook = hook
+
 
 MODE_COLORS = {
     "IDLE": "#7f8c8d", "HOMING": "#8e44ad", "WAIT": "#2980b9",

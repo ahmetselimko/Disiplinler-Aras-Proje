@@ -285,9 +285,13 @@ class DesignTab(QtWidgets.QWidget):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "gains.h kaydet", str(st.base_dir / "firmware" / "esp32_pendulum" / "gains.h"), "C header (*.h)", options=NO_NATIVE)
         if path:
-            write_gains_header(path, st.p, st.K, st.Ts, Q=st.Q, R=st.R, swingup=st.swingup,
-                               catch_deg=st.catch_deg, release_deg=st.release_deg,
-                               catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx)
+            try:
+                write_gains_header(path, st.p, st.K, st.Ts, Q=st.Q, R=st.R, swingup=st.swingup,
+                                   catch_deg=st.catch_deg, release_deg=st.release_deg,
+                                   catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx)
+            except (OSError, ValueError) as e:  # yazma izni yok / Ts aralık dışı
+                QtWidgets.QMessageBox.warning(self, "gains.h yazılamadı", str(e))
+                return
             st.log.emit(f"gains.h yazıldı: {path}")
 
     def load(self):
@@ -307,5 +311,9 @@ class DesignTab(QtWidgets.QWidget):
         if path:
             if not self.calculate():
                 return
-            save_params(self.state.p, path)
+            try:
+                save_params(self.state.p, path)
+            except OSError as e:
+                QtWidgets.QMessageBox.warning(self, "Kaydedilemedi", str(e))
+                return
             self.state.log.emit(f"Parametreler kaydedildi: {path}")

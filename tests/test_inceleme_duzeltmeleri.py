@@ -348,3 +348,60 @@ def test_live_push_recomputes_k(qapp, monkeypatch):
     assert calls == [1]
     win.timer.stop()
     win.close()
+
+
+# ------------------------------------------------------------------ dosya hataları uygulamayı kapatmasın
+def test_record_start_failure_is_reported_not_raised(qapp, monkeypatch):
+    from gui import live_tab
+    st = _state()
+    st.set_reader(SimpleNamespace(transport=SimpleNamespace(name="sim"), sinks=[], applied_settings={}))
+    tab = live_tab.LiveTab(st)
+
+    class _FailingRecorder:                                         # kayıt klasörüne yazılamıyor
+        default_path = staticmethod(lambda *a, **k: Path("x.csv"))
+
+        def __init__(self, *a, **k):
+            raise PermissionError("yazma izni yok")
+    monkeypatch.setattr(live_tab, "Recorder", _FailingRecorder)
+    logs = []
+    st.log.connect(logs.append)
+    tab.b_rec.setChecked(True)
+    tab.toggle_record(True)
+    assert st.recorder is None and not tab.b_rec.isChecked()
+    assert any("Kayıt başlatılamadı" in m for m in logs)
+
+
+def test_save_and_export_failures_show_warning(qapp, monkeypatch, tmp_path):
+    from PyQt5 import QtWidgets
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    warned = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", staticmethod(lambda *a, **k: warned.append(a[1])))
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(tmp_path / "x"), "")))
+
+    def boom(*a, **k):
+        raise PermissionError("yazma izni yok")
+    monkeypatch.setattr(design_tab, "save_params", boom)
+    monkeypatch.setattr(design_tab, "write_gains_header", boom)
+    tab.save()
+    tab.export()
+    assert warned == ["Kaydedilemedi", "gains.h yazılamadı"]
+
+
+def test_excepthook_keeps_app_alive(qapp, monkeypatch):
+    import sys
+    from PyQt5 import QtWidgets
+    from gui.widgets import install_excepthook
+    shown = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec_", lambda self: shown.append(self.text()))
+    old = sys.excepthook
+    try:
+        install_excepthook(qapp)
+        try:
+            raise RuntimeError("deneme")
+        except RuntimeError:
+            sys.excepthook(*sys.exc_info())
+    finally:
+        sys.excepthook = old
+    assert shown and "RuntimeError: deneme" in shown[0]
