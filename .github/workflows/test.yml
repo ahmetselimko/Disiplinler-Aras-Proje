@@ -24,13 +24,15 @@ jobs:
       - name: Testleri çalıştır
         run: python -m pytest -q
 
-  # ESP32 firmware'i iki core sürümüyle derler (kart gerekmez). Sürümler firmware/esp32_pendulum/README.md ile aynı.
+  # Firmware'i iki kart (klasik ESP32, ESP32-S3) × iki core sürümüyle derler (kart gerekmez).
+  # Sürümler firmware/esp32_pendulum/README.md ile aynı.
   firmware:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         core: ["3.3.12", "2.0.17"]
+        board: ["esp32", "esp32s3"]
     env:
       ESP32_URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     steps:
@@ -46,4 +48,4 @@ jobs:
           arduino-cli core install "esp32:esp32@${{ matrix.core }}" --additional-urls "$ESP32_URL"
           arduino-cli lib install ArduinoJson@7.4.3
       - name: Firmware'i derle
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 --warnings all firmware/esp32_pendulum
+        run: arduino-cli compile --fqbn esp32:esp32:${{ matrix.board }} --warnings all firmware/esp32_pendulum
