@@ -5,7 +5,7 @@
 ## Gereken
 * Arduino IDE 2.x + "esp32 by Espressif" kart paketi (core 2.x ve 3.x desteklenir)
 * Kütüphane: **ArduinoJson** (v7)
-* Kart: ESP32-WROOM-32 (çift çekirdek)
+* Kart: **ESP32-S3-DevKitC-1 N16R8** (BOM v3) ya da klasik ESP32-WROOM-32. İkisi de çift çekirdek; pinler kartın türüne göre `board_pins.h`'den otomatik seçilir
 
 ## Derleme
 Hatasız ve uyarısız (`--warnings all`) derlendiği doğrulanan sürümler:
@@ -15,15 +15,18 @@ Hatasız ve uyarısız (`--warnings all`) derlendiği doğrulanan sürümler:
 | arduino-cli | 1.5.1 |
 | esp32 by Espressif | **3.3.12** ve **2.0.17** |
 | ArduinoJson | 7.4.3 |
-| Kart seçimi | ESP32 Dev Module (`esp32:esp32:esp32`) |
+| Kart seçimi | ESP32S3 Dev Module (`esp32:esp32:esp32s3`) ya da ESP32 Dev Module (`esp32:esp32:esp32`) |
 
 Komut satırından:
 ```bash
 arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli lib install ArduinoJson
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware/esp32_pendulum
+arduino-cli compile --fqbn esp32:esp32:esp32s3 firmware/esp32_pendulum   # ESP32-S3
+arduino-cli compile --fqbn esp32:esp32:esp32 firmware/esp32_pendulum     # klasik ESP32
 ```
-Aynı derleme her push ve PR'da GitHub Actions'ta iki core sürümüyle tekrarlanır (`.github/workflows/test.yml`).
+Aynı derleme her push ve PR'da GitHub Actions'ta iki kart × iki core sürümüyle tekrarlanır (`.github/workflows/test.yml`).
+
+**ESP32-S3-DevKitC-1'de iki USB portu var:** bilgisayara **"COM" (UART)** yazan port bağlanmalı; `Serial` (921600 baud) oradan çıkar. Arduino IDE'de "USB CDC On Boot" **Disabled** (varsayılan) kalmalı.
 
 ## Dosyalar
 | Dosya | İçerik |
@@ -33,13 +36,19 @@ Aynı derleme her push ve PR'da GitHub Actions'ta iki core sürümüyle tekrarla
 
 Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`: seçilen Pololu 25D için 48; 37D'de 64 olurdu) ise motora özgüdür; motor değişirse `.ino`'da elle düzenlenir.
 
-## Pinler (varsayılan — düzenleyin)
-| İşlev | Pin |
-|---|---|
-| AS5600 SDA / SCL | 21 / 22 (400 kHz) |
-| Enkoder A / B | 32 / 33 (harici 10k pull-up) |
-| BTS7960 RPWM / LPWM / EN | 25 / 26 / 27 |
-| Limit switch sol / sağ | 18 / 19 (INPUT_PULLUP), `LIMIT_SWITCHES 1` (varsayılan). **NC (normalde kapalı) switch önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez |
+## Pinler (`board_pins.h` — kart türüne göre otomatik)
+| İşlev | ESP32-S3-DevKitC-1 N16R8 | Klasik ESP32 |
+|---|---|---|
+| I2C SDA / SCL (AS5600, ileride MPU6050) | 8 / 9 (400 kHz) | 21 / 22 |
+| Enkoder A / B (harici 10k pull-up) | 4 / 5 | 32 / 33 |
+| BTS7960 RPWM / LPWM / EN | 6 / 7 / 15 | 25 / 26 / 27 |
+| Uç sensörü sol / sağ (INPUT_PULLUP) | 16 / 17 | 18 / 19 |
+
+**S3 N16R8'de neden eski pinler olmuyor:** 22–25 S3'te yok; 26–32 SPI flash'a, 33–37 8 MB oktal PSRAM'e bağlı. Ayrıca 0/3/45/46 (açılış), 19/20 (yerel USB), 43/44 (`Serial`), 38/48 (RGB LED) kullanılmadı. `board_pins.h` S3 pinlerini derleme anında denetler; yasak bir pin seçilirse derleme durur.
+
+**Uç sensörü** (`LIMIT_SWITCHES 1`, varsayılan): BOM'da iki seçenek var, ikisi de aynı pinlere ve aynı ayarla bağlanır:
+* **Limit switch (DC163-3):** **NC (normalde kapalı) bağlantı önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez.
+* **Yarık optik sensör (TCST2103):** IR LED'e akım sınırlama direnci (3.3 V'ta ~100 Ω, 5 V'ta ~220 Ω → ~15–20 mA), fototransistör çıkışına 3.3 V'a **harici 4.7–10 kΩ pull-up**. Arabadaki bayrak yarığa girince çıkış HIGH olur; kablo koparsa da HIGH → `LIM_PRESSED = HIGH` değişmez. Ortam ışığından etkilenmemesi için yarık kapalı tarafa bakmalı.
 
 ### Limit switch'siz çalışma (`LIMIT_SWITCHES 0`, isteğe bağlı)
 Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takılmamışken kartı denemek gerekirse `0` yapılır; yoksa NC ayarındaki boş pinler "basılı" okunur ve kart hemen `limit` hatasına düşer. Bu modda:

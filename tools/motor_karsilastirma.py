@@ -1,8 +1,10 @@
-"""Motor karşılaştırması (#7): Pololu 37D, Pololu 25D (seçilen), Pololu 35:1 motorlar ve NEMA17 (Pololu #1200).
+"""Motor karşılaştırması (#7): BOM v3 adayları (JGB37-520, DFRobot FIT0186), Pololu 37D, Pololu 25D,
+Pololu 35:1 motorlar ve NEMA17 (Pololu #1200).
 
-    python tools/motor_karsilastirma.py [sonuclar.csv] [--sadece 25D]
+    python tools/motor_karsilastirma.py [sonuclar.csv] [--sadece BOM]
 
---sadece METİN: yalnız adında METİN geçen adayları dener (ör. 25D).
+--sadece METİN: yalnız adında METİN geçen adayları dener (ör. BOM, 25D).
+BOM adayları HTD3M kayışla (3 mm adım, 20 diş = 60 mm çevre) denenir; diğerleri GT2 (2 mm adım).
 
 Her aday için arayüzdeki adımlar toplu yapılır: K hesapla (varsayılan Q/R/Ts) → θ₀ = 180° ile 20 s
 simülasyon; iki ray boyunda (±0.4 / ±0.2 m), DC motorlarda sürtünmesiz ve sürtünmeli (telafi açık) olarak.
@@ -69,6 +71,20 @@ DC_ADAYLAR = [  # (ad, motor değerleri, redüktör, motor milinde enkoder CPR, 
           ("HP 47:1 #4845", 220, 0.30, 5.0, 15.0, 47),
       )],
 ]
+# BOM v3 (13.11.2026) motorları, HTD3M 20 diş kasnak (mekatronik doğruladı; 40 diş karşılaştırma için).
+# DFRobot FIT0186 (GB37Y3530-12V-251R): BOM'daki değerler 12 V, 251 rpm, 43.8:1, durma 7 A / 18 kg·cm,
+#   enkoder motor milinde 16 CPR (çıkışta 700). Boşta akım BOM'da yok → 0.35 A VARSAYIM. CPR'nin 4x sayımda
+#   64 olduğu VARSAYILDI (yalnız konum çözünürlüğünü etkiler).
+# JGB37-520 12 V 530 rpm: BOM'da yalnız devir var. Datasheet gelene kadar 520 boy motor + ~10:1 redüktör için
+#   VARSAYIM değerler, durma torku iki uçta denenir (3 ve 6 kg·cm; durma akımı 3 A, boşta 0.15 A),
+#   enkoder 11 PPR hall (4x: 44). DATASHEET GELİNCE GÜNCELLENMELİ.
+# J_rotor: ikisi de 37 mm gövdeli → 37D gibi 0 ve 3e-6 kg·m².
+BOM_ADAYLAR = [
+    ("BOM JGB37-520 T3 (VARSAYIM)", dc_motor(12.0, 530, 0.15, 3.0, 3.0 * KGCM, 10), 10, 44, J_37D),
+    ("BOM JGB37-520 T6 (VARSAYIM)", dc_motor(12.0, 530, 0.15, 3.0, 6.0 * KGCM, 10), 10, 44, J_37D),
+    ("BOM FIT0186 251rpm", dc_motor(12.0, 251, 0.35, 7.0, 18.0 * KGCM, 43.8), 43.8, 64, J_37D),
+]
+BOM_TEETH, HTD3M_ADIM = (20, 40), 0.003
 # NEMA17, Pololu #1200: 200 adım/tur, 1.2 A/faz, 3.3 Ω, 2.8 mH, tutma torku 3.2 kg·cm
 NEMA17 = dict(T_hold=3.2 * KGCM, I=1.2, R=3.3, L=2.8e-3, J=68e-7)   # J sayfada yok: 48 mm NEMA17 için tipik — VARSAYIM
 MIKROADIM = 16
@@ -97,9 +113,9 @@ def calistir(p, x_cozunurluk):
                                 sensor=SensorModel(x_resolution=x_cozunurluk))
 
 
-def dc_kos(base, ad, mot, N, cpr, J, teeth, rail, surtunme):
+def dc_kos(base, ad, mot, N, cpr, J, teeth, rail, surtunme, adim=0.002):
     p = copy.deepcopy(base)
-    r = teeth * 0.002 / (2 * math.pi)
+    r = teeth * adim / (2 * math.pi)
     m = dict(mot, T_f=mot["T_f"] if surtunme else 0.0)
     p.motor = MotorParams(gear=float(N), r_pulley=r, J_rotor=J, **m)
     p.rail_half, p.u_max = rail, m["V_max"]
@@ -174,14 +190,15 @@ def main():
         del args[i:i + 2]
     base = load_params(ROOT / "config" / "params.json")
     rows = []
-    for ad, mot, N, cpr, Js in DC_ADAYLAR:
+    adaylar = [(*a, BOM_TEETH, HTD3M_ADIM) for a in BOM_ADAYLAR] + [(*a, TEETH, 0.002) for a in DC_ADAYLAR]
+    for ad, mot, N, cpr, Js, dis_list, adim in adaylar:
         if sadece and sadece not in ad:
             continue
-        for teeth in TEETH:
+        for teeth in dis_list:
             for rail in RAILS:
                 for J in Js:
                     for surt in (False, True):
-                        rows.append(dc_kos(base, ad, mot, N, cpr, J, teeth, rail, surt))
+                        rows.append(dc_kos(base, ad, mot, N, cpr, J, teeth, rail, surt, adim))
                         r_ = rows[-1]
                         print(f"{ad:<20} {teeth}diş ray=±{rail} J={J:.0e} sürtünme={r_['surtunme']:<10} "
                               f"→ {r_['sonuc']}", flush=True)

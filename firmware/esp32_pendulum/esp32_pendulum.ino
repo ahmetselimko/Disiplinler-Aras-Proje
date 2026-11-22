@@ -50,11 +50,9 @@
 #error "FreeRTOS tik hızı 1000 Hz olmalı (Arduino-ESP32 varsayılanı)."
 #endif
 
-// ============================================================ PİNLER (donanıma göre düzenleyin)
-static const int PIN_SDA = 21, PIN_SCL = 22;          // AS5600
-static const int PIN_ENC_A = 32, PIN_ENC_B = 33;      // motor enkoderi (10k pull-up harici)
-static const int PIN_RPWM = 25, PIN_LPWM = 26;        // BTS7960
-static const int PIN_EN = 27;                         // BTS7960 R_EN + L_EN birlikte
+// ============================================================ PİNLER
+// Pin numaraları karta göre board_pins.h'de (ESP32-S3-DevKitC-1 N16R8 ya da klasik ESP32; derleme hedefinden seçilir).
+#include "board_pins.h"
 // Limit switch'ler takılı mı? 1 (şu anki donanım, 17.11.2026): switch'le otomatik homing ve switch korumaları.
 // 0: switch yok. Homing yerine "elle ortalama": araba elle ray ortasına konur, KALİBRE ET (home) o noktayı
 // x = 0 yapar; ray güvenliğini yalnız enkoderle yazılımsal sınır (SOFT_MARGIN) sağlar. Switch takılı değilken
@@ -62,9 +60,11 @@ static const int PIN_EN = 27;                         // BTS7960 R_EN + L_EN bir
 #ifndef LIMIT_SWITCHES
 #define LIMIT_SWITCHES 1
 #endif
-static const int PIN_LIM_L = 18, PIN_LIM_R = 19;      // limit switch (LIMIT_SWITCHES 1). NC (normalde kapalı) önerilir:
-static const int LIM_PRESSED = HIGH;                  //   NC + INPUT_PULLUP → basılı/kopuk kablo = HIGH (güvenli)
-                                                      //   NO kullanılırsa LOW yapın (kopuk kablo fark edilmez!)
+// Uç sensörü (PIN_LIM_L/R, LIMIT_SWITCHES 1): limit switch (DC163-3) ya da yarık optik sensör (TCST2103).
+static const int LIM_PRESSED = HIGH;                  //   NC switch + INPUT_PULLUP → basılı/kopuk kablo = HIGH (güvenli)
+                                                      //   TCST2103 (pull-up'lı çıkış): yarığa bayrak girince = HIGH,
+                                                      //     kopuk kablo da HIGH (güvenli) → ayar değişmez
+                                                      //   NO switch kullanılırsa LOW yapın (kopuk kablo fark edilmez!)
 
 // ============================================================ DONANIM SABİTLERİ
 static const char *FW_NAME = "ref-1.1";
