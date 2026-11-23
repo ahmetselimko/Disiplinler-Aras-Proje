@@ -79,7 +79,7 @@ matlab/         mekatronik ekibinin Matlab/Simulink dosyaları
 docs/           protokol.md · mimari.md · parametre_tablosu.md · matlab_karsiliklari.md · kullanim_kilavuzu.md · proje_durumu.md · katki_*.md
 tests/          pytest
 .github/        workflows/test.yml (GitHub Actions)
-tools/          demo_kayit.py (tanıtım videosu/GIF) · hassasiyet_analizi.py · motor_karsilastirma.py · rapor_sekilleri.py
+tools/          demo_kayit.py (tanıtım videosu/GIF) · hassasiyet_analizi.py · motor_karsilastirma.py · rapor_sekilleri.py · mekatronik_on_degerlendirme.py
 kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 ```
 

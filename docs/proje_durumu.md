@@ -64,6 +64,7 @@ Mekatronik ekibe başlangıç noktası. İki FreeRTOS görevi var: 500 Hz kontro
 | `katki_3_6_13.md`, `katki_10.md`, `katki_14_15.md` | Bilgisayar ekibi | Enerji grafiği, deneme özeti, hassasiyet analizi; Matlab karşılaştırması; Kalman ve kayıt oynatma ayrıntıları |
 | `hassasiyet_raporu.md` | Herkes | Parametre hassasiyet taramasının sonuçları (22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi) |
 | `../matlab/README.md` | İki ekip | Matlab dosyaları, θ işareti farkı, K dönüşümü |
+| `mekatronik_on_degerlendirme.md` | İki ekip | Mekatronik tasarım ölçüleriyle ön değerlendirme: swing-up için uç kütlesi ve hedef enerji, iki raporun farkları |
 | `media/rapor/README.md` | Herkes | Rapor şekilleri (aşağıdan kalkış, dürtme, kutup haritası, model uyumsuzluğu) ve sayıları; `python tools/rapor_sekilleri.py` ile yeniden üretilir |
 
 ---

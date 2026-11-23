@@ -1,0 +1,26 @@
+{
+  "_aciklama": "ÖN DEĞERLENDİRME. Mekatronik ara raporunun 23.11.2026 sürümündeki TASARIM değerleri (Bölüm 13.2 Tablo 15, +20 g uç kütlesi; Bölüm 12.1 ve 14.1). Ölçüm değil. Motor: JGB37-520, 19:1; R, Kt ve Ke Tablo 16'daki α_V = 2.26 N/V ve b_elec = 48.41 N·s/m'yi Kt = Ke (SI'da ideal DC motor) ile verecek şekilde seçildi: R = b/α², Kt = Ke = α·R·r/N; ayrı ayrı ölçülmedi, simülasyonda yalnız α ve b önemli; J_rotor arabaya yansıyan 1.346 kg'dan (J = 1.346·r²/N²), T_f 3.0 N araba sürtünmesinden (T_f = F·r/N). Datasheet gelince güncellenmeli. Asıl parametre dosyası config/params.json'dur; bu dosya yalnız docs/mekatronik_on_degerlendirme.md için kullanılır.",
+  "placeholder": true,
+  "M": 1.28,
+  "m": 0.105,
+  "l": 0.0992,
+  "I": 0.0012027,
+  "b": 0.1,
+  "c": 0.0005,
+  "g": 9.81,
+  "rail_half": 0.4,
+  "u_max": 12.0,
+  "input_mode": "voltage",
+  "motor": {
+    "R": 9.478,
+    "Kt": 0.0107654,
+    "Ke": 0.0107654,
+    "gear": 19.0,
+    "r_pulley": 0.009549,
+    "V_max": 12.0,
+    "J_rotor": 3.4e-07,
+    "T_f": 0.0015077,
+    "B_m": 0.0
+  },
+  "note": "Mekatronik tasarım değerleri (+20 g uç kütlesi) — ölçüm değil; motor Tablo 16'dan, datasheet bekleniyor"
+}

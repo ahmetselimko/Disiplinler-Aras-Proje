@@ -36,6 +36,7 @@ from pendulum_lab.control.lqr import design_lqr  # noqa: E402
 from pendulum_lab.control.supervisor import Supervisor  # noqa: E402
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
 from pendulum_lab.model.params import load_params  # noqa: E402
+from pendulum_lab.filters import ENC_CPR_MOTOR, encoder_resolution  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
 
 # Arayüzün varsayılan tasarım ayarları (gui/state.py)
@@ -48,7 +49,7 @@ RELEASE_DEG = 30.0
 # Deney ayarları
 PUSH_START = 1.0             # dürtme anı [s]
 PUSH_DUR = 0.05              # dürtme süresi [s] (arayüz varsayılanı 50 ms)
-PUSH_FORCES = (1.0, 2.0, 3.0)  # sarkaca uygulanan kuvvetler [N]
+PUSH_FRACTIONS = (0.3, 0.6, 0.9)  # itme kuvvetleri: kurtarılabilen en büyük itmenin bu katları
 PUSH_SEARCH_MAX = 10.0       # kurtarılabilen en büyük itmeyi ararken üst sınır [N]
 MISMATCH_GRID = tuple(round(v, 2) for v in np.arange(0.70, 1.301, 0.05))   # gerçek m ve l çarpanı
 MISMATCH_SHOWN = (0.90, 1.00, 1.10, 1.30)   # zaman grafiğinde gösterilenler
@@ -74,9 +75,10 @@ plt.rcParams.update({
 class Setup:
     p: object
     K: np.ndarray
+    e_ratio: float = 1.0
 
     def run(self, real, s0, T, dist=None, target="pole"):
-        sup = Supervisor(self.p, self.K, swingup=EnergySwingUp(), catch_deg=CATCH_DEG, release_deg=RELEASE_DEG)
+        sup = Supervisor(self.p, self.K, swingup=EnergySwingUp(E_ratio=self.e_ratio), catch_deg=CATCH_DEG, release_deg=RELEASE_DEG)
         sup.start()
         return simulate_closed_loop(real, sup, s0, T, dt=TS, sensor=SensorModel.for_params(self.p, seed=0),
                                     disturbance=dist, disturbance_target=target)
@@ -114,6 +116,24 @@ def shade_modes(ax, r):
         if m[i] in BAND:
             ax.axvspan(r.t[i], r.t[j], color=BAND[m[i]], lw=0, zorder=0)
         i = j + 1
+
+
+def classify(r, e):
+    """Deneme sonucu (tools/mekatronik_on_degerlendirme.py de bunu kullanır). evaluate_result'un durumuna,
+    LQR'a geçildiyse şunlar eklenir:
+      DÜŞTÜ     LQR bıraktı, swing-up yeniden kaldırdı, deneme dengede bitti
+      TUTAMADI  LQR yakaladı, bıraktı ve süre sonunda dengede değil
+      OTURMADI  süre sonunda LQR'da ama ±2°'de 1 s oturmadı (geç yakalama ya da salınım)"""
+    m = list(r.mode)
+    if "BALANCE" not in m:
+        return e.status
+    after = m[m.index("BALANCE"):]
+    lost = "SWING_UP" in after or "WAIT" in after
+    if e.status == "BAŞARISIZ":
+        return "OTURMADI" if m[-1] == "BALANCE" else "TUTAMADI"
+    if lost and e.status in ("BAŞARILI", "SINIRDA"):
+        return "DÜŞTÜ"
+    return e.status
 
 
 def pulse(F):
@@ -169,8 +189,10 @@ def max_recoverable_push(S: Setup):
 def fig_push(S: Setup, out: Path):
     T = 6.0
     rows = []
+    push_max = max_recoverable_push(S)
+    forces = [round(f * push_max, 1) for f in PUSH_FRACTIONS]
     fig, axs = plt.subplots(2, 1, figsize=(7.0, 4.8), sharex=True, gridspec_kw={"hspace": 0.15})
-    for F, col in zip(PUSH_FORCES, CAT):
+    for F, col in zip(forces, CAT):
         r = S.run(S.p, [0, 0, 0, 0], T, dist=pulse(F))
         e = evaluate_result(r, S.p)
         th = wrap_deg(r.th)
@@ -181,8 +203,9 @@ def fig_push(S: Setup, out: Path):
                         color=INK, fontsize=8, va="center")
         out_band = np.flatnonzero(np.abs(th) > 2.0)            # ±2° bandının dışı
         settle = float(r.t[out_band[-1] + 1] - PUSH_START) if len(out_band) and out_band[-1] + 1 < len(r.t) else None
+        fell = "SWING_UP" in list(r.mode)                     # LQR bıraktı, swing-up yeniden kaldırdı
         rows.append(dict(F=F, max_th=float(np.nanmax(np.abs(th))), max_x=float(np.abs(r.x).max()),
-                         settle=settle, status=e.status))
+                         settle=settle, status="DÜŞTÜ" if fell and e.status in ("BAŞARILI", "SINIRDA") else e.status))
     for ax in axs:
         ax.axvspan(PUSH_START, PUSH_START + PUSH_DUR, color=BAND["FAULT"], lw=0, zorder=0)
     axs[1].annotate(f"itme ({PUSH_DUR * 1000:g} ms)", xy=(PUSH_START + PUSH_DUR, axs[1].get_ylim()[1] * 0.9),
@@ -195,7 +218,7 @@ def fig_push(S: Setup, out: Path):
     legend_above(axs[0], title="itme kuvveti", title_fontsize=8, ncol=3)
     fig.savefig(out / "durtme.png")
     plt.close(fig)
-    return rows, max_recoverable_push(S)
+    return rows, push_max
 
 
 def fig_poles(S: Setup, out: Path):
@@ -208,7 +231,13 @@ def fig_poles(S: Setup, out: Path):
     cld = np.linalg.eigvals(Ad - Bd @ S.K.reshape(1, -1))
     cls = np.log(cld.astype(complex)) / TS          # ayrık kutupların sürekli karşılığı
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.4, 3.6), gridspec_kw={"wspace": 0.28, "width_ratios": (1, 1.15)})
-    zoom = max(8.0, 1.6 * float(max(abs(z.real) for z in np.concatenate([ol, cls]) if abs(z.real) < 20)))
+    # yakın görünüm: kararsız kutbun ~1.5 katına kadar olan (sıfır civarı) kutuplar; tam görünümden geniş olmasın
+    allp = np.concatenate([ol, cls])
+    near_lim = 1.5 * max(float(ol.real.max()), 1.0)
+    near = [abs(z.real) for z in allp if abs(z.real) <= near_lim]
+    zoom = max(8.0, 1.6 * max(near, default=0.0))
+    zoom = min(zoom, 0.8 * abs(float(allp.real.min())) * 1.12)
+    zoom = max(zoom, 1.4 * float(ol.real.max()))       # kararsız kutup yakın görünümün içinde kalsın
     im = max(1.0, 1.3 * float(np.abs(np.concatenate([ol.imag, cls.imag])).max()))
     for ax, full in ((a1, True), (a2, False)):
         ax.axhline(0, color=INK2, lw=0.6)
@@ -232,9 +261,10 @@ def fig_poles(S: Setup, out: Path):
                     ax.annotate(fmt_c(z), (z.real, z.imag), xytext=(0, -10), textcoords="offset points",
                                 ha="center", va="top", fontsize=7, color=CAT[0], rotation=60)
     a1.set_ylabel("Sanal kısım [rad/s]")
-    a1.set_xlim(min(np.concatenate([ol.real, cls.real])) * 1.12, max(8.0, max(ol.real) * 1.5))
+    a1.set_xlim(min(np.concatenate([ol.real, cls.real])) * 1.12, max(8.0, max(ol.real) * 1.5, zoom * 0.75 * 1.05))
     a1.axvspan(-zoom, zoom * 0.75, facecolor="none", edgecolor=INK2, lw=0.8, ls="--")
-    a1.text(0.98, 0.04, "kararsız\nbölge →", transform=a1.transAxes, ha="right", fontsize=7, color=INK2)
+    # yazı yakın görünümdeki geniş kararsız bölgenin içine (sol panelde çizgilerle çakışıyordu)
+    a2.text(0.375 * zoom, -0.9 * im, "kararsız bölge", ha="center", va="bottom", fontsize=7, color=INK2)
     a1.set_title("s-düzlemi")
     a2.set_title(f"Yakın görünüm (kesikli çerçeve)")
     h, lab = a2.get_legend_handles_labels()
@@ -254,14 +284,28 @@ def fig_mismatch(S: Setup, out: Path):
         real.l *= k
         r = S.run(real, [0, 0, math.pi, 0], T)
         e = evaluate_result(r, S.p)
-        res[k] = (r, e, first_balance(r))
-    fig = plt.figure(figsize=(7.4, 5.8))
-    gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.42)
+        res[k] = (r, e, first_balance(r), classify(r, e))
+    # lejant yalnız taramada görülen sonuçlar; tek satıra sığsın (başlığın üstüne binmesin)
+    kinds = {"ok": (dict(marker="o", color=GOOD), "dengede kaldı"),
+             "DÜŞTÜ": (dict(marker="o", mfc="white", mec=GOOD, mew=1.8), "düştü, yeniden kalktı"),
+             "TUTAMADI": (dict(marker="o", mfc="white", mec=CRITICAL, mew=1.8), "yakalandı, tutulamadı"),
+             "OTURMADI": (dict(marker="o", mfc="white", mec=SERIOUS, mew=1.8), "süre sonunda oturmadı"),
+             "RAY SINIRI": (dict(marker="^", color=SERIOUS), "ray ucuna çarptı"),
+             "FAULT": (dict(marker="s", color=CRITICAL), "hata (yazılımsal sınır)"),
+             "fail": (dict(marker="x", color=CRITICAL, mew=2), "swing-up bitmedi")}
+    seen = {("ok" if v[3] in ("BAŞARILI", "SINIRDA") else v[3] if v[3] in kinds else "fail") for v in res.values()}
+    order = [k for k in kinds if k in seen]
+    h = [plt.Line2D([], [], ls="", ms=7, **kinds[k][0]) for k in order]
+    ncol = len(order) if len(order) <= 4 else 4
+    two_rows = len(order) > ncol                         # en çok 7 tür → en çok 2 satır
+    fig = plt.figure(figsize=(7.4, 6.1 if two_rows else 5.8))
+    gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.62 if two_rows else 0.42)
     a1 = fig.add_subplot(gs[0])
     for k, col in zip(MISMATCH_SHOWN, CAT):
         r = res[k][0]
         sel = r.t <= 15.0
-        a1.plot(r.t[sel], dist_deg(r.th)[sel], color=col, lw=1.3, label=f"{(k - 1) * 100:+.0f}%")
+        lab = "m, l modelle aynı" if k == 1 else f"m, l {(k - 1) * 100:+.0f}%"
+        a1.plot(r.t[sel], dist_deg(r.th)[sel], color=col, lw=1.3, label=lab)
     a1.set_xlim(0, 15)
     a1.set_ylim(-5, 185)
     a1.set_yticks([0, 45, 90, 135, 180])
@@ -269,37 +313,44 @@ def fig_mismatch(S: Setup, out: Path):
     a1.set_ylabel("Dikten uzaklık |θ| [°]")
     a1.set_xlabel("Zaman [s]")
     a1.set_title("Aşağıdan kalkış: gerçek m ve l modeldekinden farklı", pad=22)
-    legend_above(a1, title="m ve l sapması", title_fontsize=8, ncol=4)
+    legend_above(a1, ncol=4)
 
     a2 = fig.add_subplot(gs[1])
     pct = [(k - 1) * 100 for k in MISMATCH_GRID]
-    top = T * 0.0 + 12.5
+    ok_t = [tb for (_, _, tb, st_) in res.values() if tb is not None]      # geçiş anında çizilen her nokta
+    top = max(12.5, math.ceil(1.25 * max(ok_t, default=0.0) / 2.5) * 2.5)
     for k, x in zip(MISMATCH_GRID, pct):
-        r, e, tb = res[k]
-        if e.status in ("BAŞARILI", "SINIRDA"):
+        r, e, tb, st_ = res[k]
+        if st_ in ("BAŞARILI", "SINIRDA"):
             a2.scatter(x, tb, s=60, color=GOOD, zorder=3)
-        elif e.status == "RAY SINIRI":
-            a2.scatter(x, top, s=60, marker="^", color=SERIOUS, zorder=3)
+        elif st_ == "DÜŞTÜ":
+            a2.scatter(x, tb, s=60, facecolors="white", edgecolors=GOOD, linewidths=1.8, zorder=3)
+        elif st_ == "TUTAMADI":
+            a2.scatter(x, tb, s=60, facecolors="white", edgecolors=CRITICAL, linewidths=1.8, zorder=3)
+        elif st_ == "OTURMADI":
+            a2.scatter(x, tb, s=60, facecolors="white", edgecolors=SERIOUS, linewidths=1.8, zorder=3)
+        elif st_ == "RAY SINIRI":
+            a2.scatter(x, tb if tb is not None else top, s=60, marker="^", color=SERIOUS, zorder=3)
+        elif st_ == "FAULT":
+            a2.scatter(x, tb if tb is not None else top, s=50, marker="s", color=CRITICAL, zorder=3)
         else:
             a2.scatter(x, top, s=60, marker="x", color=CRITICAL, linewidths=2, zorder=3)
     a2.axhline(top - 1.25, color=INK2, lw=0.6, ls=":")
     a2.set_ylim(0, top + 1.2)
-    a2.set_yticks([0, 2.5, 5, 7.5, 10, top])
-    a2.set_yticklabels(["0", "2.5", "5", "7.5", "10", "gelemedi"])
+    ticks = [v for v in np.arange(0, top - 1.9, 2.5 if top <= 15 else 5.0)]
+    a2.set_yticks(ticks + [top])
+    a2.set_yticklabels([f"{v:g}" for v in ticks] + ["gelemedi"])
     a2.set_xticks(pct)
     a2.set_xticklabels([f"{v:+.0f}%" if v else "0" for v in pct], fontsize=8)
     a2.set_xlabel("Gerçek m ve l'nin modele göre sapması")
     a2.set_ylabel("LQR'a geçiş [s]")
-    a2.set_title(f"Her sapma için sonuç ({T:g} s)", pad=22)
-    h = [plt.Line2D([], [], ls="", marker="o", color=GOOD, ms=7),
-         plt.Line2D([], [], ls="", marker="^", color=SERIOUS, ms=7),
-         plt.Line2D([], [], ls="", marker="x", color=CRITICAL, ms=7, mew=2)]
-    legend_above(a2, h, ["dengede kaldı", "ray ucuna çarptı", "swing-up bitmedi"], ncol=3)
+    a2.set_title(f"Her sapma için sonuç ({T:g} s)", pad=36 if two_rows else 22)
+    legend_above(a2, h, [kinds[k][1] for k in order], ncol=ncol)
     fig.savefig(out / "model_uyumsuzlugu.png")
     plt.close(fig)
     # sarkacın dik konuma en çok yaklaştığı açı (ilk 3 s'lik sallanma hariç)
-    closest = {k: float(dist_deg(r.th)[r.t > 3.0].min()) for k, (r, e, tb) in res.items()}
-    return {k: (e.status, tb, e.max_x, closest[k]) for k, (r, e, tb) in res.items()}
+    closest = {k: float(dist_deg(r.th)[r.t > 3.0].min()) for k, (r, e, tb, st_) in res.items()}
+    return {k: (st_, tb, e.max_x, closest[k]) for k, (r, e, tb, st_) in res.items()}
 
 
 # ---------------------------------------------------------------- README
@@ -315,24 +366,33 @@ def uniq_conj(zs):
 def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max, poles, mm):
     unit = "V" if S.p.input_mode == "voltage" else "N"
     st = lambda s: {"BAŞARILI": "dengede kaldı", "SINIRDA": "dengede kaldı (ray ucuna yakın)",
-                    "RAY SINIRI": "ray ucuna çarptı", "BAŞARISIZ": "swing-up bitmedi", "FAULT": "hata"}.get(s, s)
+                    "RAY SINIRI": "ray ucuna çarptı", "BAŞARISIZ": "swing-up bitmedi", "FAULT": "hata",
+                    "DÜŞTÜ": "düştü, swing-up yeniden kaldırdı",
+                    "TUTAMADI": "LQR yakaladı ama tutamadı",
+                    "OTURMADI": "LQR'da ama süre sonunda oturmadı"}.get(s, s)
     placeholder = getattr(S.p, "placeholder", None)
+    prel = (params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path).as_posix()
     L = [f"# Rapor şekilleri",
          "",
          f"`tools/rapor_sekilleri.py` ile {date.today():%d.%m.%Y} tarihinde üretildi. **Elle düzenlemeyin;** "
          "parametreler değişince script'i yeniden çalıştırın.",
          "",
-         f"* Parametreler: `{params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path}`"
+         f"* Parametreler: `{prel}`"
          f" (M = {S.p.M:g} kg, m = {S.p.m:g} kg, l = {S.p.l:g} m, ray ±{S.p.rail_half:g} m, "
          f"giriş: {'motor gerilimi' if unit == 'V' else 'kuvvet'}, |u| ≤ {S.p.u_max:g} {unit})",
          f"* Kontrolcü: arayüzün varsayılanları; Q = diag{Q}, R = {R:g}, Ts = {TS * 1000:g} ms, "
-         f"yakalama {CATCH_DEG:g}°, bırakma {RELEASE_DEG:g}°, enerji bazlı swing-up",
+         f"yakalama {CATCH_DEG:g}°, bırakma {RELEASE_DEG:g}°, enerji bazlı swing-up (hedef enerji oranı "
+         f"{S.e_ratio:g})",
          "* K = [" + ", ".join(f"{v:.2f}" for v in S.K) + "]",
-         "* Sensör: 12-bit açı ve 48 CPR enkoder kuantalaması; dik bölgede Kalman (firmware gibi)",
+         f"* Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde {ENC_CPR_MOTOR:g} CPR"
+         + (f" × {S.p.motor.gear:g} redüktör = {ENC_CPR_MOTOR * S.p.motor.gear:g} sayım/tur" if unit == "V" else "")
+         + f", {encoder_resolution(S.p) * 1000:.3f} mm/sayım); dik bölgede Kalman (firmware gibi)",
          ""]
     if placeholder or "YER TUTUCU" in str(getattr(S.p, "note", "")):
-        L += ["> ⚠ **Parametreler yer tutucu değerlerdir.** Mekatronik ekibi gerçek ölçüleri `config/params.json`'a "
-              "girince şekiller yeniden üretilmelidir; sayılar değişecektir.", ""]
+        L += [f"> ⚠ **Parametreler yer tutucu değerlerdir** (`{prel}`, ölçüm değil). Gerçek ölçüler girilince "
+              "şekiller yeniden üretilmelidir; sayılar değişecektir.", ""]
+    if S.e_ratio != 1.0:
+        L += [f"> Swing-up hedef enerji oranı arayüz varsayılanından (1.0) farklı: **{S.e_ratio:g}**.", ""]
     L += ["## 1. Aşağıdan kalkış — `asagidan_kalkis.png`",
           "",
           "![Aşağıdan kalkış](asagidan_kalkis.png)",
@@ -350,7 +410,8 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
           "![Dürtmeye tepki](durtme.png)",
           "",
           f"*Şekil 2. Sarkaç dengedeyken t = {PUSH_START:g} s'de ağırlık merkezine {PUSH_DUR * 1000:g} ms süren "
-          "yatay itme uygulanır.*",
+          "yatay itme uygulanır. Kuvvetler, LQR'ın kurtarabildiği en büyük itmenin "
+          + ", ".join(f"%{f * 100:.0f}" for f in PUSH_FRACTIONS) + "'ıdır.*",
           "",
           "| İtme | Max \\|θ\\| | Max \\|x\\| | İtmeden sonra yerleşme (±2°) | Sonuç |",
           "|---|---|---|---|---|"]
@@ -359,7 +420,7 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
         L.append(f"| {row['F']:g} N | {row['max_th']:.1f}° | {row['max_x']:.3f} m | {s_} | {st(row['status'])} |")
     L += ["",
           f"LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): **≈ {push_max:.1f} N**. "
-          f"Bunu aşan itmelerde araba ±{S.p.rail_half:g} m'lik ray ucuna çarpıyor.",
+          "Daha büyük itmelerde LQR sarkacı tutamıyor; sarkaç düşüyor ya da araba ray ucuna çarpıyor.",
           "",
           "## 3. Kutup haritası — `kutup_haritasi.png`",
           "",
@@ -390,22 +451,39 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
     for k, (s_, tb, mx, cl) in mm.items():
         L.append(f"| {(k - 1) * 100:+.0f}% | {st(s_)} | {f'{tb:.2f} s' if tb is not None else '—'} | {mx:.3f} m | "
                  f"{cl:.1f}° |")
-    fails = [k for k, (s_, _, _, _) in mm.items() if s_ not in ("BAŞARILI", "SINIRDA")]
-    heavy = [k for k in fails if k > 1]
-    light = [k for k in fails if k < 1]
-    if light:
+    def pct_range(ks):
+        ks = sorted(ks)
+        return f"{(ks[0] - 1) * 100:+.0f}%" if len(ks) == 1 else f"{(ks[0] - 1) * 100:+.0f}% … {(ks[-1] - 1) * 100:+.0f}%"
+
+    stall = {k: v for k, v in mm.items() if v[0] == "BAŞARISIZ"}
+    rail = [k for k, v in mm.items() if v[0] == "RAY SINIRI"]
+    for side, ks in (("hafif/kısa", [k for k in stall if k < 1]), ("ağır/uzun", [k for k in stall if k > 1])):
+        if not ks:
+            continue
+        cl = [mm[k][3] for k in ks]
         L += ["",
-              f"**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (bu taramada {min(light) * 100 - 100:+.0f}% … "
-              f"{max(light) * 100 - 100:+.0f}%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak "
-              f"{min(mm[k][3] for k in light):.0f}–{max(mm[k][3] for k in light):.0f}°'ye kadar yaklaşıyor, "
-              f"{CATCH_DEG:g}°'lik yakalama bölgesine giremiyor. Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin "
-              "\"KRİTİK\" sonucuyla tutarlıdır: sarkacın boyu ve kütlesi ölçülürken hesaplanandan küçük çıkmaması "
-              "önemlidir."]
-    if heavy:
-        L += ["",
-              "Ağır tarafta başarısız olan noktalar (" + ", ".join(f"{(k - 1) * 100:+.0f}%" for k in heavy) +
-              ") tek tek; komşu değerler başarılı. Ağır tarafta swing-up daha uzun sürüyor ve yakalama anındaki "
-              "duruma göre araba ray ucuna yaklaşabiliyor."]
+              f"**Not:** Gerçek sarkaç modeldekinden {side} olduğunda ({pct_range(ks)}) swing-up tamamlanmıyor: sarkaç "
+              f"her salınımda dik konuma ancak {f'{min(cl):.0f}' if round(min(cl)) == round(max(cl)) else f'{min(cl):.0f}–{max(cl):.0f}'}°'ye kadar yaklaşıyor, {CATCH_DEG:g}°'lik "
+              "yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç "
+              "farklıysa bu hedef de kayıyor."]
+        if side == "hafif/kısa" and prel == "config/params.json":   # hassasiyet raporu bu dosyayla üretildi
+            L[-1] += (" Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin \"KRİTİK\" "
+                      "sonucuyla tutarlıdır.")
+    fell = [k for k, v in mm.items() if v[0] == "DÜŞTÜ"]
+    if fell:
+        L += ["", f"**Not:** {pct_range(fell)} sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı "
+              "ve deneme dengede bitti (tablodaki geçiş zamanı ilk yakalamadır)."]
+    late = [k for k, v in mm.items() if v[0] == "OTURMADI"]
+    if late:
+        L += ["", f"**Not:** {pct_range(late)} sapmada süre sonunda LQR devredeydi ama sarkaç ±2°'de 1 s oturmadı "
+              "(geç yakalama ya da salınım)."]
+    lost = [k for k, v in mm.items() if v[0] == "TUTAMADI"]
+    if lost:
+        L += ["", f"**Not:** {pct_range(lost)} sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu "
+              "tutamadı ve swing-up süre sonuna kadar yeniden tamamlanmadı. LQR nominal modelle tasarlandığı için "
+              "sapma büyüyünce denge payı azalıyor."]
+    if rail:
+        L += ["", f"Araba ray ucuna çarpan noktalar: {', '.join(f'{(k - 1) * 100:+.0f}%' for k in rail)}."]
     (out / "README.md").write_text("\n".join(L) + "\n", encoding="utf-8")
 
 
@@ -415,10 +493,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--params", type=Path, default=ROOT_DIR / "config/params.json")
     ap.add_argument("--out", type=Path, default=ROOT_DIR / "docs/media/rapor")
+    ap.add_argument("--e-ratio", type=float, default=1.0,
+                    help="swing-up hedef enerji oranı: aşağıdan ölçülen hedef enerji / 2mgl (arayüz varsayılanı 1.0; mekatroniğin E_ref = 1.02·mgl'si burada 1.01)")
     args = ap.parse_args()
     p = load_params(args.params)
     K, _, _ = design_lqr(p, Q, [[R]], Ts=TS)
-    S = Setup(p, K.ravel())
+    S = Setup(p, K.ravel(), args.e_ratio)
     args.out.mkdir(parents=True, exist_ok=True)
     print("1/4 aşağıdan kalkış…", flush=True)
     sw = fig_swing_up(S, args.out)
