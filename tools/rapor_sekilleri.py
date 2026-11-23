@@ -119,15 +119,18 @@ def shade_modes(ax, r):
 
 
 def classify(r, e):
-    """Deneme sonucu; mekatronik_on_degerlendirme.py ile aynı kural. LQR'a geçildiyse:
-    TUTAMADI = yakaladı, bıraktı ve sonunda yine dengede değil; DÜŞTÜ = bıraktı ama swing-up yeniden kaldırdı."""
+    """Deneme sonucu (tools/mekatronik_on_degerlendirme.py de bunu kullanır). evaluate_result'un durumuna,
+    LQR'a geçildiyse şunlar eklenir:
+      DÜŞTÜ     LQR bıraktı, swing-up yeniden kaldırdı, deneme dengede bitti
+      TUTAMADI  LQR yakaladı, bıraktı ve süre sonunda dengede değil
+      OTURMADI  süre sonunda LQR'da ama ±2°'de 1 s oturmadı (geç yakalama ya da salınım)"""
     m = list(r.mode)
     if "BALANCE" not in m:
         return e.status
     after = m[m.index("BALANCE"):]
     lost = "SWING_UP" in after or "WAIT" in after
-    if e.status == "BAŞARISIZ" and m[-1] != "BALANCE":
-        return "TUTAMADI"
+    if e.status == "BAŞARISIZ":
+        return "OTURMADI" if m[-1] == "BALANCE" else "TUTAMADI"
     if lost and e.status in ("BAŞARILI", "SINIRDA"):
         return "DÜŞTÜ"
     return e.status
@@ -275,8 +278,20 @@ def fig_mismatch(S: Setup, out: Path):
         r = S.run(real, [0, 0, math.pi, 0], T)
         e = evaluate_result(r, S.p)
         res[k] = (r, e, first_balance(r), classify(r, e))
-    fig = plt.figure(figsize=(7.4, 5.8))
-    gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.42)
+    # lejant yalnız taramada görülen sonuçlar; tek satıra sığsın (başlığın üstüne binmesin)
+    kinds = {"ok": (dict(marker="o", color=GOOD), "dengede kaldı"),
+             "DÜŞTÜ": (dict(marker="o", mfc="white", mec=GOOD, mew=1.8), "düştü, yeniden kalktı"),
+             "TUTAMADI": (dict(marker="o", mfc="white", mec=CRITICAL, mew=1.8), "yakalandı, tutulamadı"),
+             "OTURMADI": (dict(marker="o", mfc="white", mec=SERIOUS, mew=1.8), "süre sonunda oturmadı"),
+             "RAY SINIRI": (dict(marker="^", color=SERIOUS), "ray ucuna çarptı"),
+             "fail": (dict(marker="x", color=CRITICAL, mew=2), "swing-up bitmedi")}
+    seen = {("ok" if v[3] in ("BAŞARILI", "SINIRDA") else v[3] if v[3] in kinds else "fail") for v in res.values()}
+    order = [k for k in kinds if k in seen]
+    h = [plt.Line2D([], [], ls="", ms=7, **kinds[k][0]) for k in order]
+    ncol = len(order) if len(order) <= 4 else 3
+    two_rows = len(order) > ncol
+    fig = plt.figure(figsize=(7.4, 6.1 if two_rows else 5.8))
+    gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.62 if two_rows else 0.42)
     a1 = fig.add_subplot(gs[0])
     for k, col in zip(MISMATCH_SHOWN, CAT):
         r = res[k][0]
@@ -304,8 +319,10 @@ def fig_mismatch(S: Setup, out: Path):
             a2.scatter(x, tb, s=60, facecolors="white", edgecolors=GOOD, linewidths=1.8, zorder=3)
         elif st_ == "TUTAMADI":
             a2.scatter(x, tb, s=60, facecolors="white", edgecolors=CRITICAL, linewidths=1.8, zorder=3)
+        elif st_ == "OTURMADI":
+            a2.scatter(x, tb, s=60, facecolors="white", edgecolors=SERIOUS, linewidths=1.8, zorder=3)
         elif st_ == "RAY SINIRI":
-            a2.scatter(x, top, s=60, marker="^", color=SERIOUS, zorder=3)
+            a2.scatter(x, tb if tb is not None else top, s=60, marker="^", color=SERIOUS, zorder=3)
         else:
             a2.scatter(x, top, s=60, marker="x", color=CRITICAL, linewidths=2, zorder=3)
     a2.axhline(top - 1.25, color=INK2, lw=0.6, ls=":")
@@ -317,14 +334,8 @@ def fig_mismatch(S: Setup, out: Path):
     a2.set_xticklabels([f"{v:+.0f}%" if v else "0" for v in pct], fontsize=8)
     a2.set_xlabel("Gerçek m ve l'nin modele göre sapması")
     a2.set_ylabel("LQR'a geçiş [s]")
-    a2.set_title(f"Her sapma için sonuç ({T:g} s)", pad=22)
-    h = [plt.Line2D([], [], ls="", marker="o", color=GOOD, ms=7),
-         plt.Line2D([], [], ls="", marker="o", mfc="white", mec=GOOD, mew=1.8, ms=7),
-         plt.Line2D([], [], ls="", marker="o", mfc="white", mec=CRITICAL, mew=1.8, ms=7),
-         plt.Line2D([], [], ls="", marker="^", color=SERIOUS, ms=7),
-         plt.Line2D([], [], ls="", marker="x", color=CRITICAL, ms=7, mew=2)]
-    legend_above(a2, h, ["dengede kaldı", "düştü, yeniden kalktı", "yakalandı, tutulamadı", "ray ucuna çarptı",
-                         "swing-up bitmedi"], ncol=3)
+    a2.set_title(f"Her sapma için sonuç ({T:g} s)", pad=36 if two_rows else 22)
+    legend_above(a2, h, [kinds[k][1] for k in order], ncol=ncol)
     fig.savefig(out / "model_uyumsuzlugu.png")
     plt.close(fig)
     # sarkacın dik konuma en çok yaklaştığı açı (ilk 3 s'lik sallanma hariç)
@@ -347,7 +358,8 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
     st = lambda s: {"BAŞARILI": "dengede kaldı", "SINIRDA": "dengede kaldı (ray ucuna yakın)",
                     "RAY SINIRI": "ray ucuna çarptı", "BAŞARISIZ": "swing-up bitmedi", "FAULT": "hata",
                     "DÜŞTÜ": "düştü, swing-up yeniden kaldırdı",
-                    "TUTAMADI": "LQR yakaladı ama tutamadı"}.get(s, s)
+                    "TUTAMADI": "LQR yakaladı ama tutamadı",
+                    "OTURMADI": "LQR'da ama süre sonunda oturmadı"}.get(s, s)
     placeholder = getattr(S.p, "placeholder", None)
     prel = (params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path).as_posix()
     L = [f"# Rapor şekilleri",
@@ -451,6 +463,10 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
     if fell:
         L += ["", f"**Not:** {pct_range(fell)} sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı "
               "ve deneme dengede bitti (tablodaki geçiş zamanı ilk yakalamadır)."]
+    late = [k for k, v in mm.items() if v[0] == "OTURMADI"]
+    if late:
+        L += ["", f"**Not:** {pct_range(late)} sapmada süre sonunda LQR devredeydi ama sarkaç ±2°'de 1 s oturmadı "
+              "(geç yakalama ya da salınım)."]
     lost = [k for k, v in mm.items() if v[0] == "TUTAMADI"]
     if lost:
         L += ["", f"**Not:** {pct_range(lost)} sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu "

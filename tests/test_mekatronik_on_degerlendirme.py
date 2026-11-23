@@ -52,3 +52,20 @@ def test_report_figures_tool_helpers():
     assert t.fmt_c(complex(-1.5, 0)) == "-1.50"
     assert t.fmt_c(complex(-1, 2)) == "-1.00 ± 2.00j"
     assert [z.imag >= 0 for z in t.uniq_conj([complex(-1, 2), complex(-1, -2), -3])] == [True, True]
+
+
+def test_classify_covers_every_outcome():
+    from types import SimpleNamespace as NS
+    t = _load_tool("rapor_sekilleri")
+    run = lambda *modes: NS(mode=list(modes))
+    ev = lambda s: NS(status=s)
+    assert t.classify(run("SWING_UP", "SWING_UP"), ev("BAŞARISIZ")) == "BAŞARISIZ"          # hiç yakalanmadı
+    assert t.classify(run("SWING_UP", "BALANCE"), ev("BAŞARILI")) == "BAŞARILI"
+    assert t.classify(run("SWING_UP", "BALANCE", "SWING_UP", "BALANCE"), ev("BAŞARILI")) == "DÜŞTÜ"
+    assert t.classify(run("SWING_UP", "BALANCE", "SWING_UP"), ev("BAŞARISIZ")) == "TUTAMADI"
+    assert t.classify(run("SWING_UP", "BALANCE", "BALANCE"), ev("BAŞARISIZ")) == "OTURMADI"  # geç yakalama
+    assert t.classify(run("SWING_UP", "BALANCE", "FAULT"), ev("RAY SINIRI")) == "RAY SINIRI"
+    m = _load_tool("mekatronik_on_degerlendirme")
+    assert m.classify is t.classify or m.classify.__code__.co_code == t.classify.__code__.co_code
+    for st in ("BAŞARILI", "DÜŞTÜ", "TUTAMADI", "OTURMADI", "RAY SINIRI", "FAULT", "BAŞARISIZ"):
+        assert m.cell(st, 3.0, 0.1, 20.0)                                                    # her durum yazılabiliyor

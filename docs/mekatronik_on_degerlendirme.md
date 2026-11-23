@@ -95,7 +95,7 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 | Aşağıdan kalkış: LQR'a geçiş | 4.34 s | 4.32 s |
 | Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.142 m / **12.0 V** (gerilim sınırında) |
 | LQR'ın kurtardığı en büyük itme (50 ms, sarkaca) | ≈ 3.3 N | **≈ 0.8 N** |
-| Model uyumsuzluğunda dengede kaldığı aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−15% … +20%** |
+| Model uyumsuzluğunda dengede kaldığı aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−15% … +20%** (−10%'da bir kez düştü, yeniden kalktı) |
 
 * **İtmeye dayanıklılık dörtte birine düşüyor.** Kısa ve hafif sarkaç çok daha küçük bir itmeyle devriliyor; 0.8 N'dan
   büyük itmelerde LQR sarkacı tutamıyor.
@@ -110,7 +110,7 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 * **Dengede sürtünmeden doğan konum kayması:** LQR Coulomb sürtünmesini telafi etmez (firmware'de de telafi yalnız
   swing-up'ta). 3 N sürtünme, konum hatası küçükken LQR'ın komutunu yutar ve araba yaklaşık F_c / (α·|K_x|) ≈ 0.14 m'lik
   bir ölü bantta durabilir: dengede araba ≈ 0.14 m'ye kadar kayabiliyor (dürtme tablosunda 0.2 N'lik itmede bile
-  0.141 m), sürtünmesiz dengede ise birkaç mm. ±0.4 m rayın üçte biri; gerçek sürtünme ölçülünce dengede de telafi ya da
+  0.141 m); sürtünmesiz dengede arabanın durduğu yer birkaç mm. ±0.4 m rayın üçte biri; gerçek sürtünme ölçülünce dengede de telafi ya da
   integral etki değerlendirilmeli. (Tablolardaki max \|x\| bütün koşuyu kapsar; swing-up evresi de ≈ 0.14 m'ye çıkar.)
 
 ## 4. İki ekibin raporları arasındaki farklar

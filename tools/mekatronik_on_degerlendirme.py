@@ -25,6 +25,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "tools"))
 
 import numpy as np  # noqa: E402
 
@@ -34,6 +35,7 @@ from pendulum_lab.control.supervisor import Supervisor  # noqa: E402
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
 from pendulum_lab.model.params import load_params  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
+from rapor_sekilleri import classify  # noqa: E402  (şekillerle aynı sonuç sınıflandırması)
 
 PARAMS_FILE = ROOT_DIR / "config/params_mekatronik_tasarim.json"
 CART_WITH_PENDULUM = 1.10      # kg, Bölüm 12.1 (sarkaç ve rulmanlar dahil)
@@ -68,14 +70,7 @@ def run(p, e_ratio, friction_comp=True, T=T):
     e = evaluate_result(r, p)
     m = np.asarray(r.mode)
     tb = float(r.t[np.argmax(m == "BALANCE")]) if (m == "BALANCE").any() else None
-    status = e.status                                             # tools/rapor_sekilleri.py::classify ile aynı kural
-    if tb is not None:
-        after = set(m[np.argmax(m == "BALANCE"):])
-        lost = "SWING_UP" in after or "WAIT" in after             # LQR yakaladıktan sonra bıraktı mı?
-        if status == "BAŞARISIZ" and m[-1] != "BALANCE":
-            status = "TUTAMADI"                                   # yakaladı, bıraktı, sonunda dengede değil
-        elif lost and status in ("BAŞARILI", "SINIRDA"):
-            status = "DÜŞTÜ"                                      # bıraktı, swing-up yeniden kaldırdı
+    status = classify(r, e)
     # dike en yakın açı, ilk sallanma (3 s; kısa koşuda sürenin yarısı) hariç
     closest = float(np.abs(np.degrees(np.arctan2(np.sin(r.th), np.cos(r.th))))[r.t > min(3.0, 0.5 * T)].min())
     return status, tb, float(np.abs(r.x).max()), closest
@@ -88,6 +83,8 @@ def cell(status, tb, mx, cl):
         return f"✔ ilk yakalama {tb:.1f} s; düştü, yeniden yakalandı (max \\|x\\| {mx:.2f} m)"
     if status == "TUTAMADI":
         return f"✘ {tb:.1f} s'de yakalandı ama tutulamadı"
+    if status == "OTURMADI":
+        return f"✘ {tb:.1f} s'de yakalandı, süre sonunda henüz oturmadı"
     if status == "RAY SINIRI":
         return "✘ ray ucuna çarptı"
     if status == "FAULT":
