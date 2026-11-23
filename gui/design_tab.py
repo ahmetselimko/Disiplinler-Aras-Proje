@@ -200,6 +200,7 @@ class DesignTab(QtWidgets.QWidget):
         state.connection_changed.connect(self.b_send.setEnabled)
         state.params_replaced.connect(self._on_params_replaced)
         self.b_send.setEnabled(False)
+        self._remember_motor()                   # açılıştaki hesap başarısız olsa da sürtünme senkronu çalışsın
         self.calculate()
 
     # ------------------------------------------------------------ girişler → durum

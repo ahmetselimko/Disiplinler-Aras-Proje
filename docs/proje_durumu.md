@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **264 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod yedi tur bağımsız incelemeden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–23.11.2026 tarihli beş tur); kodda bulunanların hepsi düzeltildi ve son turda yeni kod hatası çıkmadı. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **264 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–23.11.2026 tarihli turlar); bulunanların hepsi düzeltildi, son iki turda yeni kod hatası çıkmadı. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor JGB37-520 (mekatronik ara raporunda son seçim); datasheet'i gelmediği için motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle θ işareti dışında birebir aynı (testle doğrulanıyor).
 
@@ -183,6 +183,8 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Belge | Yer tutucu uyarıları swing-up anahtarının yine gittiğini söylemiyordu; `mimari.md` ve sanal ESP32'deki bir açıklama eksik/yanlıştı | Düzeltildi |
 
 **Altıncı tur (23.11.2026):** beşinci turun düzeltmeleri çalıştırılarak doğrulandı; **yeni kod hatası bulunmadı**. Belge: `kullanim_kilavuzu.md` ve bu dosyadaki "K ve tüm ayarlar otomatik yüklenir" cümlesi yer tutucu/giriş türü koşullarını içermiyordu, inceleme sayısı yanlıştı — düzeltildi. Ayrıca analizde hedef çizgisi yalnız başarılı simülasyondan sonra güncellenir.
+
+**Yedinci tur (son kontrol, 23.11.2026):** son iki commit ve belgeler kodla karşılaştırıldı; **yeni kod hatası bulunmadı**. `mimari.md`'ye eksik "giriş türü voltage" koşulu ve inceleme sayısı düzeltildi; Tasarım sekmesi açılıştaki hesap başarısız olsa da sürtünme sonucunu (T_f) doğru eşitler.
 
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
