@@ -69,10 +69,12 @@ class DesignTab(QtWidgets.QWidget):
         self.w_par = {}
         # Kutular değeri ondalık sayısına yuvarlar; kullanıcı değiştirmediyse dosyadaki TAM değer korunur
         # (ör. r_pulley 0.009549 → 0.00955 olup K ve gains.h'i sessizce değiştirmesin)
-        self._exact: dict = {}
+        self._exact: dict = {}       # kutu → dosyadan/durumdan gelen tam değer
+        self._shown: dict = {}       # kutu → o tam değer yazıldığında kutunun gösterdiği değer
         for key, label, unit, lo, hi, dec in PARAM_FIELDS:
             self.w_par[key] = spin(getattr(p, key), lo, hi, dec, suffix=unit)
             self._exact[self.w_par[key]] = float(getattr(p, key))
+            self._shown[self.w_par[key]] = self.w_par[key].value()
             f.addRow(label, self.w_par[key])
         self.w_mode = QtWidgets.QComboBox()
         self.w_mode.addItems(INPUT_MODES)
@@ -92,6 +94,7 @@ class DesignTab(QtWidgets.QWidget):
         for key, label, unit, lo, hi, dec in MOTOR_FIELDS:
             self.w_mot[key] = spin(getattr(p.motor, key), lo, hi, dec, suffix=unit)
             self._exact[self.w_mot[key]] = float(getattr(p.motor, key))
+            self._shown[self.w_mot[key]] = self.w_mot[key].value()
             f.addRow(label, self.w_mot[key])
         left.addWidget(g_mot)
 
@@ -201,22 +204,25 @@ class DesignTab(QtWidgets.QWidget):
 
     # ------------------------------------------------------------ girişler → durum
     def _val(self, w) -> float:
-        """Kutunun değeri; gösterilen değer dosyadan gelen tam değerin yuvarlanmışıysa tam değer."""
+        """Kutunun değeri; kutu hâlâ tam değer yazıldığında GÖSTERDİĞİ (Qt'nin yuvarladığı) değerdeyse tam değer.
+        Qt'nin kendi yuvarlaması kullanıldığı için 0.0625 gibi tam ortadaki değerlerde de doğru çalışır."""
         exact = self._exact.get(w)
-        if exact is not None and abs(w.value() - round(exact, w.decimals())) < 0.5 * 10 ** -w.decimals():
+        if exact is not None and w.value() == self._shown.get(w):
             return exact
         return w.value()
 
     def _set(self, w, value: float):
-        self._exact[w] = float(value)
         w.setValue(value)
+        self._exact[w] = float(value)
+        self._shown[w] = w.value()
 
     def _on_params_replaced(self):
         """Parametreler dışarıdan değişti (sürtünme ölçümü T_f'yi yazdı). Yalnız değişen motor değerleri kutulara
         yazılır; Tasarım'da kaydedilmemiş Q/R/swing-up/geçiş düzenlemeleri UYGULANMAZ (cihaza giden K değişmesin)."""
         st = self.state
         for k, w in self.w_mot.items():
-            if abs(self._val(w) - getattr(st.p.motor, k)) > 1e-15:
+            # yalnız DURUMDA değişen alan (son eşitlenen değere göre); kutuda kaydedilmemiş düzenleme varsa korunur
+            if abs(getattr(st.p.motor, k) - self._exact.get(w, getattr(st.p.motor, k))) > 1e-15:
                 self._set(w, getattr(st.p.motor, k))
         st.compute_gains()
 

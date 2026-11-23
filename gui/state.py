@@ -93,6 +93,7 @@ class AppState(QtCore.QObject):
         ts = f"  Ts={self.device_Ts * 1000:g} ms" if self.device_Ts else "  (Ts bildirilmedi)"
         self.log.emit(f"Cihaz: fw={data.get('fw', '?')}{ts}")
         if self.placeholder_on_real_device:
+            self.send_swingup()                  # güvenlik: K gitmese de swing-up kapalıysa kart bunu bilmeli
             self.log.emit("UYARI: parametreler YER TUTUCU — K ve ayarlar gerçek karta otomatik GÖNDERİLMEDİ; "
                           "kart derlendiği gains.h ile çalışır. Ölçülmüş değerleri girin ya da "
                           "'K'yı Cihaza Gönder' ile onaylayarak gönderin.")
@@ -113,7 +114,10 @@ class AppState(QtCore.QObject):
     def push_to_device(self, force: bool = False) -> bool:
         """Güncel K ve tüm swing-up/geçiş ayarlarını (swing-up açık/kapalı ve x_ref dahil) cihaza yükler.
         K, cihazın kontrol periyodu için tasarlanmamışsa GÖNDERİLMEZ. Yer tutucu parametrelerle gerçek
-        karta yalnız force=True ile (kullanıcı onayıyla) gönderilir."""
+        karta yalnız force=True ile (kullanıcı onayıyla) gönderilir.
+        Swing-up açık/kapalı anahtarı güvenlikle ilgili olduğu için K'yı durduran engellerden ÖNCE ve her
+        durumda gönderilir (kart resetlenince firmware varsayılanı olan "açık"a döner)."""
+        self.send_swingup()
         if self.p.input_mode != "voltage":
             # firmware yalnız DC motor (gerilim girişi) için yazıldı; kuvvet/ivme için tasarlanan K'nın birimi
             # ve ölçeği farklıdır, cihazda arabayı raydan kaçırır (gains.h dışa aktarımı da #error verir)
@@ -134,7 +138,6 @@ class AppState(QtCore.QObject):
         # Her mesaj bağımsız gönderilir: biri yerelde reddedilirse (ör. aralık dışı) diğerleri yine gider,
         # cihaz yarı güncellenmiş kalmaz; gönderilemeyenler topluca bildirilir.
         msgs = [("set_gain", dict(K=self.K.tolist())),
-                ("set_param", dict(swingup=int(self.swingup_enabled))),
                 ("set_param", dict(catch_deg=self.catch_deg, release_deg=self.release_deg)),
                 ("set_param", dict(catch_dth=self.catch_dth, catch_x=self.catch_x, catch_dx=self.catch_dx)),
                 ("set_param", dict(k_E=su.k_E, a_max=su.a_max, k_x=su.k_x, k_v=su.k_v, E_ratio=su.E_ratio)),
@@ -149,6 +152,12 @@ class AppState(QtCore.QObject):
         self.log.emit("K = [" + ", ".join(f"{k:.3f}" for k in self.K) + "] ve ayarlar gönderildi "
                       "(reddedilen olursa aşağıda ✗ ile görünür).")
         return True
+
+    def send_swingup(self) -> bool:
+        """Swing-up açık/kapalı anahtarını tek başına gönderir (bağlıysa)."""
+        if self.reader is None:
+            return False
+        return self.send("set_param", swingup=int(self.swingup_enabled))
 
     def clamp_xref(self, x: float) -> float:
         """Cihazın kuralları: |x_ref| ≤ rail_half − 0.1 m ve protokol aralığı (SET_PARAM_LIMITS x_ref)."""

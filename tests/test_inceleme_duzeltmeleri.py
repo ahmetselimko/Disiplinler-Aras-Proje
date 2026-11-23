@@ -469,6 +469,69 @@ def test_excepthook_logs_every_error_to_panel_and_file(qapp, monkeypatch, tmp_pa
 
 
 # ------------------------------------------------------------------ üçüncü tur (bağımsız inceleme, 23.11.2026)
+def test_swingup_flag_reaches_real_board_with_placeholder_params():
+    """Yer tutucu parametrelerle K gerçek karta gitmez ama swing-up kapalı bilgisi HER boot'ta gitmeli
+    (firmware reset sonrası varsayılan 'açık'a döner; ilk donanım denemesi swing-up kapalı yapılır)."""
+    st = _state(placeholder=True)
+    st.swingup_enabled = False
+    st.set_reader(_Reader(SimpleNamespace(name="COM3")))
+    st.on_device_info({"Ts": 0.002}, boot=True)
+    st.on_device_info({"Ts": 0.002}, boot=True)                  # kart resetlendi
+    assert st.reader.sent == [("set_param", {"swingup": 0})] * 2
+
+
+def test_replay_summary_shows_how_trial_ended(tmp_path):
+    from pendulum_lab.recorder import compare_recording_with_simulation, load_recording
+    from pendulum_lab.recorder import Recorder
+    from gui.state import AppState
+    import copy
+    st = AppState(ROOT / "config" / "params.json")
+    dev = MockDevice(params=copy.deepcopy(st.p), seed=0, realtime=False)
+    dev.sup.set_gain(st.K)
+    out = []
+    dev.output = out.append
+    dev.start()
+    _home(dev)
+    dev.feed(P.encode_command("start"))
+    _run(dev, 7.0)
+    dev.feed(P.encode_command("estop"))
+    _run(dev, 0.5)
+    rd = TelemetryReader(SimpleNamespace(write=lambda d: None))
+    rec = Recorder(tmp_path / "f.csv", meta={"kaynak": "test", **st.get_metadata()})
+    rd.sinks.append(rec)
+    rd._handle_lines(b"".join(out).splitlines(keepends=True))
+    rec.close()
+    comp = compare_recording_with_simulation(load_recording(tmp_path / "f.csv"), fallback_state=st)
+    assert comp.rec_summary.final_mode == "FAULT"
+
+
+def test_exact_value_survives_tie_rounding(qapp):
+    from gui import design_tab
+    st = _state()
+    st.p.M = 0.0625                                                # kutu 3 ondalık: Qt 0.063 gösterir
+    tab = design_tab.DesignTab(st)
+    assert tab._params_from_widgets().M == 0.0625
+
+
+def test_friction_sync_keeps_unsaved_motor_edits(qapp):
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    tab.w_mot["R"].setValue(3.0)                                   # kaydedilmemiş motor düzenlemesi
+    st.p.motor.T_f = 0.002
+    st.params_replaced.emit()
+    assert tab.w_mot["R"].value() == 3.0
+    assert abs(tab._val(tab.w_mot["T_f"]) - 0.002) < 1e-12
+
+
+def test_mock_start_check_uses_measured_position():
+    dev, out = _offline(limit_switches=False, enc_sign=-1, x0=0.16)
+    dev.feed(P.encode_command("home"))                            # elle ortalama: ölçülen x = 0 olur
+    dev.step()
+    dev.feed(P.encode_command("start"))
+    dev.step()
+    assert any(b'"ack":"start","ok":true' in o for o in out)
+
 def test_mock_u_max_applies_to_controller_after_fc_volt():
     dev, _ = _offline()
     for f in (dict(u_max=12.0), dict(fc_volt=0.0), dict(u_max=3.0)):
@@ -509,7 +572,7 @@ def test_push_refused_for_non_voltage_input():
     st.p.input_mode = "force"
     st.set_reader(_Reader())
     assert st.push_to_device() is False
-    assert st.reader.sent == []
+    assert st.reader.sent == [("set_param", {"swingup": 1})]       # K gitmez; yalnız swing-up anahtarı
 
 
 def test_design_tab_keeps_exact_file_values(qapp):

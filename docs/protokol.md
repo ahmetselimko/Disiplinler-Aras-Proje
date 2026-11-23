@@ -102,14 +102,20 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 ```
            home            homed
   IDLE ──────────▶ HOMING ───────▶ IDLE
-   ▲  │ start (homed)
+   ▲  │ start (homed): swingup=1 → SWING_UP, swingup=0 → WAIT
    │  ▼
-   │ SWING_UP ── yakalama şartı ─────▶ BALANCE
-   │    ▲                                 │
-   │    └────────── |θ|>release ──────────┘
+   │ SWING_UP ◀── swingup=1 / swingup=0 ──▶ WAIT          (deneme sırasında hemen uygulanır)
+   │    │                                     │
+   │    └──────── yakalama şartı ─────────────┴──▶ BALANCE
+   │                                                │
+   │    SWING_UP (swingup=1) / WAIT (swingup=0) ◀───┘ |θ| > release
    │
-  stop        her mod ── |x| > rail_half − 3 cm, limit switch, sensör hatası, estop,
-                          1 s PC sessizliği (link, yalnız hareketli modlarda) ──▶ FAULT (motor kapalı)
+  stop        FAULT'a geçiş (motor kapalı):
+                • estop: her modda
+                • sensör hatası: IDLE dışındaki her modda
+                • |x| > rail_half − 3 cm: WAIT, SWING_UP, BALANCE, FRICTION
+                • limit switch: WAIT, SWING_UP, BALANCE, FRICTION (homing'de: homing_* hataları)
+                • 1 s PC sessizliği (link): HOMING, WAIT, SWING_UP, BALANCE, FRICTION
 
            friction (homed)        bitti / stop
   IDLE ───────────────────▶ FRICTION ─────────────▶ IDLE   (sonuç: friction olayı)

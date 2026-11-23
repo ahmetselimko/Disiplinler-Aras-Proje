@@ -442,7 +442,10 @@ def compare_recording_with_simulation(
         sim=sim,
         params=p,
         K=K,
-        rec_summary=rec_summary,
+        # aktif dilim bitişteki ilk IDLE/FAULT örneğini dışarıda bırakır; denemenin NASIL bittiği özette görünsün
+        rec_summary=(dc_replace(rec_summary, final_mode=str(session.mode[act.stop]))
+                     if act.stop < len(session.mode) and session.mode[act.stop] in ("FAULT", "IDLE")
+                     else rec_summary),
         sim_summary=sim_summary,
         t_start=t_off,
         changed_during_trial=changed_later,
