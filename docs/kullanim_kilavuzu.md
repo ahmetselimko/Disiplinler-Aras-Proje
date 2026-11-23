@@ -17,7 +17,7 @@ python main.py
 ## 1. Bağlanma
 Üstteki **Port** listesinde varsayılan olarak **★ Sanal ESP32 (simülasyon)** seçilidir. Donanım yokken her şey bu sanal cihazla denenir. Gerçek kart takılıysa listede ESP32'nin COM portu da görünür (yenilemek için ⟳). Baud: **921600**. **Bağlan**'a basın.
 
-Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tasarımdakiyle aynıysa K ve tüm ayarlar otomatik yüklenir ve sağ alttaki günlükte görünür. Ts farklıysa K **gönderilmez** ve uyarı çıkar.
+Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı her durumda (güvenlik) gönderilir. K ve diğer ayarlar ise yalnız cihazın kontrol periyodu (Ts) tasarımdakiyle aynıysa, parametreler yer tutucu değilse ve giriş türü `voltage` ise otomatik yüklenir ve sağ alttaki günlükte görünür. Ts farklıysa K **gönderilmez** ve uyarı çıkar; yer tutucu parametrelerle gerçek kartta K yalnız **K'yı Cihaza Gönder** ile onaylanarak gider.
 
 ## 2. Canlı İzleme sekmesi
 

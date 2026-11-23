@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **264 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod beş tur bağımsız incelemeden geçti (ilk tur 21, doğrulama turu 6 bulgu; 22.11 ve 23.11 turlarının bulguları §4.2'de); hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **264 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod yedi tur bağımsız incelemeden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–23.11.2026 tarihli beş tur); kodda bulunanların hepsi düzeltildi ve son turda yeni kod hatası çıkmadı. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor JGB37-520 (mekatronik ara raporunda son seçim); datasheet'i gelmediği için motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle θ işareti dışında birebir aynı (testle doğrulanıyor).
 
@@ -45,7 +45,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 * **Model ve LQR Tasarımı:** parametre (g dahil) ve motor değerleri, Q/R ağırlıkları → K. Açık ve kapalı çevrim kutupları, kutup haritası, en yüksek araba hızı uyarısı, swing-up ayarları (hedef enerji oranı) ve LQR'a geçiş şartları, "küre mi küp mü" geometri hesaplayıcı, `gains.h` dışa aktarma.
 * **Analiz ve Simülasyon:** aşağıdan swing-up dahil lineer olmayan simülasyon (başlangıç hızları, Kalman aç/kapa) ve animasyonlu tekrar oynatma, model uyumsuzluğu ve dürtme denemeleri, Matlab uyumlu deneme, basamak yanıtı, kök eğrisi.
 * **Kayıt Oynatma:** CSV kaydını aynı başlangıç koşullu simülasyonla üst üste çizer, RMSE verir; gerçek denemelerde modeli doğrulamak için.
-* Bağlanınca cihazın kontrol periyodunu (Ts) sorar. Tasarımdakiyle eşleşirse K ve tüm ayarları otomatik yükler, eşleşmezse K göndermeyi reddeder. Cihaz resetlenirse ayarları yeniden yükler.
+* Bağlanınca cihazın kontrol periyodunu (Ts) sorar. Swing-up açık/kapalı anahtarını her durumda gönderir; K ve diğer ayarları yalnız Ts eşleşirse, parametreler yer tutucu değilse ve giriş türü voltage ise otomatik yükler (yer tutucuyla gerçek kartta onayla gönderilir). Cihaz resetlenirse ayarları yeniden yükler.
 
 ### 2.3 Sanal ESP32
 Donanım olmadan, gerçek kartla **aynı protokol ve aynı komut kurallarıyla** çalışır: homing, limit switch'ler, swing-up, LQR, sensör kusurları. Gerçek karta geçişte arayüzde yalnızca port seçimi değişir.
@@ -122,7 +122,7 @@ Son PR'lar (#35, #36, #37) yapay zekâ araçlarıyla hazırlandığı için, esk
 
 Küçük, bilinen fark: sanal ESP32'de homing yol sınırı hatası (`homing_travel`) yok (firmware'de var). Sürtünme ölçümünde uç switch'i ve yazılımsal ray sınırı ikisinde de denetlenir; `calib` olayı 22.11.2026'da eklendi. `hassasiyet_raporu.md` 22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi: 168 deneyden başarılı olanlar (120) ve parametre sınıfları değişmedi; raporun ayarlar bölümündeki elle yazılmış eski enkoder çözünürlüğü de düzeltildi.
 
-### 4.2 Uçtan uca test ve bağımsız inceleme (22.11.2026)
+### 4.2 Uçtan uca test ve bağımsız inceleme (22–23.11.2026)
 Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → homing → swing-up → denge → dürt → duraklat → durdur → acil stop → sıfırla → sürtünme ölçümü → tüm sekmeler → kayıt oynatma) ve kod üç ayrı ajana (model/kontrol, haberleşme/firmware, arayüz) inceletildi. Model, LQR, Kalman, swing-up, mod geçişleri, Matlab işaret dönüşümü ve protokol uyumu doğru bulundu. Düzeltilenler:
 
 | Önem | Konu | Düzeltme |
@@ -181,6 +181,8 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Canlı animasyondaki hedef çizgisi, karta gitmemiş x_ref'i gösterebiliyordu | Cihazın onayladığı x_ref çizilir |
 | Küçük | Kayıt oynatma, gerçek kartın K'yı onaylamadığı denemelerde (yer tutucu) uyarı vermiyordu | Uyarı eklendi (gains.h'deki K çalışmış olabilir) |
 | Belge | Yer tutucu uyarıları swing-up anahtarının yine gittiğini söylemiyordu; `mimari.md` ve sanal ESP32'deki bir açıklama eksik/yanlıştı | Düzeltildi |
+
+**Altıncı tur (23.11.2026):** beşinci turun düzeltmeleri çalıştırılarak doğrulandı; **yeni kod hatası bulunmadı**. Belge: `kullanim_kilavuzu.md` ve bu dosyadaki "K ve tüm ayarlar otomatik yüklenir" cümlesi yer tutucu/giriş türü koşullarını içermiyordu, inceleme sayısı yanlıştı — düzeltildi. Ayrıca analizde hedef çizgisi yalnız başarılı simülasyondan sonra güncellenir.
 
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
