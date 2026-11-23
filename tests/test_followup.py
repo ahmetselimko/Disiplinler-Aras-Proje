@@ -93,8 +93,8 @@ def test_placeholder_params_not_pushed_to_real_device_without_force():
     st = _state_on(Serial(), placeholder=True)
     assert st.placeholder_on_real_device
     st.on_device_info({"Ts": 0.002})
-    assert st.reader.sent == []                                   # bağlanınca otomatik gönderilmez
-    assert st.push_to_device() is False and st.reader.sent == []
+    assert st.reader.sent == ["set_param"]                        # K gitmez; yalnız güvenlik için swing-up anahtarı
+    assert st.push_to_device() is False and "set_gain" not in st.reader.sent
     assert st.push_to_device(force=True) and "set_gain" in st.reader.sent   # kullanıcı onaylarsa gider
 
 

@@ -514,6 +514,7 @@ void ctrlTask(void *) {
         if (mode == BALANCE && ath > p.release_rad) mode = p.swingup_on ? SWING_UP : WAIT;
         else if (mode != BALANCE && ath < p.catch_rad && fabsf(dth) < p.catch_dth
                  && fabsf(x) < p.catch_x && fabsf(dx) < p.catch_dx) mode = BALANCE;   // Supervisor.can_catch
+        else if (mode != BALANCE) mode = p.swingup_on ? SWING_UP : WAIT;      // swing-up açık/kapalı hemen uygulanır
         if (mode == BALANCE)
           u = -(p.K[0] * (x - p.x_ref) + p.K[1] * dx + p.K[2] * th + p.K[3] * dth);
         else if (mode == SWING_UP)

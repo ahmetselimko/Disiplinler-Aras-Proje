@@ -466,3 +466,209 @@ def test_excepthook_logs_every_error_to_panel_and_file(qapp, monkeypatch, tmp_pa
     assert all(m in text for m in ("ilk", "ikinci", "üçüncü"))
     assert any("ikinci" in m for m in logs) and any("üçüncü" in m for m in logs)
     assert any("2 hata daha" in m for m in logs)
+
+
+# ------------------------------------------------------------------ üçüncü tur (bağımsız inceleme, 23.11.2026)
+def test_swingup_flag_reaches_real_board_with_placeholder_params():
+    """Yer tutucu parametrelerle K gerçek karta gitmez ama swing-up kapalı bilgisi HER boot'ta gitmeli
+    (firmware reset sonrası varsayılan 'açık'a döner; ilk donanım denemesi swing-up kapalı yapılır)."""
+    st = _state(placeholder=True)
+    st.swingup_enabled = False
+    st.set_reader(_Reader(SimpleNamespace(name="COM3")))
+    st.on_device_info({"Ts": 0.002}, boot=True)
+    st.on_device_info({"Ts": 0.002}, boot=True)                  # kart resetlendi
+    assert st.reader.sent == [("set_param", {"swingup": 0})] * 2
+
+
+def test_replay_summary_shows_how_trial_ended(tmp_path):
+    from pendulum_lab.recorder import compare_recording_with_simulation, load_recording
+    from pendulum_lab.recorder import Recorder
+    from gui.state import AppState
+    import copy
+    st = AppState(ROOT / "config" / "params.json")
+    dev = MockDevice(params=copy.deepcopy(st.p), seed=0, realtime=False)
+    dev.sup.set_gain(st.K)
+    out = []
+    dev.output = out.append
+    dev.start()
+    _home(dev)
+    dev.feed(P.encode_command("start"))
+    _run(dev, 7.0)
+    dev.feed(P.encode_command("estop"))
+    _run(dev, 0.5)
+    rd = TelemetryReader(SimpleNamespace(write=lambda d: None))
+    rec = Recorder(tmp_path / "f.csv", meta={"kaynak": "test", **st.get_metadata()})
+    rd.sinks.append(rec)
+    rd._handle_lines(b"".join(out).splitlines(keepends=True))
+    rec.close()
+    comp = compare_recording_with_simulation(load_recording(tmp_path / "f.csv"), fallback_state=st)
+    assert comp.rec_summary.final_mode == "FAULT"
+
+
+def test_exact_value_survives_tie_rounding(qapp):
+    from gui import design_tab
+    st = _state()
+    st.p.M = 0.0625                                                # kutu 3 ondalık: Qt 0.063 gösterir
+    tab = design_tab.DesignTab(st)
+    assert tab._params_from_widgets().M == 0.0625
+
+
+def test_friction_sync_keeps_unsaved_motor_edits(qapp):
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    tab.w_mot["R"].setValue(3.0)                                   # kaydedilmemiş motor düzenlemesi
+    st.p.motor.T_f = 0.002
+    st.params_replaced.emit()
+    assert tab.w_mot["R"].value() == 3.0
+    assert abs(tab._val(tab.w_mot["T_f"]) - 0.002) < 1e-12
+
+
+def test_mock_start_check_uses_measured_position():
+    dev, out = _offline(limit_switches=False, enc_sign=-1, x0=0.16)
+    dev.feed(P.encode_command("home"))                            # elle ortalama: ölçülen x = 0 olur
+    dev.step()
+    dev.feed(P.encode_command("start"))
+    dev.step()
+    assert any(b'"ack":"start","ok":true' in o for o in out)
+
+def test_mock_u_max_applies_to_controller_after_fc_volt():
+    dev, _ = _offline()
+    for f in (dict(u_max=12.0), dict(fc_volt=0.0), dict(u_max=3.0)):
+        dev.feed(P.encode_command("set_param", **f))
+        dev.step()
+    assert dev.p.u_max == 3.0 and dev.sup.p.u_max == 3.0
+
+
+def test_mock_survives_malformed_sim_command():
+    dev, out = _offline()
+    dev.feed(b'{"cmd":"kick","F":null}\n')
+    dev.step()
+    assert any(b'"ack":"?","ok":false' in o for o in out)
+    n = len(out)
+    dev.feed(P.encode_command("ping"))
+    dev.step()
+    assert any(b'"ack":"ping","ok":true' in o for o in out[n:])
+
+
+def test_swingup_off_during_swingup_switches_to_wait():
+    from pendulum_lab import load_params
+    dev, _ = _offline()
+    _home(dev)
+    dev.feed(P.encode_command("start"))
+    _run(dev, 0.2)
+    assert dev.sup.mode.value == "SWING_UP"
+    dev.feed(P.encode_command("set_param", swingup=0))
+    _run(dev, 0.05)
+    assert dev.sup.mode.value == "WAIT"
+    dev.feed(P.encode_command("set_param", swingup=1))
+    _run(dev, 0.05)
+    assert dev.sup.mode.value == "SWING_UP"
+    assert "else if (mode != BALANCE) mode = p.swingup_on ? SWING_UP : WAIT;" in INO
+
+
+def test_push_refused_for_non_voltage_input():
+    st = _state()
+    st.p.input_mode = "force"
+    st.set_reader(_Reader())
+    assert st.push_to_device() is False
+    assert st.reader.sent == [("set_param", {"swingup": 1})]       # K gitmez; yalnız swing-up anahtarı
+
+
+def test_design_tab_keeps_exact_file_values(qapp):
+    from gui import design_tab
+    from pendulum_lab import load_params
+    st = _state()
+    st.p = load_params(ROOT / "config" / "params.json")
+    st.p.c = 2.4e-5
+    tab = design_tab.DesignTab(st)
+    p = tab._params_from_widgets()
+    assert p.motor.r_pulley == st.p.motor.r_pulley == 0.009549
+    assert p.c == 2.4e-5
+    tab.w_par["c"].setValue(0.0005)                                # kullanıcı değiştirirse yeni değer
+    assert tab._params_from_widgets().c == 0.0005
+
+
+def test_friction_result_does_not_apply_unsaved_design_edits(qapp):
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    K0 = st.K.copy()
+    tab.w_Q[2].setValue(500.0)                                     # kaydedilmemiş düzenleme (K Hesapla yok)
+    st.p.motor.T_f = 0.002
+    st.params_replaced.emit()
+    assert st.Q[2] != 500.0
+    assert abs(tab._val(tab.w_mot["T_f"]) - 0.002) < 1e-12
+    assert (abs(st.K - K0) < 1e-9).all()                           # T_f LQR'ı değiştirmez
+
+
+def test_status_bar_marks_k_not_on_device(qapp):
+    from gui.main_window import MainWindow
+    st = _state()
+    win = MainWindow(st)
+    st.set_reader(SimpleNamespace(applied_settings={"K": [0.0, 0.0, 0.0, 0.0]}, error=None))
+    win._update_k_label()
+    assert "gönderilmedi" in win.s_K.text()
+    st.reader.applied_settings = {"K": list(st.K)}
+    win._update_k_label()
+    assert "gönderilmedi" not in win.s_K.text()
+    st.reader = None
+    win.timer.stop()
+    win.close()
+
+
+# ------------------------------------------------------------------ beşinci tur (23.11.2026)
+def test_out_of_range_file_value_uses_what_the_box_shows(qapp):
+    from gui import design_tab
+    st = _state()
+    st.p.motor.V_max, st.p.u_max, st.p.M = 60.0, 60.0, 0.005     # kutu aralıkları: u_max ≤ 48, M ≥ 0.01
+    tab = design_tab.DesignTab(st)
+    p = tab._params_from_widgets()
+    assert p.u_max == tab.w_par["u_max"].value() == 48.0
+    assert p.M == tab.w_par["M"].value()
+
+
+def test_friction_sync_keeps_edit_made_after_calculate(qapp):
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    tab.w_mot["R"].setValue(3.0)
+    assert tab.calculate()
+    tab.w_mot["R"].setValue(4.0)                                   # hesaplamadan sonra yeni, kaydedilmemiş düzenleme
+    st.p.motor.T_f = 0.002
+    st.params_replaced.emit()
+    assert tab.w_mot["R"].value() == 4.0
+    assert abs(tab._val(tab.w_mot["T_f"]) - 0.002) < 1e-12
+
+
+def test_live_target_line_uses_acknowledged_xref():
+    src = (ROOT / "gui" / "live_tab.py").read_text(encoding="utf-8")
+    assert 'applied_settings.get("x_ref", 0.0)' in src
+
+
+def test_replay_warns_when_real_board_never_acknowledged_k(tmp_path):
+    from pendulum_lab.recorder import compare_recording_with_simulation, load_recording, Recorder
+    from gui.state import AppState
+    import copy
+    st = AppState(ROOT / "config" / "params.json")
+    dev = MockDevice(params=copy.deepcopy(st.p), seed=0, realtime=False)
+    out = []
+    dev.output = out.append
+    dev.start()
+    _home(dev)
+    dev.feed(P.encode_command("start"))
+    _run(dev, 2.0)
+    for kaynak, expect in (("gerçek kart (COM5)", True), ("simülasyon (sanal ESP32)", False)):
+        rd = TelemetryReader(SimpleNamespace(write=lambda d: None))
+        path = tmp_path / f"{expect}.csv"
+        rec = Recorder(path, meta={"kaynak": kaynak, **st.get_metadata()})
+        rd.sinks.append(rec)
+        rd._handle_lines(b"".join(out).splitlines(keepends=True))
+        rec.close()
+        comp = compare_recording_with_simulation(load_recording(path), fallback_state=st)
+        assert comp.k_unconfirmed is expect
+
+
+def test_placeholder_messages_mention_swingup_is_still_sent():
+    for f in ("gui/state.py", "gui/connection_panel.py"):
+        assert "swing-up açık/kapalı" in (ROOT / f).read_text(encoding="utf-8")

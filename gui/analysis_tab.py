@@ -207,6 +207,7 @@ class SimulationPage(QtWidgets.QWidget):
         dist = pulse_disturbance(self.dist_t.value(), self.dist_F.value(), self.dist_dur.value() / 1000)
         r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref, f_max=f_max,
                                        disturbance=dist)       # arabaya (Matlab'daki "Apply push")
+        self._xref = x_ref                                     # simülasyon başarılıysa (eski sonuçla karışmasın)
         Km = gain_to_matlab(K)
         reason = {"time": "süre doldu", "rail": f"|x| ≥ {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
         head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",
@@ -250,6 +251,7 @@ class SimulationPage(QtWidgets.QWidget):
             return
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
+        self._xref = st.x_ref                                  # simülasyon başarılıysa (eski sonuçla karışmasın)
         self._show_result(r, real, [], u_max=st.p.u_max, rail_half=st.p.rail_half)
 
     def _show_result(self, r, real, head_lines, u_max, rail_half):
@@ -296,7 +298,7 @@ class SimulationPage(QtWidgets.QWidget):
         r = self.result
         if r is None or i >= len(r.t):
             return
-        self.view.set_state(r.s[i, 0], r.s[i, 2], 0.0)
+        self.view.set_state(r.s[i, 0], r.s[i, 2], getattr(self, "_xref", 0.0))
         for c in self.cursor:
             c.setValue(r.t[i])
 

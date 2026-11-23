@@ -162,7 +162,8 @@ class MockDevice:
                 if self._calib_evt:                # firmware gibi: önce ACK, sonra calib olayı
                     self._calib_evt = False
                     self._emit(P.encode_event("calib", ok=True))
-            except (P.ProtocolError, ValueError) as e:
+            except (P.ProtocolError, ValueError, TypeError, KeyError) as e:
+                # bozuk alanlı komut (ör. "F": null) cihazı öldürmesin; firmware de "?" ile reddeder
                 self._emit(P.encode_ack("?", False, str(e)))
 
     def _handle(self, cmd: str, a: dict) -> bytes:
@@ -206,7 +207,9 @@ class MockDevice:
             if not self.homed:
                 return P.encode_ack("start", False, "önce home (kalibrasyon) yapılmalı")
             if mode == Mode.IDLE:
-                blocked = sup.start_block_reason(self.s[0] - self.x_offset, self.s[1])
+                # enkoder yönü ve home ofseti firmware'deki gibi uygulanır; sadeleştirme: kuantalama ve hız
+                # filtresi yok (firmware S.lx/S.ldx kullanır, fark 0.2 m/s eşiğinde birkaç ms gecikme)
+                blocked = sup.start_block_reason(self.enc_sign * self.s[0] - self.x_offset, self.enc_sign * self.s[1])
                 if blocked:
                     return P.encode_ack("start", False, blocked)
             ok, msg = sup.start()
@@ -296,7 +299,10 @@ class MockDevice:
         elif key == "x_ref":
             sup.x_ref = val
         elif key == "u_max":
+            # fizik ve kontrolcünün modeli: fc_volt sup.p'yi kopyaladıktan sonra da ikisi birlikte değişmeli
+            # (firmware tek bir u_max kullanır)
             self.p.u_max = val
+            sup.p.u_max = val
         elif key == "telemetry_hz":
             self.telemetry_hz = int(val)
         elif key == "fc_volt":

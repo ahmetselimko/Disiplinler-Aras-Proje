@@ -67,8 +67,14 @@ class DesignTab(QtWidgets.QWidget):
         g_par = QtWidgets.QGroupBox("Fiziksel parametreler (mekatronik ekibinden)")
         f = QtWidgets.QFormLayout(g_par)
         self.w_par = {}
+        # Kutular değeri ondalık sayısına yuvarlar; kullanıcı değiştirmediyse dosyadaki TAM değer korunur
+        # (ör. r_pulley 0.009549 → 0.00955 olup K ve gains.h'i sessizce değiştirmesin)
+        self._exact: dict = {}       # kutu → dosyadan/durumdan gelen tam değer
+        self._shown: dict = {}       # kutu → o tam değer yazıldığında kutunun gösterdiği değer
         for key, label, unit, lo, hi, dec in PARAM_FIELDS:
             self.w_par[key] = spin(getattr(p, key), lo, hi, dec, suffix=unit)
+            self._exact[self.w_par[key]] = float(getattr(p, key))
+            self._shown[self.w_par[key]] = self.w_par[key].value()
             f.addRow(label, self.w_par[key])
         self.w_mode = QtWidgets.QComboBox()
         self.w_mode.addItems(INPUT_MODES)
@@ -87,6 +93,8 @@ class DesignTab(QtWidgets.QWidget):
         self.w_mot = {}
         for key, label, unit, lo, hi, dec in MOTOR_FIELDS:
             self.w_mot[key] = spin(getattr(p.motor, key), lo, hi, dec, suffix=unit)
+            self._exact[self.w_mot[key]] = float(getattr(p.motor, key))
+            self._shown[self.w_mot[key]] = self.w_mot[key].value()
             f.addRow(label, self.w_mot[key])
         left.addWidget(g_mot)
 
@@ -190,31 +198,64 @@ class DesignTab(QtWidgets.QWidget):
         self.b_save.clicked.connect(self.save)
         self.g_btn.clicked.connect(self.apply_geometry)
         state.connection_changed.connect(self.b_send.setEnabled)
-        state.params_replaced.connect(lambda: (self._params_to_widgets(state.p), self.calculate()))
+        state.params_replaced.connect(self._on_params_replaced)
         self.b_send.setEnabled(False)
+        self._remember_motor()                   # açılıştaki hesap başarısız olsa da sürtünme senkronu çalışsın
         self.calculate()
 
     # ------------------------------------------------------------ girişler → durum
+    def _val(self, w) -> float:
+        """Kutunun değeri; kutu hâlâ tam değer yazıldığında GÖSTERDİĞİ (Qt'nin yuvarladığı) değerdeyse tam değer.
+        Qt'nin kendi yuvarlaması kullanıldığı için 0.0625 gibi tam ortadaki değerlerde de doğru çalışır."""
+        exact = self._exact.get(w)
+        # aralık dışı tam değer kullanılmaz: kutu onu sınıra kırpmıştır, görünen ile kullanılan aynı olmalı
+        if exact is not None and w.minimum() <= exact <= w.maximum() and w.value() == self._shown.get(w):
+            return exact
+        return w.value()
+
+    def _set(self, w, value: float):
+        w.setValue(value)
+        self._exact[w] = float(value)
+        self._shown[w] = w.value()
+
+    def _on_params_replaced(self):
+        """Parametreler dışarıdan değişti (sürtünme ölçümü T_f'yi yazdı). Yalnız değişen motor değerleri kutulara
+        yazılır; Tasarım'da kaydedilmemiş Q/R/swing-up/geçiş düzenlemeleri UYGULANMAZ (cihaza giden K değişmesin)."""
+        st = self.state
+        synced = getattr(self, "_motor_synced", {})
+        for k, w in self.w_mot.items():
+            # yalnız DURUMDA değişen alan (son uygulanan/eşitlenen değere göre); kutudaki kaydedilmemiş
+            # düzenleme (K Hesapla'dan SONRA yapılmış olsa da) korunur
+            new = getattr(st.p.motor, k)
+            if abs(new - synced.get(k, new)) > 1e-15:
+                self._set(w, new)
+        self._remember_motor()
+        st.compute_gains()
+
+    def _remember_motor(self):
+        """Durumdaki (uygulanmış) motor değerlerinin kopyası; dışarıdan gelen değişikliği ayırt etmek için."""
+        self._motor_synced = {k: getattr(self.state.p.motor, k) for k in self.w_mot}
+
     def _params_from_widgets(self) -> PendulumParams:
-        motor = MotorParams(**{k: w.value() for k, w in self.w_mot.items()})
-        return PendulumParams(**{k: w.value() for k, w in self.w_par.items()},
+        motor = MotorParams(**{k: self._val(w) for k, w in self.w_mot.items()})
+        return PendulumParams(**{k: self._val(w) for k, w in self.w_par.items()},
                               input_mode=self.w_mode.currentText(), motor=motor, note=self.state.p.note,
                               placeholder=not self.w_measured.isChecked())
 
     def _params_to_widgets(self, p: PendulumParams):
         for k, w in self.w_par.items():
-            w.setValue(getattr(p, k))
+            self._set(w, getattr(p, k))
         for k, w in self.w_mot.items():
-            w.setValue(getattr(p.motor, k))
+            self._set(w, getattr(p.motor, k))
         self.w_mode.setCurrentText(p.input_mode)
         self.w_measured.setChecked(not p.placeholder)
 
     def apply_geometry(self):
         m, l, I = pendulum_from_geometry(self.g_rod_m.value(), self.g_rod_l.value(), self.g_bob_m.value(),
                                          self.g_shape.currentText(), self.g_size.value())
-        self.w_par["m"].setValue(m)
-        self.w_par["l"].setValue(l)
-        self.w_par["I"].setValue(I)
+        self._set(self.w_par["m"], m)          # hesaplanan TAM değerler (kutu yuvarlasa da)
+        self._set(self.w_par["l"], l)
+        self._set(self.w_par["I"], I)
         self.state.log.emit(f"Geometri: m={m:.4f} kg, l={l:.4f} m, I={I:.6f} kg·m² ({self.g_shape.currentText()})")
         self.calculate()
 
@@ -236,6 +277,7 @@ class DesignTab(QtWidgets.QWidget):
         st.catch_deg, st.release_deg = self.w_catch.value(), self.w_release.value()
         st.catch_dth, st.catch_x, st.catch_dx = self.w_catch_dth.value(), self.w_catch_x.value(), self.w_catch_dx.value()
         st.K, st.cl_poles = Kd.ravel(), evd
+        self._remember_motor()
         st.params_changed.emit()
         st.gains_changed.emit()
 

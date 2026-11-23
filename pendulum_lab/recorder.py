@@ -133,6 +133,8 @@ class ReplayComparison:
     t_start: float = 0.0                 # simülasyonun başladığı an (BAŞLAT), gösterilen eksende [s]
     changed_during_trial: list = None    # deneme sırasında cihazın onayladığı ayar anahtarları
     sim_actions_during_trial: list = None  # deneme sırasında gönderilen dürt/duraklat/sıfırla (simülasyon içermez)
+    x_ref: float = 0.0                   # simülasyonun kullandığı hedef konum [m]
+    k_unconfirmed: bool = False          # gerçek kart K'yı onaylamamıştı (gains.h'deki K çalışmış olabilir)
 
 
 def load_recording(path: str | Path) -> RecordedSession:
@@ -441,11 +443,18 @@ def compare_recording_with_simulation(
         sim=sim,
         params=p,
         K=K,
-        rec_summary=rec_summary,
+        # aktif dilim bitişteki ilk IDLE/FAULT örneğini dışarıda bırakır; denemenin NASIL bittiği özette görünsün
+        rec_summary=(dc_replace(rec_summary, final_mode=str(session.mode[act.stop]))
+                     if act.stop < len(session.mode) and session.mode[act.stop] in ("FAULT", "IDLE")
+                     else rec_summary),
         sim_summary=sim_summary,
         t_start=t_off,
         changed_during_trial=changed_later,
         sim_actions_during_trial=sim_actions,
+        k_unconfirmed=bool(use_recorded_config
+                           and str(session.meta.get("kaynak", "")).startswith("gerçek kart")
+                           and "K" not in (meta.get("device_acknowledged_settings") or {})),
+        x_ref=float(sup.x_ref),
         rmse_th_deg=float(np.sqrt(np.mean(err_th_deg ** 2))),
         rmse_x=float(np.sqrt(np.mean(err_x ** 2))),
         rmse_u=float(np.sqrt(np.mean(err_u ** 2))),

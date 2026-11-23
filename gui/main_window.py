@@ -97,6 +97,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._frames += 1
             else:
                 self.live.refresh_summary(reader)
+            self._update_k_label()
             self.s_rate.setText(f"  Veri: {reader.rate_hz:6.0f} Hz   kayıp: {reader.dropped}   "
                                 f"hatalı satır: {reader.parse_errors}")
         now = time.perf_counter()
@@ -110,7 +111,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.live.estop()
 
     def _on_gains(self):
-        self.s_K.setText("K = [" + ", ".join(f"{k:.2f}" for k in self.state.K) + "]  ")
+        self._update_k_label()
+
+    def _update_k_label(self):
+        """Durum çubuğundaki K; bağlıyken cihazın onayladığı K'dan farklıysa bunu açıkça yazar
+        (ör. Ts uyuşmazlığı ya da yer tutucu yüzünden gönderilmedi)."""
+        st = self.state
+        text = "K = [" + ", ".join(f"{k:.2f}" for k in st.K) + "]"
+        if st.reader is not None:
+            dev = st.reader.applied_settings.get("K")
+            if dev is None or len(dev) != len(st.K) or any(abs(a - b) > 1e-9 for a, b in zip(dev, st.K)):
+                text += "  (cihaza gönderilmedi)"
+        if text + "  " != self.s_K.text():
+            self.s_K.setText(text + "  ")
 
     def _on_tab_changed(self, idx: int):
         if self.tabs.widget(idx) is self.playback:

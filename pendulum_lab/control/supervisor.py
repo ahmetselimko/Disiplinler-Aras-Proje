@@ -117,6 +117,9 @@ class Supervisor:
             self.mode = Mode.SWING_UP if self.swingup_enabled else Mode.WAIT
         elif self.mode in (Mode.SWING_UP, Mode.WAIT) and self.can_catch(s):
             self.mode = Mode.BALANCE
+        elif self.mode in (Mode.SWING_UP, Mode.WAIT):
+            # "Swing-up açık" deneme sırasında değişirse hemen uygulanır (kapatılınca pompalama durur)
+            self.mode = Mode.SWING_UP if self.swingup_enabled else Mode.WAIT
 
         if self.mode == Mode.BALANCE:
             u = self.lqr_input(s)

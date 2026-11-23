@@ -10,8 +10,8 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **217 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod iki tur bağımsız incelemeden geçti: ilk turda bulunan 21 bulgu ve doğrulama turunda çıkan 6 yeni sorun düzeltildi (bkz. §4). 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
-* Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor iki aday arasında (JGB37-520 / DFRobot FIT0186) ve teyit bekliyor, o yüzden motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
+* **264 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–23.11.2026 tarihli turlar); bulunanların hepsi düzeltildi, son iki turda yeni kod hatası çıkmadı. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor JGB37-520 (mekatronik ara raporunda son seçim); datasheet'i gelmediği için motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle θ işareti dışında birebir aynı (testle doğrulanıyor).
 
 **En önemli tasarım kararı:** Sarkacı dengede tutan döngü (saniyede 500 kez) **ESP32 üzerinde** çalışır, bilgisayarda değil. USB gecikmesi ve Windows'un düzensiz zamanlaması, döngü PC'de olsaydı hangi dille yazılırsa yazılsın sarkacı düşürürdü. Bilgisayar zaman açısından kritik olmayan işleri yapar: K'yı hesaplamak ve göndermek, izlemek, kaydetmek, simülasyon yapmak.
@@ -45,7 +45,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 * **Model ve LQR Tasarımı:** parametre (g dahil) ve motor değerleri, Q/R ağırlıkları → K. Açık ve kapalı çevrim kutupları, kutup haritası, en yüksek araba hızı uyarısı, swing-up ayarları (hedef enerji oranı) ve LQR'a geçiş şartları, "küre mi küp mü" geometri hesaplayıcı, `gains.h` dışa aktarma.
 * **Analiz ve Simülasyon:** aşağıdan swing-up dahil lineer olmayan simülasyon (başlangıç hızları, Kalman aç/kapa) ve animasyonlu tekrar oynatma, model uyumsuzluğu ve dürtme denemeleri, Matlab uyumlu deneme, basamak yanıtı, kök eğrisi.
 * **Kayıt Oynatma:** CSV kaydını aynı başlangıç koşullu simülasyonla üst üste çizer, RMSE verir; gerçek denemelerde modeli doğrulamak için.
-* Bağlanınca cihazın kontrol periyodunu (Ts) sorar. Tasarımdakiyle eşleşirse K ve tüm ayarları otomatik yükler, eşleşmezse K göndermeyi reddeder. Cihaz resetlenirse ayarları yeniden yükler.
+* Bağlanınca cihazın kontrol periyodunu (Ts) sorar. Swing-up açık/kapalı anahtarını her durumda gönderir; K ve diğer ayarları yalnız Ts eşleşirse, parametreler yer tutucu değilse ve giriş türü voltage ise otomatik yükler (yer tutucuyla gerçek kartta onayla gönderilir). Cihaz resetlenirse ayarları yeniden yükler.
 
 ### 2.3 Sanal ESP32
 Donanım olmadan, gerçek kartla **aynı protokol ve aynı komut kurallarıyla** çalışır: homing, limit switch'ler, swing-up, LQR, sensör kusurları. Gerçek karta geçişte arayüzde yalnızca port seçimi değişir.
@@ -74,7 +74,7 @@ Toplantı notları ve tahtadaki plana göre:
 | Alan | Durum | Bilgisayar tarafına etkisi |
 |---|---|---|
 | **Mekanik tasarım:** tabla mekanizması, kayış-kasnak, sigma profil çerçeve, rulman ve köşebentler | Inventor modeli hazırlanıyor | Bittiğinde m, M, l ve atalet `parametre_tablosu.md`'ye girilecek. Inventor "Physical" sekmesi I değerini doğrudan verir |
-| **Motor seçimi** | **BOM v3 (13.11.2026) iki aday listeliyor, seçim teyit bekliyor:** JGB37-520 12 V 530 rpm (en ucuz senaryoda bu) ya da DFRobot FIT0186 (12 V, 251 rpm, 43.8:1, 16 CPR, durma 7 A / 18 kg·cm). Önceki "Pololu 25D 251 RPM" bilgisi aslında FIT0186'yı kastediyordu (o da 37 mm gövdeli, Pololu değil). Kasnak **HTD3M 20 diş** (r ≈ 9.55 mm, mekatronik doğruladı) | **BOM simülasyonu (22.11.2026, `python tools/motor_karsilastirma.py --sadece BOM`, yer tutucu sarkaç/araba, iki ray × iki J_rotor × sürtünmeli/sürtünmesiz = 8 deneme):** JGB37-520 + 20 diş (v_max ≈ 0.56 m/s) durma torku 3 kg·cm varsayımıyla **8/8**, 6 kg·cm varsayımıyla **4/8** (başarısızlar raydan taşma: swing-up kazançları bu motora göre ayarlanmamış); 40 dişle iki varsayımda da 8/8. FIT0186 + 20 diş (v_max ≈ 0.26 m/s) **0/8**, 40 dişle 3/8 (sürtünmeli denemelerin hepsi başarısız). Sonuç: **JGB37-520 + 20 diş uygulanabilir görünüyor, FIT0186 + 20 diş değil.** JGB37-520'nin tork/akım/enkoder değerleri BOM'da yok, VARSAYIM; datasheet gelince araçtaki `BOM_ADAYLAR` güncellenip yeniden çalıştırılmalı. Sarkaç uzunluğu ve kütleleri değişirse sonuç değişir. *Önceki karşılaştırmalar (37D / 25D / Pololu 35 / NEMA17) aynı araçta duruyor; ayrıntı #7* |
+| **Motor seçimi** | **Seçildi: JGB37-520 12 V 530 rpm** (mekatronik ara raporu, "final actuator"). BOM v3'teki diğer aday DFRobot FIT0186 (12 V, 251 rpm, 43.8:1, 16 CPR, durma 7 A / 18 kg·cm). Önceki "Pololu 25D 251 RPM" bilgisi aslında FIT0186'yı kastediyordu (o da 37 mm gövdeli, Pololu değil). Kasnak **HTD3M 20 diş** (r ≈ 9.55 mm, mekatronik doğruladı) | **BOM simülasyonu (22.11.2026, `python tools/motor_karsilastirma.py --sadece BOM`, yer tutucu sarkaç/araba, iki ray × iki J_rotor × sürtünmeli/sürtünmesiz = 8 deneme):** JGB37-520 + 20 diş (v_max ≈ 0.56 m/s) durma torku 3 kg·cm varsayımıyla **8/8**, 6 kg·cm varsayımıyla **4/8** (başarısızlar raydan taşma: swing-up kazançları bu motora göre ayarlanmamış); 40 dişle iki varsayımda da 8/8. FIT0186 + 20 diş (v_max ≈ 0.26 m/s) **0/8**, 40 dişle 3/8 (sürtünmeli denemelerin hepsi başarısız). Sonuç: **JGB37-520 + 20 diş uygulanabilir görünüyor, FIT0186 + 20 diş değil.** JGB37-520'nin tork/akım/enkoder değerleri BOM'da yok, VARSAYIM; datasheet gelince araçtaki `BOM_ADAYLAR` güncellenip yeniden çalıştırılmalı. Sarkaç uzunluğu ve kütleleri değişirse sonuç değişir. *Önceki karşılaştırmalar (37D / 25D / Pololu 35 / NEMA17) aynı araçta duruyor; ayrıntı #7* |
 | **Sarkaç kütlesi: küp mü küre mi** | Karar verilmedi | Geometri hesaplayıcı ikisini karşılaştırır. Uzun çubukta fark küçüktür; belirleyici olan ağırlık merkezi uzaklığı l'dir. Montaj kolaylığına göre seçilebilir |
 | **Sistem modelleme ve lineerleştirme** (θ = 0'da, parametrik) | Matlab dosyaları geldi (`matlab/`) | Kütüphanede hazır ve testli (analitik + sayısal jacobian). Mekatronik ekibin Matlab modeliyle doğrusal ve doğrusal olmayan denklemler θ işareti dışında birebir aynı (`tests/test_matlab_compat.py`). İşaret kuralı henüz birleştirilmedi (#1): Matlab'da θ sola, projede sağa pozitif; K'yı dönüştürmek için `gain_from_matlab` |
 | **Kontrol:** LQR kararı, enerji bazlı swing-up araştırması | LQR seçildi, swing-up araştırılacak | İkisi de uygulandı ve simülasyonda çalışıyor: aşağıdan ~4 s'de kalkış, ±0.2 m ray kullanımı, %20 model hatasında da yakalama. Kazançlar araştırmaya başlangıç noktası olarak kullanılabilir |
@@ -120,9 +120,9 @@ Son PR'lar (#35, #36, #37) yapay zekâ araçlarıyla hazırlandığı için, esk
 * **Matlab uyumlu deneme:** Matlab'ın parametreleri, Q, R'si ve ±10 N kuvvet sınırı yoktu; eklendi.
 * **Motor varsayılanları:** `params.py` ile `params.json` farklı yer tutucular kullanıyordu; eşitlendi. `gains.h` güncel dışa aktarımla yeniden üretildi.
 
-Küçük, bilinen farklar: sanal ESP32'de homing yol sınırı hatası ve sürtünme ölçümündeki switch denetimi yok (firmware'de var; `calib` olayı 22.11.2026'da eklendi). `hassasiyet_raporu.md` 22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi: 168 deneyden başarılı olanlar (120) ve parametre sınıfları değişmedi; raporun ayarlar bölümündeki elle yazılmış eski enkoder çözünürlüğü de düzeltildi.
+Küçük, bilinen fark: sanal ESP32'de homing yol sınırı hatası (`homing_travel`) yok (firmware'de var). Sürtünme ölçümünde uç switch'i ve yazılımsal ray sınırı ikisinde de denetlenir; `calib` olayı 22.11.2026'da eklendi. `hassasiyet_raporu.md` 22.11.2026'da Kalman ve 48 CPR enkoderle yeniden üretildi: 168 deneyden başarılı olanlar (120) ve parametre sınıfları değişmedi; raporun ayarlar bölümündeki elle yazılmış eski enkoder çözünürlüğü de düzeltildi.
 
-### 4.2 Uçtan uca test ve bağımsız inceleme (22.11.2026)
+### 4.2 Uçtan uca test ve bağımsız inceleme (22–23.11.2026)
 Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → homing → swing-up → denge → dürt → duraklat → durdur → acil stop → sıfırla → sürtünme ölçümü → tüm sekmeler → kayıt oynatma) ve kod üç ayrı ajana (model/kontrol, haberleşme/firmware, arayüz) inceletildi. Model, LQR, Kalman, swing-up, mod geçişleri, Matlab işaret dönüşümü ve protokol uyumu doğru bulundu. Düzeltilenler:
 
 | Önem | Konu | Düzeltme |
@@ -150,6 +150,42 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Önemli | Dosya yazılamazsa (izin yok, kayıt klasörü) PyQt uygulamayı kapatıyordu; kapanınca bağlantı bekçisi motoru keser | Kayıt, gains.h ve parametre kaydında hata yakalanır; genel hata penceresi (`install_excepthook`, aynı anda tek pencere; her hata log alanına ve `kayitlar/hatalar.log` dosyasına da yazılır) uygulamayı açık tutar |
 | Belge | Arayüz donarsa Esc/DURDUR işlemez; bozuk `hb` satırı bir komutun onayını tüketebilir | Kullanım kılavuzuna "USB'yi çekin" notu, protokole bilinen sınırlama notu |
 
+**Üçüncü tur (bağımsız inceleme, 23.11.2026):**
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | Sanal ESP32, sürtünme telafisi gönderildikten sonra `u_max` değişikliğini kontrolcüye uygulamıyordu (simülasyon firmware'den farklı sınırlıyordu) | `u_max` fizik ve kontrolcü modeline birlikte uygulanır |
+| Önemli | Giriş türü force/acceleration iken K, yalnız DC motorla çalışan karta uyarısız gönderiliyordu (araba raydan kaçıyordu) | Yalnız `voltage` K'sı gönderilir, diğerinde açıklamalı ret |
+| Küçük | Tasarım kutuları dosya değerlerini yuvarlıyordu (r_pulley 0.009549 → 0.00955, c −%17) | Kullanıcı değiştirmediyse dosyadaki tam değer korunur |
+| Küçük | Bozuk alanlı bir komut (ör. `"F": null`) sanal ESP32'yi tamamen durduruyordu | `"?"` ile reddedilir, cihaz çalışmaya devam eder |
+| Küçük | "Swing-up açık" deneme sırasında kapatılınca pompalama sürüyordu (belgeye aykırı) | Firmware ve sanal cihazda hemen WAIT'e geçer (açılınca SWING_UP) |
+| Küçük | Reddedilen gönderimden sonra durum çubuğu cihazda olmayan K'yı gösteriyordu | Cihazın onayladığından farklıysa "(cihaza gönderilmedi)" yazar |
+| Küçük | Animasyonlardaki hedef çizgisi gönderilmemiş değeri ya da hep 0'ı gösteriyordu | Cihaza giden / simülasyonun kullandığı x_ref çizilir |
+| Küçük | Sürtünme sonucunu kabul etmek Tasarım'daki kaydedilmemiş düzenlemeleri uyguluyordu | Yalnız T_f güncellenir |
+| Belge | `mimari.md`, `proje_durumu.md`, `parametre_tablosu.md` çelişkileri; README'de eski derleme/motor satırları | Düzeltildi |
+
+**Dördüncü tur (düzeltmelerin bağımsız yeniden incelemesi, 23.11.2026):** üçüncü turun düzeltmeleri doğrulandı (swing-up anahtarı geçişleri, histerezis, analiz ve oynatma bozulmadı). Yeni bulgular:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | Yer tutucu parametrelerle gerçek kartta K gitmediği için swing-up kapalı bilgisi de gitmiyordu; kart resetlenince firmware varsayılanı (açık) geçerli oluyor, arayüz kapalı gösteriyordu (ilk donanım denemesi tam bu durum) | Swing-up anahtarı K engellerinden bağımsız, her bağlantıda ve her boot'ta gönderilir |
+| Küçük | Kayıt oynatma özeti FAULT ile biten denemeyi BALANCE gösteriyordu | Denemenin bittiği mod (FAULT/IDLE) özette |
+| Küçük | Tam değer koruması tam ortadaki değerlerde (0.0625) Qt ile Python'un farklı yuvarlaması yüzünden şaşıyordu | Kutunun kendi gösterdiği değerle karşılaştırılır |
+| Küçük | Sürtünme sonucu kaydedilmemiş motor düzenlemelerini geri alıyordu | Yalnız durumda değişen alan güncellenir |
+| Küçük | Sanal ESP32'nin BAŞLAT kontrolü ölçülen değil gerçek konumu kullanıyordu (ters enkoder test modunda yanlış ret) | Firmware gibi ölçülen konum/hız |
+| Belge | Protokoldeki mod şemasında WAIT ve swing-up anahtarı geçişleri yoktu; FAULT koşulları "her mod" diye yazıyordu | Şema ve koşullar düzeltildi |
+
+**Beşinci tur (23.11.2026):** dördüncü turun düzeltmeleri doğrulandı; yeni bulgular:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | Tam değer koruması aralık dışı dosya değerini kullanıyordu: kutu 48 gösterirken u_max 60 ile hesap/gönderim (dördüncü turun düzeltmesinin yan etkisi) | Tam değer yalnız kutunun aralığındaysa kullanılır |
+| Küçük | K Hesapla'dan sonra yapılan kaydedilmemiş motor düzenlemesi sürtünme sonucuyla geri alınıyordu | Son uygulanan motor değerlerine göre yalnız değişen alan yazılır |
+| Küçük | Canlı animasyondaki hedef çizgisi, karta gitmemiş x_ref'i gösterebiliyordu | Cihazın onayladığı x_ref çizilir |
+| Küçük | Kayıt oynatma, gerçek kartın K'yı onaylamadığı denemelerde (yer tutucu) uyarı vermiyordu | Uyarı eklendi (gains.h'deki K çalışmış olabilir) |
+| Belge | Yer tutucu uyarıları swing-up anahtarının yine gittiğini söylemiyordu; `mimari.md` ve sanal ESP32'deki bir açıklama eksik/yanlıştı | Düzeltildi |
+
+**Altıncı tur (23.11.2026):** beşinci turun düzeltmeleri çalıştırılarak doğrulandı; **yeni kod hatası bulunmadı**. Belge: `kullanim_kilavuzu.md` ve bu dosyadaki "K ve tüm ayarlar otomatik yüklenir" cümlesi yer tutucu/giriş türü koşullarını içermiyordu, inceleme sayısı yanlıştı — düzeltildi. Ayrıca analizde hedef çizgisi yalnız başarılı simülasyondan sonra güncellenir.
+
+**Yedinci tur (son kontrol, 23.11.2026):** son iki commit ve belgeler kodla karşılaştırıldı; **yeni kod hatası bulunmadı**. `mimari.md`'ye eksik "giriş türü voltage" koşulu ve inceleme sayısı düzeltildi; Tasarım sekmesi açılıştaki hesap başarısız olsa da sürtünme sonucunu (T_f) doğru eşitler.
+
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
 ---
@@ -169,7 +205,7 @@ Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 oldu�
 
 * **Firmware gerçek kartta hiç denenmedi.** Derlendiği doğrulandı; donanıma özgü sorunlar (pin seçimi, sürücü davranışı, enkoder gürültüsü) olabilir.
 * **Parametreler yer tutucu.** Swing-up kazançları ve LQR ağırlıkları gerçek değerlerle yeniden ayarlanmalı.
-* **Motor değerleri teyit bekliyor:** BOM'da iki aday var (JGB37-520 / FIT0186); JGB37-520'nin tork, akım ve enkoder değerleri bilinmiyor, simülasyon varsayımla çalışıyor. Firmware'deki `ENC_CPR_MOTOR` (48) ve modeldeki 37D yer tutucusu motor kesinleşince güncellenmeli. FIT0186 + 20 diş simülasyonda sarkacı kaldıramıyor (§3).
+* **Motor değerleri bekleniyor:** motor JGB37-520 seçildi ama tork, akım, redüktör ve enkoder değerleri (datasheet) bilinmiyor; simülasyon varsayımla çalışıyor. Firmware'deki `ENC_CPR_MOTOR` (48) ve modeldeki 37D yer tutucusu motor kesinleşince güncellenmeli. FIT0186 + 20 diş simülasyonda sarkacı kaldıramıyor (§3).
 * **12-bit açı sensörünün türevi gürültülü:** dengede motor geriliminde ±1–1.5 V titreşim görülüyor. Filtre daha da kısılırsa yakalama başarısız oluyor. **Çözüldü (#14):** dik bölgede Kalman filtresi kullanılıyor; simülasyonda σ(u) 0.63 V → 0.21 V. Firmware'de `USE_KALMAN 0` ile kapatılabilir (bkz. `docs/katki_14_15.md`).
 * **Step motor desteği yarım:** modelde ve simülasyonda var, firmware'de yok.
 * **Model sadeleştirmeleri:** kayış esnekliği ve motor endüktansı ihmal ediliyor; motorun kuru (Coulomb) sürtünmesi `T_f`, viskoz sürtünmesi `B_m` ve rotor ataleti simülasyonda var ama değer girilene kadar 0 (Coulomb sürtünmesi LQR tasarımında ihmal edilir). Gerçek sistemde kazançlar biraz farklı çıkabilir.
