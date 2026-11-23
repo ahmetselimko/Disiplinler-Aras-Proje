@@ -312,7 +312,7 @@ class LiveTab(QtWidgets.QWidget):
         last = reader.last
         if last is not None:
             self._show_mode(last.mode)
-            self.view.set_state(last.x, last.th, self.xref.value())
+            self.view.set_state(last.x, last.th, self.state.x_ref)   # cihaza gönderilen hedef
             self.values.setText(
                 f"t={last.t:8.3f} s   θ={math.degrees(last.th):+7.2f}°   θ̇={last.dth:+6.2f} rad/s\n"
                 f"x={last.x:+.4f} m   ẋ={last.dx:+.3f} m/s   u={last.u:+6.2f}")

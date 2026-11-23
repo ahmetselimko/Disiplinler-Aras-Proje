@@ -87,7 +87,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 | `catch_dth` | 0.5–50 | LQR'a girişte \|θ̇\| sınırı [rad/s] (varsayılan 5) |
 | `catch_x` | 0.01–1 | LQR'a girişte araba konum sınırı \|x\| [m] (varsayılan 0.4: ray ±0.4 m iken kısıtlamaz; ray daha uzunsa artırılmalı) |
 | `catch_dx` | 0.01–5 | LQR'a girişte araba hız sınırı \|ẋ\| [m/s] (varsayılan 2: kısıtlamaz) |
-| `swingup` | 0/1 | 0 ise sarkaç elle kaldırılana kadar beklenir (WAIT) |
+| `swingup` | 0/1 | 0 ise sarkaç elle kaldırılana kadar beklenir (WAIT). Deneme sırasında değiştirilirse hemen uygulanır: SWING_UP ↔ WAIT (BALANCE'ı etkilemez; düşünce hangisine döneceğini belirler) |
 | `k_E` | 0–10000 | Swing-up enerji kazancı |
 | `a_max` | 0–50 | Swing-up ivme sınırı [m/s²] |
 | `k_x`, `k_v` | 0–1000 | Swing-up araba merkezleme kazançları |

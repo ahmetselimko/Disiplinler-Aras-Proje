@@ -15,7 +15,7 @@ Mekatronik + Bilgisayar disiplinlerarası ters sarkaç projesinin yazılım tara
 * **`pendulum_lab/`**: Matlab'in yerine geçen Python kütüphanesi. Modelleme, doğrusallaştırma, LQR, enerji bazlı swing-up, mod geçişi, simülasyon, filtreler (türev filtresi + Kalman), seri haberleşme, kayıt ve kayıt oynatma, Matlab modeliyle uyumluluk.
 * **`gui/` + `main.py`**: Canlı izleme ve kontrol arayüzü (PyQt5 + PyQtGraph).
 * **Sanal ESP32**: donanım gelmeden arayüzün uçtan uca çalıştırılabilmesi için.
-* **`firmware/esp32_pendulum/`**: ESP32 kodu (aynı kontrol mantığı). GitHub Actions'ta iki ESP32 core sürümüyle hatasız derleniyor; **kartta henüz denenmedi**.
+* **`firmware/esp32_pendulum/`**: ESP32 kodu (aynı kontrol mantığı). GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle hatasız derleniyor; **kartta henüz denenmedi**.
 * **`matlab/`**: mekatronik ekibinin Matlab/Simulink dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`). Model Python kütüphanesiyle θ işareti dışında aynıdır; bkz. [matlab/README.md](matlab/README.md).
 * **`docs/`**: protokol, mimari, parametre tablosu, Matlab karşılıkları, kullanım kılavuzu, görev katkı belgeleri.
 
@@ -51,7 +51,7 @@ python main.py
 Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kartın COM portu seçilir, denge döngüsü kartta çalışır, arayüz izler ve komut gönderir. **Ancak bu yol henüz denenmedi.** Şimdiye kadarki bütün sonuçlar simülasyondan geliyor. Gerçek sistemde çalışması için:
 
 1. Firmware karta yüklenmeli (derleme CI'da doğrulanıyor).
-2. Kablolama `firmware/esp32_pendulum/board_pins.h`'deki pinlere göre yapılmalı. Donanım (BOM v3, 13.11.2026): ESP32-S3-DevKitC-1 N16R8, BTS7960 sürücü, AS5600 açı sensörü, HTD3M 20 dişli kasnak (`config/params.json`'da r = 9.55 mm). **Motor teyit bekliyor** (JGB37-520 ya da DFRobot FIT0186): o gelene kadar motor değerleri (R, Kt, Ke, redüktör 10:1) eski 37D yer tutucusu, enkoder 48 CPR yer tutucusudur.
+2. Kablolama `firmware/esp32_pendulum/board_pins.h`'deki pinlere göre yapılmalı. Donanım (BOM v3, 13.11.2026): ESP32-S3-DevKitC-1 N16R8, BTS7960 sürücü, AS5600 açı sensörü, HTD3M 20 dişli kasnak (`config/params.json`'da r = 9.55 mm). **Motor JGB37-520** (mekatronik raporu, son seçim); datasheet'i gelene kadar motor değerleri (R, Kt, Ke, redüktör 10:1) eski 37D yer tutucusu, enkoder 48 CPR yer tutucusudur.
 3. `config/params.json` gerçek ölçülerle doldurulmalı, K yeniden hesaplanıp karta gönderilmeli.
 4. Limit switch'ler takılacak (firmware varsayılanı `LIMIT_SWITCHES 1`; switch tipi ve pinleri teyit edilmeli). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
 5. [İlk açılış kontrol listesi](firmware/esp32_pendulum/README.md#i̇lk-açılış-kontrol-listesi) sırayla uygulanmalı: işaret kontrolü → homing → yalnız LQR → swing-up.
@@ -67,7 +67,7 @@ taramasının tanımları ve çalıştırılması: **[3, 6 ve 13 numaralı göre
 ```bash
 python -m pytest -q
 ```
-Testler her push ve PR'da GitHub Actions ile de otomatik çalışır; firmware de aynı iş akışında iki ESP32 core sürümüyle derlenir. Şunları doğrular: analitik doğrusallaştırma ile sayısal jacobian'ın eşleşmesi, LQR/DLQR sonuçlarının `python-control` ile aynı çıkması, 500 Hz ve 12-bit sensörle LQR dengesi, aşağıdan swing-up + yakalama, %20 model hatasına dayanıklılık, Coulomb sürtünmesi ve telafisi, Kalman filtresinin titreşimi azaltması, Python–firmware parametre/protokol eşliği, Matlab modeliyle (doğrusal ve doğrusal olmayan) eşleşme, kayıt oynatma, protokol, halka tampon, kayıp satır sayımı, sanal cihazla gerçek zamanlı 500 Hz kayıpsız okuma, duraklat/sıfırla ve arayüz butonları.
+Testler her push ve PR'da GitHub Actions ile de otomatik çalışır; firmware de aynı iş akışında iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derlenir. Şunları doğrular: analitik doğrusallaştırma ile sayısal jacobian'ın eşleşmesi, LQR/DLQR sonuçlarının `python-control` ile aynı çıkması, 500 Hz ve 12-bit sensörle LQR dengesi, aşağıdan swing-up + yakalama, %20 model hatasına dayanıklılık, Coulomb sürtünmesi ve telafisi, Kalman filtresinin titreşimi azaltması, Python–firmware parametre/protokol eşliği, Matlab modeliyle (doğrusal ve doğrusal olmayan) eşleşme, kayıt oynatma, protokol, halka tampon, kayıp satır sayımı, sanal cihazla gerçek zamanlı 500 Hz kayıpsız okuma, duraklat/sıfırla ve arayüz butonları.
 
 ## Klasörler
 ```
@@ -85,5 +85,5 @@ kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 
 ## Bekleyen işler (diğer ekipten)
 * Gerçek fiziksel parametreler → `config/params.json` (`docs/parametre_tablosu.md`).
-* Motorun kesinleşmesi (JGB37-520 / FIT0186) ve datasheet'i: tork, akım, redüktör oranı, enkoder CPR (motor değerleri, `ENC_CPR_MOTOR` ve kazançlar buna göre yeniden hesaplanacak).
+* Seçilen JGB37-520 motorun datasheet'i: tork, akım, redüktör oranı, enkoder CPR (motor değerleri, `ENC_CPR_MOTOR` ve kazançlar buna göre yeniden hesaplanacak).
 * Montaj sonrası işaret kontrolü (`docs/protokol.md` §2).

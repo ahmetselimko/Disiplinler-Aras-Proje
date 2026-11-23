@@ -133,6 +133,7 @@ class ReplayComparison:
     t_start: float = 0.0                 # simülasyonun başladığı an (BAŞLAT), gösterilen eksende [s]
     changed_during_trial: list = None    # deneme sırasında cihazın onayladığı ayar anahtarları
     sim_actions_during_trial: list = None  # deneme sırasında gönderilen dürt/duraklat/sıfırla (simülasyon içermez)
+    x_ref: float = 0.0                   # simülasyonun kullandığı hedef konum [m]
 
 
 def load_recording(path: str | Path) -> RecordedSession:
@@ -446,6 +447,7 @@ def compare_recording_with_simulation(
         t_start=t_off,
         changed_during_trial=changed_later,
         sim_actions_during_trial=sim_actions,
+        x_ref=float(sup.x_ref),
         rmse_th_deg=float(np.sqrt(np.mean(err_th_deg ** 2))),
         rmse_x=float(np.sqrt(np.mean(err_x ** 2))),
         rmse_u=float(np.sqrt(np.mean(err_u ** 2))),

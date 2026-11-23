@@ -466,3 +466,89 @@ def test_excepthook_logs_every_error_to_panel_and_file(qapp, monkeypatch, tmp_pa
     assert all(m in text for m in ("ilk", "ikinci", "üçüncü"))
     assert any("ikinci" in m for m in logs) and any("üçüncü" in m for m in logs)
     assert any("2 hata daha" in m for m in logs)
+
+
+# ------------------------------------------------------------------ üçüncü tur (bağımsız inceleme, 23.11.2026)
+def test_mock_u_max_applies_to_controller_after_fc_volt():
+    dev, _ = _offline()
+    for f in (dict(u_max=12.0), dict(fc_volt=0.0), dict(u_max=3.0)):
+        dev.feed(P.encode_command("set_param", **f))
+        dev.step()
+    assert dev.p.u_max == 3.0 and dev.sup.p.u_max == 3.0
+
+
+def test_mock_survives_malformed_sim_command():
+    dev, out = _offline()
+    dev.feed(b'{"cmd":"kick","F":null}\n')
+    dev.step()
+    assert any(b'"ack":"?","ok":false' in o for o in out)
+    n = len(out)
+    dev.feed(P.encode_command("ping"))
+    dev.step()
+    assert any(b'"ack":"ping","ok":true' in o for o in out[n:])
+
+
+def test_swingup_off_during_swingup_switches_to_wait():
+    from pendulum_lab import load_params
+    dev, _ = _offline()
+    _home(dev)
+    dev.feed(P.encode_command("start"))
+    _run(dev, 0.2)
+    assert dev.sup.mode.value == "SWING_UP"
+    dev.feed(P.encode_command("set_param", swingup=0))
+    _run(dev, 0.05)
+    assert dev.sup.mode.value == "WAIT"
+    dev.feed(P.encode_command("set_param", swingup=1))
+    _run(dev, 0.05)
+    assert dev.sup.mode.value == "SWING_UP"
+    assert "else if (mode != BALANCE) mode = p.swingup_on ? SWING_UP : WAIT;" in INO
+
+
+def test_push_refused_for_non_voltage_input():
+    st = _state()
+    st.p.input_mode = "force"
+    st.set_reader(_Reader())
+    assert st.push_to_device() is False
+    assert st.reader.sent == []
+
+
+def test_design_tab_keeps_exact_file_values(qapp):
+    from gui import design_tab
+    from pendulum_lab import load_params
+    st = _state()
+    st.p = load_params(ROOT / "config" / "params.json")
+    st.p.c = 2.4e-5
+    tab = design_tab.DesignTab(st)
+    p = tab._params_from_widgets()
+    assert p.motor.r_pulley == st.p.motor.r_pulley == 0.009549
+    assert p.c == 2.4e-5
+    tab.w_par["c"].setValue(0.0005)                                # kullanıcı değiştirirse yeni değer
+    assert tab._params_from_widgets().c == 0.0005
+
+
+def test_friction_result_does_not_apply_unsaved_design_edits(qapp):
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    K0 = st.K.copy()
+    tab.w_Q[2].setValue(500.0)                                     # kaydedilmemiş düzenleme (K Hesapla yok)
+    st.p.motor.T_f = 0.002
+    st.params_replaced.emit()
+    assert st.Q[2] != 500.0
+    assert abs(tab._val(tab.w_mot["T_f"]) - 0.002) < 1e-12
+    assert (abs(st.K - K0) < 1e-9).all()                           # T_f LQR'ı değiştirmez
+
+
+def test_status_bar_marks_k_not_on_device(qapp):
+    from gui.main_window import MainWindow
+    st = _state()
+    win = MainWindow(st)
+    st.set_reader(SimpleNamespace(applied_settings={"K": [0.0, 0.0, 0.0, 0.0]}, error=None))
+    win._update_k_label()
+    assert "gönderilmedi" in win.s_K.text()
+    st.reader.applied_settings = {"K": list(st.K)}
+    win._update_k_label()
+    assert "gönderilmedi" not in win.s_K.text()
+    st.reader = None
+    win.timer.stop()
+    win.close()

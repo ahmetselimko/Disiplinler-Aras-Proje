@@ -41,7 +41,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Cihazın kontrol periyodu (Ts) tas
 | **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
 | **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik) durağan koyar. Kalibre edildiyse araba x = 0 noktasına gelir, kalibrasyonun tekrarı gerekmez |
 | Hedef + x_ref gönder | Dengedeyken arabanın gideceği konum (ray sınırına göre kısıtlanır) |
-| Swing-up açık | Kapatılırsa cihaz sarkacın elle dik konuma getirilmesini bekler (WAIT), sonra LQR tutar. İlk donanım denemesinde önerilir |
+| Swing-up açık | Kapatılırsa cihaz sarkacın elle dik konuma getirilmesini bekler (WAIT), sonra LQR tutar. Swing-up sürerken kapatılırsa pompalama hemen durur. İlk donanım denemesinde önerilir |
 | Durum çubuğu | Veri hızı (Hz), kayıp satır, hatalı satır, çizim FPS, güncel K |
 
 **Tipik akış:** Bağlan → KALİBRE ET → (BEKLEMEDE'ye dönünce) BAŞLAT → DENGE (LQR) → gerekirse DURDUR.

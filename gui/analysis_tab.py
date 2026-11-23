@@ -205,6 +205,7 @@ class SimulationPage(QtWidgets.QWidget):
         K = K.ravel()
         s0 = [self.x0.value(), self.dx0.value(), math.radians(th0), math.radians(self.dth0.value())]
         dist = pulse_disturbance(self.dist_t.value(), self.dist_F.value(), self.dist_dur.value() / 1000)
+        self._xref = x_ref
         r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref, f_max=f_max,
                                        disturbance=dist)       # arabaya (Matlab'daki "Apply push")
         Km = gain_to_matlab(K)
@@ -234,6 +235,7 @@ class SimulationPage(QtWidgets.QWidget):
                          catch_dth=st.catch_dth, catch_x=st.catch_x, catch_dx=st.catch_dx,
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
         sup.x_ref = st.x_ref   # cihaza gönderilen hedef konumla aynı (Matlab dalı da kullanıyor)
+        self._xref = st.x_ref
         sup.start()
         sensor = (SensorModel.for_params(st.p, th_noise_std=math.radians(self.noise.value()))
                   if self.real_cb.isChecked() else None)
@@ -296,7 +298,7 @@ class SimulationPage(QtWidgets.QWidget):
         r = self.result
         if r is None or i >= len(r.t):
             return
-        self.view.set_state(r.s[i, 0], r.s[i, 2], 0.0)
+        self.view.set_state(r.s[i, 0], r.s[i, 2], getattr(self, "_xref", 0.0))
         for c in self.cursor:
             c.setValue(r.t[i])
 

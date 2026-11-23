@@ -67,8 +67,12 @@ class DesignTab(QtWidgets.QWidget):
         g_par = QtWidgets.QGroupBox("Fiziksel parametreler (mekatronik ekibinden)")
         f = QtWidgets.QFormLayout(g_par)
         self.w_par = {}
+        # Kutular değeri ondalık sayısına yuvarlar; kullanıcı değiştirmediyse dosyadaki TAM değer korunur
+        # (ör. r_pulley 0.009549 → 0.00955 olup K ve gains.h'i sessizce değiştirmesin)
+        self._exact: dict = {}
         for key, label, unit, lo, hi, dec in PARAM_FIELDS:
             self.w_par[key] = spin(getattr(p, key), lo, hi, dec, suffix=unit)
+            self._exact[self.w_par[key]] = float(getattr(p, key))
             f.addRow(label, self.w_par[key])
         self.w_mode = QtWidgets.QComboBox()
         self.w_mode.addItems(INPUT_MODES)
@@ -87,6 +91,7 @@ class DesignTab(QtWidgets.QWidget):
         self.w_mot = {}
         for key, label, unit, lo, hi, dec in MOTOR_FIELDS:
             self.w_mot[key] = spin(getattr(p.motor, key), lo, hi, dec, suffix=unit)
+            self._exact[self.w_mot[key]] = float(getattr(p.motor, key))
             f.addRow(label, self.w_mot[key])
         left.addWidget(g_mot)
 
@@ -190,31 +195,51 @@ class DesignTab(QtWidgets.QWidget):
         self.b_save.clicked.connect(self.save)
         self.g_btn.clicked.connect(self.apply_geometry)
         state.connection_changed.connect(self.b_send.setEnabled)
-        state.params_replaced.connect(lambda: (self._params_to_widgets(state.p), self.calculate()))
+        state.params_replaced.connect(self._on_params_replaced)
         self.b_send.setEnabled(False)
         self.calculate()
 
     # ------------------------------------------------------------ girişler → durum
+    def _val(self, w) -> float:
+        """Kutunun değeri; gösterilen değer dosyadan gelen tam değerin yuvarlanmışıysa tam değer."""
+        exact = self._exact.get(w)
+        if exact is not None and abs(w.value() - round(exact, w.decimals())) < 0.5 * 10 ** -w.decimals():
+            return exact
+        return w.value()
+
+    def _set(self, w, value: float):
+        self._exact[w] = float(value)
+        w.setValue(value)
+
+    def _on_params_replaced(self):
+        """Parametreler dışarıdan değişti (sürtünme ölçümü T_f'yi yazdı). Yalnız değişen motor değerleri kutulara
+        yazılır; Tasarım'da kaydedilmemiş Q/R/swing-up/geçiş düzenlemeleri UYGULANMAZ (cihaza giden K değişmesin)."""
+        st = self.state
+        for k, w in self.w_mot.items():
+            if abs(self._val(w) - getattr(st.p.motor, k)) > 1e-15:
+                self._set(w, getattr(st.p.motor, k))
+        st.compute_gains()
+
     def _params_from_widgets(self) -> PendulumParams:
-        motor = MotorParams(**{k: w.value() for k, w in self.w_mot.items()})
-        return PendulumParams(**{k: w.value() for k, w in self.w_par.items()},
+        motor = MotorParams(**{k: self._val(w) for k, w in self.w_mot.items()})
+        return PendulumParams(**{k: self._val(w) for k, w in self.w_par.items()},
                               input_mode=self.w_mode.currentText(), motor=motor, note=self.state.p.note,
                               placeholder=not self.w_measured.isChecked())
 
     def _params_to_widgets(self, p: PendulumParams):
         for k, w in self.w_par.items():
-            w.setValue(getattr(p, k))
+            self._set(w, getattr(p, k))
         for k, w in self.w_mot.items():
-            w.setValue(getattr(p.motor, k))
+            self._set(w, getattr(p.motor, k))
         self.w_mode.setCurrentText(p.input_mode)
         self.w_measured.setChecked(not p.placeholder)
 
     def apply_geometry(self):
         m, l, I = pendulum_from_geometry(self.g_rod_m.value(), self.g_rod_l.value(), self.g_bob_m.value(),
                                          self.g_shape.currentText(), self.g_size.value())
-        self.w_par["m"].setValue(m)
-        self.w_par["l"].setValue(l)
-        self.w_par["I"].setValue(I)
+        self._set(self.w_par["m"], m)          # hesaplanan TAM değerler (kutu yuvarlasa da)
+        self._set(self.w_par["l"], l)
+        self._set(self.w_par["I"], I)
         self.state.log.emit(f"Geometri: m={m:.4f} kg, l={l:.4f} m, I={I:.6f} kg·m² ({self.g_shape.currentText()})")
         self.calculate()
 

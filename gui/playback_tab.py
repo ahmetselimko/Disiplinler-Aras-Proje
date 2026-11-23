@@ -335,6 +335,6 @@ class PlaybackTab(QtWidgets.QWidget):
         else:
             x = float(comp.x[i])
             th = float(comp.th[i])
-        self.view.set_state(x, th, 0.0)
+        self.view.set_state(x, th, comp.x_ref)
         for c in self.cursor:
             c.setValue(ti)

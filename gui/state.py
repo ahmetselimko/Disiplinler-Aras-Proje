@@ -114,6 +114,12 @@ class AppState(QtCore.QObject):
         """Güncel K ve tüm swing-up/geçiş ayarlarını (swing-up açık/kapalı ve x_ref dahil) cihaza yükler.
         K, cihazın kontrol periyodu için tasarlanmamışsa GÖNDERİLMEZ. Yer tutucu parametrelerle gerçek
         karta yalnız force=True ile (kullanıcı onayıyla) gönderilir."""
+        if self.p.input_mode != "voltage":
+            # firmware yalnız DC motor (gerilim girişi) için yazıldı; kuvvet/ivme için tasarlanan K'nın birimi
+            # ve ölçeği farklıdır, cihazda arabayı raydan kaçırır (gains.h dışa aktarımı da #error verir)
+            self.log.emit(f"K gönderilmedi: giriş türü '{self.p.input_mode}'. Cihaz yalnız 'voltage' (DC motor) "
+                          "girişini destekler — Tasarım sekmesinde giriş türünü voltage yapıp K'yı yeniden hesaplayın.")
+            return False
         if self.placeholder_on_real_device and not force:
             self.log.emit("K gönderilmedi: parametreler yer tutucu ve gerçek karta bağlısınız.")
             return False
