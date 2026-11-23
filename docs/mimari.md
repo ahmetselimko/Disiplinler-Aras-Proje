@@ -48,4 +48,4 @@ Donanım listesi belli (BOM v3, 13.11.2026: ESP32-S3, AS5600, BTS7960, HTD3M 20 
 1. `config/params.json` dosyasını doldurun (bkz. `parametre_tablosu.md`) veya arayüzün Tasarım sekmesinden girip kaydedin.
 2. Tasarım sekmesinde **K Hesapla**: açık çevrim kutupları, K ve kapalı çevrim kutupları görünür.
 3. Analiz sekmesinde θ₀ = 180° ile simülasyon yapın: swing-up ve yakalama çalışmalı, max |x| ray sınırının altında kalmalı. Gerekirse swing-up kazançlarını ayarlayın.
-4. **gains.h Dışa Aktar** ile firmware'e gömün, ya da bağlıyken **Cihaza Gönder**. Bağlanınca arayüz önce `ping` gönderir; cihazın Ts'si tasarımdakiyle aynıysa K ve tüm ayarlar (swing-up açık/kapalı, x_ref dahil) otomatik yüklenir. Cihaz resetlenirse (`boot` olayı) yeniden yüklenir.
+4. **gains.h Dışa Aktar** ile firmware'e gömün, ya da bağlıyken **Cihaza Gönder**. Bağlanınca arayüz önce `ping` gönderir; swing-up açık/kapalı anahtarı her durumda (güvenlik), cihazın Ts'si tasarımdakiyle aynıysa ve parametreler yer tutucu değilse K ve diğer ayarlar (x_ref dahil) otomatik yüklenir. Cihaz resetlenirse (`boot` olayı) yeniden yüklenir.

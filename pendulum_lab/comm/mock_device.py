@@ -207,7 +207,8 @@ class MockDevice:
             if not self.homed:
                 return P.encode_ack("start", False, "önce home (kalibrasyon) yapılmalı")
             if mode == Mode.IDLE:
-                # firmware gibi ÖLÇÜLEN konum/hız (enkoder yönü dahil), gerçek fizik değil
+                # enkoder yönü ve home ofseti firmware'deki gibi uygulanır; sadeleştirme: kuantalama ve hız
+                # filtresi yok (firmware S.lx/S.ldx kullanır, fark 0.2 m/s eşiğinde birkaç ms gecikme)
                 blocked = sup.start_block_reason(self.enc_sign * self.s[0] - self.x_offset, self.enc_sign * self.s[1])
                 if blocked:
                     return P.encode_ack("start", False, blocked)

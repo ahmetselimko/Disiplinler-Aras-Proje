@@ -94,7 +94,8 @@ class AppState(QtCore.QObject):
         self.log.emit(f"Cihaz: fw={data.get('fw', '?')}{ts}")
         if self.placeholder_on_real_device:
             self.send_swingup()                  # güvenlik: K gitmese de swing-up kapalıysa kart bunu bilmeli
-            self.log.emit("UYARI: parametreler YER TUTUCU — K ve ayarlar gerçek karta otomatik GÖNDERİLMEDİ; "
+            self.log.emit("UYARI: parametreler YER TUTUCU — K ve ayarlar (swing-up açık/kapalı hariç) gerçek karta "
+                          "otomatik GÖNDERİLMEDİ; "
                           "kart derlendiği gains.h ile çalışır. Ölçülmüş değerleri girin ya da "
                           "'K'yı Cihaza Gönder' ile onaylayarak gönderin.")
             return

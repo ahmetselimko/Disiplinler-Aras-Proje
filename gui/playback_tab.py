@@ -261,6 +261,12 @@ class PlaybackTab(QtWidgets.QWidget):
                 f"UYARI: deneme sırasında değişen ayar(lar): {', '.join(comp.changed_during_trial)}",
                 "  simülasyon BAŞLAT anındaki ayarlarla koşuldu; sonrası farklılık gösterebilir.",
             ]
+        if comp.k_unconfirmed:
+            lines += [
+                "UYARI: kart bu denemede K'yı onaylamamıştı (ör. yer tutucu parametreler); kart derlendiği "
+                "gains.h'deki K ile çalışmış olabilir. Simülasyon kayıttaki PC tasarım K'sını kullanır, "
+                "gains.h aynı tasarımdan üretilmediyse RMSE yanıltıcıdır.",
+            ]
         if comp.sim_actions_during_trial:
             lines += [
                 f"UYARI: kayıtta {', '.join(comp.sim_actions_during_trial)} var; karşılaştırma simülasyonu "

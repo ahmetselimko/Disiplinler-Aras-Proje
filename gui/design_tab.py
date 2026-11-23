@@ -207,7 +207,8 @@ class DesignTab(QtWidgets.QWidget):
         """Kutunun değeri; kutu hâlâ tam değer yazıldığında GÖSTERDİĞİ (Qt'nin yuvarladığı) değerdeyse tam değer.
         Qt'nin kendi yuvarlaması kullanıldığı için 0.0625 gibi tam ortadaki değerlerde de doğru çalışır."""
         exact = self._exact.get(w)
-        if exact is not None and w.value() == self._shown.get(w):
+        # aralık dışı tam değer kullanılmaz: kutu onu sınıra kırpmıştır, görünen ile kullanılan aynı olmalı
+        if exact is not None and w.minimum() <= exact <= w.maximum() and w.value() == self._shown.get(w):
             return exact
         return w.value()
 
@@ -220,11 +221,19 @@ class DesignTab(QtWidgets.QWidget):
         """Parametreler dışarıdan değişti (sürtünme ölçümü T_f'yi yazdı). Yalnız değişen motor değerleri kutulara
         yazılır; Tasarım'da kaydedilmemiş Q/R/swing-up/geçiş düzenlemeleri UYGULANMAZ (cihaza giden K değişmesin)."""
         st = self.state
+        synced = getattr(self, "_motor_synced", {})
         for k, w in self.w_mot.items():
-            # yalnız DURUMDA değişen alan (son eşitlenen değere göre); kutuda kaydedilmemiş düzenleme varsa korunur
-            if abs(getattr(st.p.motor, k) - self._exact.get(w, getattr(st.p.motor, k))) > 1e-15:
-                self._set(w, getattr(st.p.motor, k))
+            # yalnız DURUMDA değişen alan (son uygulanan/eşitlenen değere göre); kutudaki kaydedilmemiş
+            # düzenleme (K Hesapla'dan SONRA yapılmış olsa da) korunur
+            new = getattr(st.p.motor, k)
+            if abs(new - synced.get(k, new)) > 1e-15:
+                self._set(w, new)
+        self._remember_motor()
         st.compute_gains()
+
+    def _remember_motor(self):
+        """Durumdaki (uygulanmış) motor değerlerinin kopyası; dışarıdan gelen değişikliği ayırt etmek için."""
+        self._motor_synced = {k: getattr(self.state.p.motor, k) for k in self.w_mot}
 
     def _params_from_widgets(self) -> PendulumParams:
         motor = MotorParams(**{k: self._val(w) for k, w in self.w_mot.items()})
@@ -267,6 +276,7 @@ class DesignTab(QtWidgets.QWidget):
         st.catch_deg, st.release_deg = self.w_catch.value(), self.w_release.value()
         st.catch_dth, st.catch_x, st.catch_dx = self.w_catch_dth.value(), self.w_catch_x.value(), self.w_catch_dx.value()
         st.K, st.cl_poles = Kd.ravel(), evd
+        self._remember_motor()
         st.params_changed.emit()
         st.gains_changed.emit()
 

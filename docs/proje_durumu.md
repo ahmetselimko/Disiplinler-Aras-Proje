@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **259 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod dört tur bağımsız incelemeden geçti (ilk tur 21, doğrulama turu 6 bulgu; 22.11 ve 23.11 turlarının bulguları §4.2'de); hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **264 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod beş tur bağımsız incelemeden geçti (ilk tur 21, doğrulama turu 6 bulgu; 22.11 ve 23.11 turlarının bulguları §4.2'de); hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor JGB37-520 (mekatronik ara raporunda son seçim); datasheet'i gelmediği için motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle θ işareti dışında birebir aynı (testle doğrulanıyor).
 
@@ -172,6 +172,15 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Sürtünme sonucu kaydedilmemiş motor düzenlemelerini geri alıyordu | Yalnız durumda değişen alan güncellenir |
 | Küçük | Sanal ESP32'nin BAŞLAT kontrolü ölçülen değil gerçek konumu kullanıyordu (ters enkoder test modunda yanlış ret) | Firmware gibi ölçülen konum/hız |
 | Belge | Protokoldeki mod şemasında WAIT ve swing-up anahtarı geçişleri yoktu; FAULT koşulları "her mod" diye yazıyordu | Şema ve koşullar düzeltildi |
+
+**Beşinci tur (23.11.2026):** dördüncü turun düzeltmeleri doğrulandı; yeni bulgular:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | Tam değer koruması aralık dışı dosya değerini kullanıyordu: kutu 48 gösterirken u_max 60 ile hesap/gönderim (dördüncü turun düzeltmesinin yan etkisi) | Tam değer yalnız kutunun aralığındaysa kullanılır |
+| Küçük | K Hesapla'dan sonra yapılan kaydedilmemiş motor düzenlemesi sürtünme sonucuyla geri alınıyordu | Son uygulanan motor değerlerine göre yalnız değişen alan yazılır |
+| Küçük | Canlı animasyondaki hedef çizgisi, karta gitmemiş x_ref'i gösterebiliyordu | Cihazın onayladığı x_ref çizilir |
+| Küçük | Kayıt oynatma, gerçek kartın K'yı onaylamadığı denemelerde (yer tutucu) uyarı vermiyordu | Uyarı eklendi (gains.h'deki K çalışmış olabilir) |
+| Belge | Yer tutucu uyarıları swing-up anahtarının yine gittiğini söylemiyordu; `mimari.md` ve sanal ESP32'deki bir açıklama eksik/yanlıştı | Düzeltildi |
 
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 

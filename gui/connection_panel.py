@@ -79,7 +79,7 @@ class ConnectionPanel(QtWidgets.QWidget):
         self.state.send("ping")
         if self.state.placeholder_on_real_device:
             QtWidgets.QMessageBox.warning(self, "Yer tutucu parametreler", PLACEHOLDER_WARNING +
-                                          "\n\nK ve ayarlar karta otomatik gönderilmeyecek.")
+                                          "\n\nK ve ayarlar karta otomatik gönderilmeyecek (yalnız swing-up açık/kapalı bilgisi gider).")
 
     def disconnect(self):
         reader = self.state.reader

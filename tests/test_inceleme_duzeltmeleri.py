@@ -615,3 +615,60 @@ def test_status_bar_marks_k_not_on_device(qapp):
     st.reader = None
     win.timer.stop()
     win.close()
+
+
+# ------------------------------------------------------------------ beşinci tur (23.11.2026)
+def test_out_of_range_file_value_uses_what_the_box_shows(qapp):
+    from gui import design_tab
+    st = _state()
+    st.p.motor.V_max, st.p.u_max, st.p.M = 60.0, 60.0, 0.005     # kutu aralıkları: u_max ≤ 48, M ≥ 0.01
+    tab = design_tab.DesignTab(st)
+    p = tab._params_from_widgets()
+    assert p.u_max == tab.w_par["u_max"].value() == 48.0
+    assert p.M == tab.w_par["M"].value()
+
+
+def test_friction_sync_keeps_edit_made_after_calculate(qapp):
+    from gui import design_tab
+    st = _state()
+    tab = design_tab.DesignTab(st)
+    tab.w_mot["R"].setValue(3.0)
+    assert tab.calculate()
+    tab.w_mot["R"].setValue(4.0)                                   # hesaplamadan sonra yeni, kaydedilmemiş düzenleme
+    st.p.motor.T_f = 0.002
+    st.params_replaced.emit()
+    assert tab.w_mot["R"].value() == 4.0
+    assert abs(tab._val(tab.w_mot["T_f"]) - 0.002) < 1e-12
+
+
+def test_live_target_line_uses_acknowledged_xref():
+    src = (ROOT / "gui" / "live_tab.py").read_text(encoding="utf-8")
+    assert 'applied_settings.get("x_ref", 0.0)' in src
+
+
+def test_replay_warns_when_real_board_never_acknowledged_k(tmp_path):
+    from pendulum_lab.recorder import compare_recording_with_simulation, load_recording, Recorder
+    from gui.state import AppState
+    import copy
+    st = AppState(ROOT / "config" / "params.json")
+    dev = MockDevice(params=copy.deepcopy(st.p), seed=0, realtime=False)
+    out = []
+    dev.output = out.append
+    dev.start()
+    _home(dev)
+    dev.feed(P.encode_command("start"))
+    _run(dev, 2.0)
+    for kaynak, expect in (("gerçek kart (COM5)", True), ("simülasyon (sanal ESP32)", False)):
+        rd = TelemetryReader(SimpleNamespace(write=lambda d: None))
+        path = tmp_path / f"{expect}.csv"
+        rec = Recorder(path, meta={"kaynak": kaynak, **st.get_metadata()})
+        rd.sinks.append(rec)
+        rd._handle_lines(b"".join(out).splitlines(keepends=True))
+        rec.close()
+        comp = compare_recording_with_simulation(load_recording(path), fallback_state=st)
+        assert comp.k_unconfirmed is expect
+
+
+def test_placeholder_messages_mention_swingup_is_still_sent():
+    for f in ("gui/state.py", "gui/connection_panel.py"):
+        assert "swing-up açık/kapalı" in (ROOT / f).read_text(encoding="utf-8")
