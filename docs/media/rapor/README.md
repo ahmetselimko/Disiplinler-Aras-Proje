@@ -7,7 +7,7 @@
 * K = [-9.52, -27.29, -61.49, -9.74]
 * Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 48 CPR × 10 redüktör = 480 sayım/tur, 0.125 mm/sayım); dik bölgede Kalman (firmware gibi)
 
-> ⚠ **Parametreler yer tutucu değerlerdir.** Mekatronik ekibi gerçek ölçüleri `config/params.json`'a girince şekiller yeniden üretilmelidir; sayılar değişecektir.
+> ⚠ **Parametreler yer tutucu değerlerdir** (`config/params.json`, ölçüm değil). Gerçek ölçüler girilince şekiller yeniden üretilmelidir; sayılar değişecektir.
 
 ## 1. Aşağıdan kalkış — `asagidan_kalkis.png`
 

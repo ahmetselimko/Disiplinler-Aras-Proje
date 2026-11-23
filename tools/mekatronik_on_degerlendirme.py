@@ -68,16 +68,30 @@ def run(p, e_ratio, friction_comp=True, T=T):
     e = evaluate_result(r, p)
     m = np.asarray(r.mode)
     tb = float(r.t[np.argmax(m == "BALANCE")]) if (m == "BALANCE").any() else None
+    status = e.status
+    if tb is not None:
+        after = set(m[np.argmax(m == "BALANCE"):])
+        lost = "SWING_UP" in after or "WAIT" in after             # LQR yakaladıktan sonra bıraktı mı?
+        if status == "BAŞARISIZ":
+            status = "TUTAMADI"                                   # yakaladı, bıraktı, yeniden yakalayamadı
+        elif lost and status in ("BAŞARILI", "SINIRDA"):
+            status = "DÜŞTÜ"                                      # bıraktı, swing-up yeniden kaldırdı
     # dike en yakın açı, ilk sallanma (3 s; kısa koşuda sürenin yarısı) hariç
     closest = float(np.abs(np.degrees(np.arctan2(np.sin(r.th), np.cos(r.th))))[r.t > min(3.0, 0.5 * T)].min())
-    return e.status, tb, float(np.abs(r.x).max()), closest
+    return status, tb, float(np.abs(r.x).max()), closest
 
 
 def cell(status, tb, mx, cl):
     if status in ("BAŞARILI", "SINIRDA") and tb is not None:
         return f"✔ {tb:.1f} s (max \\|x\\| {mx:.2f} m)"
+    if status == "DÜŞTÜ":
+        return f"✔ ilk yakalama {tb:.1f} s; düştü, yeniden yakalandı (max \\|x\\| {mx:.2f} m)"
+    if status == "TUTAMADI":
+        return f"✘ {tb:.1f} s'de yakalandı ama tutulamadı"
     if status == "RAY SINIRI":
         return "✘ ray ucuna çarptı"
+    if status == "FAULT":
+        return "✘ hata (yazılımsal ray sınırı)"
     return f"✘ dike en fazla {cl:.0f}°"
 
 

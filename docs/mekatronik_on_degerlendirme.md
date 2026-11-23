@@ -23,7 +23,7 @@ python tools/rapor_sekilleri.py --params config/params_mekatronik_tasarim.json \
 |---|---|---|---|
 | Sarkaç kütlesi m | 0.20 kg | 0.085 / **0.105** / 0.135 kg (uç kütlesiz / **+20 g** / +50 g) | Bölüm 13.2, Tablo 15 |
 | Pivot–ağırlık merkezi l | **0.30 m** | 0.064 / **0.099** / 0.133 m | Tablo 15 |
-| Pivota göre atalet | (çubuk modeli) | 0.000986 / **0.002236** / 0.004111 kg·m² (modelde ağırlık merkezine göre: I = I_pivot − m·l²) | Tablo 15 |
+| Pivota göre atalet | noktasal kütle (I = 0; m·l² = 0.018 kg·m²) | 0.000986 / **0.002236** / 0.004111 kg·m² (modelde ağırlık merkezine göre: I = I_pivot − m·l²) | Tablo 15 |
 | Araba kütlesi M | 0.5 kg | 1.10 kg (sarkaç dahil) − m + 0.26 kg kayış + 0.025 kg kasnak → **1.28 kg** | Bölüm 12.1, 14.1 |
 | Redüktör | 10 (yer tutucu) | **19:1** | Bölüm 1.2, 13.3 |
 | Enkoder | 48 CPR motor mili (yer tutucu) | 836 sayım / çıkış mili turu (≈ 44 CPR × 19) | Bölüm 13.3 |
@@ -32,9 +32,10 @@ python tools/rapor_sekilleri.py --params config/params_mekatronik_tasarim.json \
 | Sürtünme | 0 (modelde) | **3.0 N** (rulman + kayış) | Bölüm 14.1 |
 | Ray | ±0.4 m | ±0.40 m (geçici); mil 2.5 m, çerçeve 2.18 m | Bölüm 8.4, 12.1 |
 
-Kalın değerler `params_mekatronik_tasarim.json`'a girilenlerdir (+20 g seçeneği). Motor sabitleri Kt ve Ke, R = 2.18 Ω
-yer tutucusuyla Tablo 16'daki iki değeri verecek şekilde seçildi: Kt = α·R·r/N, Ke = b·R·r²/(Kt·N²). Simülasyonda
-yalnız bu iki birleşik değer önemli olduğu için R'nin yer tutucu olması sonucu değiştirmez.
+Kalın değerler `params_mekatronik_tasarim.json`'a girilenlerdir (+20 g seçeneği). Motor sabitleri, Tablo 16'daki iki
+değeri ideal bir DC motorun SI birimlerindeki Kt = Ke eşitliğiyle verecek şekilde seçildi: R = b/α² ≈ 9.48 Ω,
+Kt = Ke = α·R·r/N ≈ 0.0108. Bunlar ayrı ayrı ölçülmüş değerler değildir; simülasyonda yalnız α ve b birleşik değerleri
+kullanılır. Datasheet gelince güncellenmeli.
 
 **En önemli fark sarkaç boyudur:** gerçek sarkacın ağırlık merkezi yer tutucudakinin üçte biri kadar. Sarkaç daha
 kısa olduğu için daha hızlı devriliyor (açık çevrim kararsız kutup 5.77 → 6.67 1/s).
@@ -51,32 +52,37 @@ Sarkaç aşağıda başlıyor, 30 s. "Dike en fazla" = sarkacın dik konuma en �
 
 | Hedef enerji oranı | uç kütlesiz | +20 g | +50 g |
 |---|---|---|---|
-| **1.00 (şu anki varsayılan)** | ✘ dike en fazla 32° | ✘ dike en fazla 22° | ✔ 3.8 s (max \|x\| 0.29 m) |
+| **1.00 (şu anki varsayılan)** | ✘ dike en fazla 32° | ✘ dike en fazla 22° | ✘ 3.8 s'de yakalandı ama tutulamadı |
 | 1.01 (= mekatroniğin E_ref 1.02·mgl'si) | ✘ dike en fazla 30° | ✘ dike en fazla 18° | ✔ 3.8 s (max \|x\| 0.15 m) |
-| 1.02 | ✘ dike en fazla 27° | ✔ 4.4 s (max \|x\| 0.31 m) | ✔ 3.7 s (max \|x\| 0.15 m) |
+| 1.02 | ✘ dike en fazla 27° | ✔ 4.4 s (max \|x\| 0.23 m) | ✔ 3.7 s (max \|x\| 0.15 m) |
 | **1.05** | ✘ dike en fazla 16° | ✔ 4.3 s (max \|x\| 0.14 m) | ✔ 3.7 s (max \|x\| 0.15 m) |
-| 1.10 | ✔ 5.5 s (max \|x\| 0.14 m) | ✔ 4.3 s (max \|x\| 0.20 m) | ✔ 3.7 s (max \|x\| 0.30 m) |
+| 1.10 | ✔ 5.5 s (max \|x\| 0.14 m) | ✔ 4.3 s (max \|x\| 0.19 m) | ✔ ilk yakalama 3.7 s; düştü, yeniden yakalandı (max \|x\| 0.29 m) |
 
 **Sürtünme telafisi KAPALI** (`fc_volt` = 0, şu anki varsayılan; fizikte 3 N sürtünme var):
 
 | Hedef enerji oranı | uç kütlesiz | +20 g | +50 g |
 |---|---|---|---|
-| **1.00 (şu anki varsayılan)** | ✘ dike en fazla 90° | ✘ dike en fazla 28° | ✘ dike en fazla 21° |
+| **1.00 (şu anki varsayılan)** | ✘ dike en fazla 90° | ✘ dike en fazla 27° | ✘ dike en fazla 21° |
 | 1.01 (= mekatroniğin E_ref 1.02·mgl'si) | ✘ dike en fazla 90° | ✘ dike en fazla 25° | ✘ dike en fazla 17° |
 | 1.02 | ✘ dike en fazla 90° | ✘ dike en fazla 22° | ✔ 5.4 s (max \|x\| 0.14 m) |
 | **1.05** | ✘ dike en fazla 90° | ✔ 7.2 s (max \|x\| 0.14 m) | ✔ 5.4 s (max \|x\| 0.14 m) |
-| 1.10 | ✘ dike en fazla 89° | ✘ ray ucuna çarptı | ✔ 5.3 s (max \|x\| 0.36 m) |
+| 1.10 | ✘ dike en fazla 89° | ✘ ray ucuna çarptı | ✔ ilk yakalama 5.3 s; düştü, yeniden yakalandı (max \|x\| 0.36 m) |
 
 **Sonuçlar:**
-1. **Mevcut varsayılanlarla (oran 1.00, telafi kapalı) swing-up hiçbir seçenekte tamamlanmıyor.** Sarkaç dik konuma
-   yaklaşıyor ama 15°'lik yakalama bölgesine giremiyor.
+1. **Mevcut varsayılanlarla (oran 1.00, telafi kapalı) swing-up hiçbir seçenekte tamamlanmıyor.** Uç kütlesiz sarkaç
+   yataya ancak çıkabiliyor (dike en fazla 90°); +20 g ve +50 g'de dike 21–27°'ye kadar gelip 15°'lik yakalama
+   bölgesine giremiyor.
 2. **Uç kütlesi takılmalı.** Uç kütlesiz sarkaç yalnız telafi açıkken ve oran 1.10'da kalkıyor; telafi kapalıyken hiç
    kalkmıyor. Mekatronik raporu da uç kütlesini "titreşimi azaltmak" için öneriyor (Bölüm 13.2); bu sonuç ayrıca
    swing-up için de gerekli olduğunu gösteriyor.
 3. **Hedef enerji oranı 1.05 civarına çekilmeli.** 1.05, +20 g ve +50 g'de telafi açık da kapalı da kalkan tek
    değer. Mekatroniğin değeri (bizde 1.01) yalnız +50 g ve telafi açıkken yetiyor.
 4. **Sürtünme telafisi önemli.** 3 N sürtünme, enerji pompalamanın küçük itmelerini yutuyor. İlk donanım denemesinden
-   önce sürtünme ölçümü (arayüzdeki "Sürtünme ölç") yapılıp telafi açılmalı.
+   önce sürtünme ölçümü (arayüzdeki "Sürtünme ölç") yapılıp telafi açılmalı. ("Kapalı = şu anki varsayılan" ifadesi
+   `params.json` içindir; arayüz bu belgenin parametre dosyasıyla bağlanırsa T_f'den fc_volt ≈ 1.33 V gönderir.)
+5. **Sınırdaki durumlar hassas.** Örneğin +50 g, oran 1.00, telafi açık: sarkaç yakalanıyor ama tutulamıyor; motor
+   sabitlerinin son basamaktaki yuvarlaması bile bu hücreyi "dengede kaldı" ile "tutulamadı" arasında değiştirdi.
+   Karar verirken tek hücreye değil, satırın ve sütunun genel eğilimine bakılmalı.
 
 ## 3. Önerilen ayarla sonuçlar (+20 g, oran 1.05, telafi açık)
 
@@ -87,18 +93,23 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 |---|---|---|
 | LQR K | [−9.52, −27.29, −61.49, −9.74] | [−9.83, −46.64, −101.46, −14.36] |
 | Aşağıdan kalkış: LQR'a geçiş | 4.34 s | 4.32 s |
-| Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.139 m / **12.0 V** (gerilim sınırında) |
+| Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.142 m / **12.0 V** (gerilim sınırında) |
 | LQR'ın kurtardığı en büyük itme (50 ms, sarkaca) | ≈ 3.3 N | **≈ 0.8 N** |
-| Model uyumsuzluğunda swing-up'ın tamamlandığı aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−20% … +20%** |
+| Model uyumsuzluğunda dengede kaldığı aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−15% … +20%** |
 
 * **İtmeye dayanıklılık dörtte birine düşüyor.** Kısa ve hafif sarkaç çok daha küçük bir itmeyle devriliyor; 0.8 N'dan
   büyük itmelerde LQR sarkacı tutamıyor.
 * **Motor gerilim sınırında çalışıyor.** Swing-up sırasında 12 V'a dayanıyor: motorun gerçek kuvveti (≈ 27 N durma)
   yer tutucudakinden çok düşük ve rotorun 1.35 kg'lık yansıyan kütlesi arabayı ağırlaştırıyor. Datasheet gelince
   yeniden bakılmalı.
-* **Model uyumsuzluğu:** −%20 … +%20 aralığında swing-up tamamlanıyor (−%10 ve +%20'de araba ray ucuna yaklaşıyor).
-  −%25 ve altında sarkaç yakalama bölgesine hiç yaklaşamıyor; +%25'te LQR yakalıyor ama tutamıyor, +%30'da yakalama
-  bölgesinin hemen dışında kalıyor. **m ve l'nin ölçülerek doğru girilmesi şart.**
+* **Model uyumsuzluğu:** −%15 … +%20 aralığında dengede kalıyor (−%10 ve +%20'de araba ray ucuna yaklaşıyor).
+  −%20'de yakalanıyor ama araba ray ucuna çarpıyor; −%25 ve altında sarkaç yakalama bölgesine hiç yaklaşamıyor;
+  +%25'te LQR yakalıyor ama tutamıyor, +%30'da yakalama bölgesinin hemen dışında kalıyor. **m ve l'nin ölçülerek doğru
+  girilmesi şart.**
+* **Dengede sürtünmeden doğan konum kayması:** LQR Coulomb sürtünmesini telafi etmez (firmware'de de telafi yalnız
+  swing-up'ta). 3 N sürtünme, konum hatası küçükken LQR'ın komutunu yutar ve araba yaklaşık F_c / (α·|K_x|) ≈ 0.13 m'lik
+  bir ölü bantta durabilir. Tablolardaki dengede max \|x\| ≈ 0.14 m'nin sebebi bu (sürtünmesiz ≈ 0.01 m). ±0.4 m rayın
+  üçte biri; gerçek sürtünme ölçülünce dengede de telafi ya da integral etki değerlendirilmeli.
 
 ## 4. İki ekibin raporları arasındaki farklar
 

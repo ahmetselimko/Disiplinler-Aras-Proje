@@ -333,12 +333,13 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
                     "DÜŞTÜ": "düştü, swing-up yeniden kaldırdı",
                     "TUTAMADI": "LQR yakaladı ama tutamadı"}.get(s, s)
     placeholder = getattr(S.p, "placeholder", None)
+    prel = (params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path).as_posix()
     L = [f"# Rapor şekilleri",
          "",
          f"`tools/rapor_sekilleri.py` ile {date.today():%d.%m.%Y} tarihinde üretildi. **Elle düzenlemeyin;** "
          "parametreler değişince script'i yeniden çalıştırın.",
          "",
-         f"* Parametreler: `{(params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path).as_posix()}`"
+         f"* Parametreler: `{prel}`"
          f" (M = {S.p.M:g} kg, m = {S.p.m:g} kg, l = {S.p.l:g} m, ray ±{S.p.rail_half:g} m, "
          f"giriş: {'motor gerilimi' if unit == 'V' else 'kuvvet'}, |u| ≤ {S.p.u_max:g} {unit})",
          f"* Kontrolcü: arayüzün varsayılanları; Q = diag{Q}, R = {R:g}, Ts = {TS * 1000:g} ms, "
@@ -350,10 +351,10 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
          + f", {encoder_resolution(S.p) * 1000:.3f} mm/sayım); dik bölgede Kalman (firmware gibi)",
          ""]
     if placeholder or "YER TUTUCU" in str(getattr(S.p, "note", "")):
-        L += ["> ⚠ **Parametreler yer tutucu değerlerdir.** Mekatronik ekibi gerçek ölçüleri `config/params.json`'a "
-              "girince şekiller yeniden üretilmelidir; sayılar değişecektir.", ""]
+        L += [f"> ⚠ **Parametreler yer tutucu değerlerdir** (`{prel}`, ölçüm değil). Gerçek ölçüler girilince "
+              "şekiller yeniden üretilmelidir; sayılar değişecektir.", ""]
     if S.e_ratio != 1.0:
-        L[-1:-1] = [f"> Swing-up hedef enerji oranı arayüz varsayılanından (1.0) farklı: **{S.e_ratio:g}**.", ""]
+        L += [f"> Swing-up hedef enerji oranı arayüz varsayılanından (1.0) farklı: **{S.e_ratio:g}**.", ""]
     L += ["## 1. Aşağıdan kalkış — `asagidan_kalkis.png`",
           "",
           "![Aşağıdan kalkış](asagidan_kalkis.png)",
