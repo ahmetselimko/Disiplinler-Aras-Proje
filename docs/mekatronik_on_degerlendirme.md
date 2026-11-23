@@ -6,7 +6,7 @@ görmek ve iki ekibin netleştirmesi gereken noktaları listelemektir.
 
 > ⚠ **Bu bir ön değerlendirmedir.** Kullanılan değerler CAD tasarımından ve mekatroniğin hesaplarından gelir, ölçüm
 > değildir. JGB37-520'nin datasheet'i henüz yok. Motor, raporun Tablo 16'daki gerilim–kuvvet kazancı ve zıt EMK
-> sönümüyle modellendi; direnç (R) yer tutucu. Projenin asıl parametre dosyası `config/params.json` **değiştirilmedi**;
+> sönümüyle modellendi; R, Kt ve Ke bu iki değerden Kt = Ke varsayımıyla türetildi, ölçülmedi. Projenin asıl parametre dosyası `config/params.json` **değiştirilmedi**;
 > bu çalışma ayrı bir dosyayla yapıldı: `config/params_mekatronik_tasarim.json`.
 
 Yeniden üretmek için:
@@ -102,14 +102,16 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 * **Motor gerilim sınırında çalışıyor.** Swing-up sırasında 12 V'a dayanıyor: motorun gerçek kuvveti (≈ 27 N durma)
   yer tutucudakinden çok düşük ve rotorun 1.35 kg'lık yansıyan kütlesi arabayı ağırlaştırıyor. Datasheet gelince
   yeniden bakılmalı.
-* **Model uyumsuzluğu:** −%15 … +%20 aralığında dengede kalıyor (−%10 ve +%20'de araba ray ucuna yaklaşıyor).
+* **Model uyumsuzluğu:** −%15 … +%20 aralığında deneme dengede bitiyor; −%10'da LQR sarkacı bir kez bırakıyor ve
+  swing-up yeniden kaldırıyor (araba 0.31 m'ye kadar gidiyor), +%20'de araba ray ucuna yaklaşıyor.
   −%20'de yakalanıyor ama araba ray ucuna çarpıyor; −%25 ve altında sarkaç yakalama bölgesine hiç yaklaşamıyor;
   +%25'te LQR yakalıyor ama tutamıyor, +%30'da yakalama bölgesinin hemen dışında kalıyor. **m ve l'nin ölçülerek doğru
   girilmesi şart.**
 * **Dengede sürtünmeden doğan konum kayması:** LQR Coulomb sürtünmesini telafi etmez (firmware'de de telafi yalnız
-  swing-up'ta). 3 N sürtünme, konum hatası küçükken LQR'ın komutunu yutar ve araba yaklaşık F_c / (α·|K_x|) ≈ 0.13 m'lik
-  bir ölü bantta durabilir. Tablolardaki dengede max \|x\| ≈ 0.14 m'nin sebebi bu (sürtünmesiz ≈ 0.01 m). ±0.4 m rayın
-  üçte biri; gerçek sürtünme ölçülünce dengede de telafi ya da integral etki değerlendirilmeli.
+  swing-up'ta). 3 N sürtünme, konum hatası küçükken LQR'ın komutunu yutar ve araba yaklaşık F_c / (α·|K_x|) ≈ 0.14 m'lik
+  bir ölü bantta durabilir: dengede araba ≈ 0.14 m'ye kadar kayabiliyor (dürtme tablosunda 0.2 N'lik itmede bile
+  0.141 m), sürtünmesiz dengede ise birkaç mm. ±0.4 m rayın üçte biri; gerçek sürtünme ölçülünce dengede de telafi ya da
+  integral etki değerlendirilmeli. (Tablolardaki max \|x\| bütün koşuyu kapsar; swing-up evresi de ≈ 0.14 m'ye çıkar.)
 
 ## 4. İki ekibin raporları arasındaki farklar
 

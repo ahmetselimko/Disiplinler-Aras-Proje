@@ -68,12 +68,12 @@ def run(p, e_ratio, friction_comp=True, T=T):
     e = evaluate_result(r, p)
     m = np.asarray(r.mode)
     tb = float(r.t[np.argmax(m == "BALANCE")]) if (m == "BALANCE").any() else None
-    status = e.status
+    status = e.status                                             # tools/rapor_sekilleri.py::classify ile aynı kural
     if tb is not None:
         after = set(m[np.argmax(m == "BALANCE"):])
         lost = "SWING_UP" in after or "WAIT" in after             # LQR yakaladıktan sonra bıraktı mı?
-        if status == "BAŞARISIZ":
-            status = "TUTAMADI"                                   # yakaladı, bıraktı, yeniden yakalayamadı
+        if status == "BAŞARISIZ" and m[-1] != "BALANCE":
+            status = "TUTAMADI"                                   # yakaladı, bıraktı, sonunda dengede değil
         elif lost and status in ("BAŞARILI", "SINIRDA"):
             status = "DÜŞTÜ"                                      # bıraktı, swing-up yeniden kaldırdı
     # dike en yakın açı, ilk sallanma (3 s; kısa koşuda sürenin yarısı) hariç

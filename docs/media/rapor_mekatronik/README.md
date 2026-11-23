@@ -59,7 +59,7 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 | -25% | swing-up bitmedi | — | 0.156 m | 85.3° |
 | -20% | ray ucuna çarptı | 7.65 s | 0.400 m | 0.0° |
 | -15% | dengede kaldı | 5.62 s | 0.147 m | 0.0° |
-| -10% | dengede kaldı (ray ucuna yakın) | 4.93 s | 0.314 m | 0.0° |
+| -10% | düştü, swing-up yeniden kaldırdı | 4.93 s | 0.314 m | 0.0° |
 | -5% | dengede kaldı | 4.23 s | 0.150 m | 0.0° |
 | +0% | dengede kaldı | 4.32 s | 0.143 m | 0.0° |
 | +5% | dengede kaldı | 3.57 s | 0.142 m | 0.0° |
@@ -69,9 +69,11 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 | +25% | LQR yakaladı ama tutamadı | 3.64 s | 0.272 m | 11.9° |
 | +30% | swing-up bitmedi | — | 0.133 m | 15.8° |
 
-**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -25%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 85–91°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor. Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin "KRİTİK" sonucuyla tutarlıdır.
+**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -25%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 85–91°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
 
 **Not:** Gerçek sarkaç modeldekinden ağır/uzun olduğunda (+30%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 16°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
+
+**Not:** -10% sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı ve deneme dengede bitti (tablodaki geçiş zamanı ilk yakalamadır).
 
 **Not:** +25% sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu tutamadı ve swing-up süre sonuna kadar yeniden tamamlanmadı. LQR nominal modelle tasarlandığı için sapma büyüyünce denge payı azalıyor.
 

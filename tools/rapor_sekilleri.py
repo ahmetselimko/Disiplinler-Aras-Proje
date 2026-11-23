@@ -118,6 +118,21 @@ def shade_modes(ax, r):
         i = j + 1
 
 
+def classify(r, e):
+    """Deneme sonucu; mekatronik_on_degerlendirme.py ile aynı kural. LQR'a geçildiyse:
+    TUTAMADI = yakaladı, bıraktı ve sonunda yine dengede değil; DÜŞTÜ = bıraktı ama swing-up yeniden kaldırdı."""
+    m = list(r.mode)
+    if "BALANCE" not in m:
+        return e.status
+    after = m[m.index("BALANCE"):]
+    lost = "SWING_UP" in after or "WAIT" in after
+    if e.status == "BAŞARISIZ" and m[-1] != "BALANCE":
+        return "TUTAMADI"
+    if lost and e.status in ("BAŞARILI", "SINIRDA"):
+        return "DÜŞTÜ"
+    return e.status
+
+
 def pulse(F):
     return lambda t: F if PUSH_START <= t < PUSH_START + PUSH_DUR else 0.0
 
@@ -259,10 +274,7 @@ def fig_mismatch(S: Setup, out: Path):
         real.l *= k
         r = S.run(real, [0, 0, math.pi, 0], T)
         e = evaluate_result(r, S.p)
-        tb = first_balance(r)
-        # LQR'a geçti ama sonunda dengede değil: "swing-up bitmedi" değil, "yakaladı ama tutamadı"
-        status = "TUTAMADI" if e.status == "BAŞARISIZ" and tb is not None else e.status
-        res[k] = (r, e, tb, status)
+        res[k] = (r, e, first_balance(r), classify(r, e))
     fig = plt.figure(figsize=(7.4, 5.8))
     gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.42)
     a1 = fig.add_subplot(gs[0])
@@ -282,12 +294,14 @@ def fig_mismatch(S: Setup, out: Path):
 
     a2 = fig.add_subplot(gs[1])
     pct = [(k - 1) * 100 for k in MISMATCH_GRID]
-    ok_t = [tb for (_, _, tb, st_) in res.values() if tb is not None and st_ in ("BAŞARILI", "SINIRDA", "TUTAMADI")]
+    ok_t = [tb for (_, _, tb, st_) in res.values() if tb is not None and st_ in ("BAŞARILI", "SINIRDA", "DÜŞTÜ", "TUTAMADI")]
     top = max(12.5, math.ceil(1.25 * max(ok_t, default=0.0) / 2.5) * 2.5)
     for k, x in zip(MISMATCH_GRID, pct):
         r, e, tb, st_ = res[k]
         if st_ in ("BAŞARILI", "SINIRDA"):
             a2.scatter(x, tb, s=60, color=GOOD, zorder=3)
+        elif st_ == "DÜŞTÜ":
+            a2.scatter(x, tb, s=60, facecolors="white", edgecolors=GOOD, linewidths=1.8, zorder=3)
         elif st_ == "TUTAMADI":
             a2.scatter(x, tb, s=60, facecolors="white", edgecolors=CRITICAL, linewidths=1.8, zorder=3)
         elif st_ == "RAY SINIRI":
@@ -305,10 +319,12 @@ def fig_mismatch(S: Setup, out: Path):
     a2.set_ylabel("LQR'a geçiş [s]")
     a2.set_title(f"Her sapma için sonuç ({T:g} s)", pad=22)
     h = [plt.Line2D([], [], ls="", marker="o", color=GOOD, ms=7),
+         plt.Line2D([], [], ls="", marker="o", mfc="white", mec=GOOD, mew=1.8, ms=7),
          plt.Line2D([], [], ls="", marker="o", mfc="white", mec=CRITICAL, mew=1.8, ms=7),
          plt.Line2D([], [], ls="", marker="^", color=SERIOUS, ms=7),
          plt.Line2D([], [], ls="", marker="x", color=CRITICAL, ms=7, mew=2)]
-    legend_above(a2, h, ["dengede kaldı", "yakalandı, tutulamadı", "ray ucuna çarptı", "swing-up bitmedi"], ncol=4)
+    legend_above(a2, h, ["dengede kaldı", "düştü, yeniden kalktı", "yakalandı, tutulamadı", "ray ucuna çarptı",
+                         "swing-up bitmedi"], ncol=3)
     fig.savefig(out / "model_uyumsuzlugu.png")
     plt.close(fig)
     # sarkacın dik konuma en çok yaklaştığı açı (ilk 3 s'lik sallanma hariç)
@@ -428,9 +444,13 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
               f"her salınımda dik konuma ancak {f'{min(cl):.0f}' if round(min(cl)) == round(max(cl)) else f'{min(cl):.0f}–{max(cl):.0f}'}°'ye kadar yaklaşıyor, {CATCH_DEG:g}°'lik "
               "yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç "
               "farklıysa bu hedef de kayıyor."]
-        if side == "hafif/kısa":
+        if side == "hafif/kısa" and prel == "config/params.json":   # hassasiyet raporu bu dosyayla üretildi
             L[-1] += (" Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin \"KRİTİK\" "
                       "sonucuyla tutarlıdır.")
+    fell = [k for k, v in mm.items() if v[0] == "DÜŞTÜ"]
+    if fell:
+        L += ["", f"**Not:** {pct_range(fell)} sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı "
+              "ve deneme dengede bitti (tablodaki geçiş zamanı ilk yakalamadır)."]
     lost = [k for k, v in mm.items() if v[0] == "TUTAMADI"]
     if lost:
         L += ["", f"**Not:** {pct_range(lost)} sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu "
