@@ -231,7 +231,12 @@ def fig_poles(S: Setup, out: Path):
     cld = np.linalg.eigvals(Ad - Bd @ S.K.reshape(1, -1))
     cls = np.log(cld.astype(complex)) / TS          # ayrık kutupların sürekli karşılığı
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(7.4, 3.6), gridspec_kw={"wspace": 0.28, "width_ratios": (1, 1.15)})
-    zoom = max(8.0, 1.6 * float(max(abs(z.real) for z in np.concatenate([ol, cls]) if abs(z.real) < 20)))
+    # yakın görünüm: kararsız kutbun ~1.5 katına kadar olan (sıfır civarı) kutuplar; tam görünümden geniş olmasın
+    allp = np.concatenate([ol, cls])
+    near_lim = 1.5 * max(float(ol.real.max()), 1.0)
+    near = [abs(z.real) for z in allp if abs(z.real) <= near_lim]
+    zoom = max(8.0, 1.6 * max(near, default=0.0))
+    zoom = min(zoom, 0.8 * abs(float(allp.real.min())) * 1.12)
     im = max(1.0, 1.3 * float(np.abs(np.concatenate([ol.imag, cls.imag])).max()))
     for ax, full in ((a1, True), (a2, False)):
         ax.axhline(0, color=INK2, lw=0.6)
@@ -255,7 +260,7 @@ def fig_poles(S: Setup, out: Path):
                     ax.annotate(fmt_c(z), (z.real, z.imag), xytext=(0, -10), textcoords="offset points",
                                 ha="center", va="top", fontsize=7, color=CAT[0], rotation=60)
     a1.set_ylabel("Sanal kısım [rad/s]")
-    a1.set_xlim(min(np.concatenate([ol.real, cls.real])) * 1.12, max(8.0, max(ol.real) * 1.5))
+    a1.set_xlim(min(np.concatenate([ol.real, cls.real])) * 1.12, max(8.0, max(ol.real) * 1.5, zoom * 0.75 * 1.05))
     a1.axvspan(-zoom, zoom * 0.75, facecolor="none", edgecolor=INK2, lw=0.8, ls="--")
     a1.text(0.98, 0.04, "kararsız\nbölge →", transform=a1.transAxes, ha="right", fontsize=7, color=INK2)
     a1.set_title("s-düzlemi")
@@ -284,6 +289,7 @@ def fig_mismatch(S: Setup, out: Path):
              "TUTAMADI": (dict(marker="o", mfc="white", mec=CRITICAL, mew=1.8), "yakalandı, tutulamadı"),
              "OTURMADI": (dict(marker="o", mfc="white", mec=SERIOUS, mew=1.8), "süre sonunda oturmadı"),
              "RAY SINIRI": (dict(marker="^", color=SERIOUS), "ray ucuna çarptı"),
+             "FAULT": (dict(marker="s", color=CRITICAL), "hata (yazılımsal sınır)"),
              "fail": (dict(marker="x", color=CRITICAL, mew=2), "swing-up bitmedi")}
     seen = {("ok" if v[3] in ("BAŞARILI", "SINIRDA") else v[3] if v[3] in kinds else "fail") for v in res.values()}
     order = [k for k in kinds if k in seen]
@@ -309,7 +315,7 @@ def fig_mismatch(S: Setup, out: Path):
 
     a2 = fig.add_subplot(gs[1])
     pct = [(k - 1) * 100 for k in MISMATCH_GRID]
-    ok_t = [tb for (_, _, tb, st_) in res.values() if tb is not None and st_ in ("BAŞARILI", "SINIRDA", "DÜŞTÜ", "TUTAMADI")]
+    ok_t = [tb for (_, _, tb, st_) in res.values() if tb is not None]      # geçiş anında çizilen her nokta
     top = max(12.5, math.ceil(1.25 * max(ok_t, default=0.0) / 2.5) * 2.5)
     for k, x in zip(MISMATCH_GRID, pct):
         r, e, tb, st_ = res[k]
@@ -323,6 +329,8 @@ def fig_mismatch(S: Setup, out: Path):
             a2.scatter(x, tb, s=60, facecolors="white", edgecolors=SERIOUS, linewidths=1.8, zorder=3)
         elif st_ == "RAY SINIRI":
             a2.scatter(x, tb if tb is not None else top, s=60, marker="^", color=SERIOUS, zorder=3)
+        elif st_ == "FAULT":
+            a2.scatter(x, tb if tb is not None else top, s=50, marker="s", color=CRITICAL, zorder=3)
         else:
             a2.scatter(x, top, s=60, marker="x", color=CRITICAL, linewidths=2, zorder=3)
     a2.axhline(top - 1.25, color=INK2, lw=0.6, ls=":")
