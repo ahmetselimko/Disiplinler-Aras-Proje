@@ -5,7 +5,7 @@
 * Parametreler: `config/params.json` (M = 0.5 kg, m = 0.2 kg, l = 0.3 m, ray ±0.4 m, giriş: motor gerilimi, |u| ≤ 12 V)
 * Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up (hedef enerji oranı 1)
 * K = [-9.52, -27.29, -61.49, -9.74]
-* Sensör: 12-bit açı ve 48 CPR enkoder kuantalaması; dik bölgede Kalman (firmware gibi)
+* Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 48 CPR × 10 redüktör = 480 sayım/tur, 0.125 mm/sayım); dik bölgede Kalman (firmware gibi)
 
 > ⚠ **Parametreler yer tutucu değerlerdir.** Mekatronik ekibi gerçek ölçüleri `config/params.json`'a girince şekiller yeniden üretilmelidir; sayılar değişecektir.
 

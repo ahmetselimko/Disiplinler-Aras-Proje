@@ -36,6 +36,7 @@ from pendulum_lab.control.lqr import design_lqr  # noqa: E402
 from pendulum_lab.control.supervisor import Supervisor  # noqa: E402
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
 from pendulum_lab.model.params import load_params  # noqa: E402
+from pendulum_lab.filters import ENC_CPR_MOTOR, encoder_resolution  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
 
 # Arayüzün varsayılan tasarım ayarları (gui/state.py)
@@ -258,14 +259,18 @@ def fig_mismatch(S: Setup, out: Path):
         real.l *= k
         r = S.run(real, [0, 0, math.pi, 0], T)
         e = evaluate_result(r, S.p)
-        res[k] = (r, e, first_balance(r))
+        tb = first_balance(r)
+        # LQR'a geçti ama sonunda dengede değil: "swing-up bitmedi" değil, "yakaladı ama tutamadı"
+        status = "TUTAMADI" if e.status == "BAŞARISIZ" and tb is not None else e.status
+        res[k] = (r, e, tb, status)
     fig = plt.figure(figsize=(7.4, 5.8))
     gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.42)
     a1 = fig.add_subplot(gs[0])
     for k, col in zip(MISMATCH_SHOWN, CAT):
         r = res[k][0]
         sel = r.t <= 15.0
-        a1.plot(r.t[sel], dist_deg(r.th)[sel], color=col, lw=1.3, label=f"{(k - 1) * 100:+.0f}%")
+        lab = "m, l modelle aynı" if k == 1 else f"m, l {(k - 1) * 100:+.0f}%"
+        a1.plot(r.t[sel], dist_deg(r.th)[sel], color=col, lw=1.3, label=lab)
     a1.set_xlim(0, 15)
     a1.set_ylim(-5, 185)
     a1.set_yticks([0, 45, 90, 135, 180])
@@ -273,17 +278,19 @@ def fig_mismatch(S: Setup, out: Path):
     a1.set_ylabel("Dikten uzaklık |θ| [°]")
     a1.set_xlabel("Zaman [s]")
     a1.set_title("Aşağıdan kalkış: gerçek m ve l modeldekinden farklı", pad=22)
-    legend_above(a1, title="m ve l sapması", title_fontsize=8, ncol=4)
+    legend_above(a1, ncol=4)
 
     a2 = fig.add_subplot(gs[1])
     pct = [(k - 1) * 100 for k in MISMATCH_GRID]
-    ok_t = [tb for (_, e, tb) in res.values() if tb is not None and e.status in ("BAŞARILI", "SINIRDA")]
+    ok_t = [tb for (_, _, tb, st_) in res.values() if tb is not None and st_ in ("BAŞARILI", "SINIRDA", "TUTAMADI")]
     top = max(12.5, math.ceil(1.25 * max(ok_t, default=0.0) / 2.5) * 2.5)
     for k, x in zip(MISMATCH_GRID, pct):
-        r, e, tb = res[k]
-        if e.status in ("BAŞARILI", "SINIRDA"):
+        r, e, tb, st_ = res[k]
+        if st_ in ("BAŞARILI", "SINIRDA"):
             a2.scatter(x, tb, s=60, color=GOOD, zorder=3)
-        elif e.status == "RAY SINIRI":
+        elif st_ == "TUTAMADI":
+            a2.scatter(x, tb, s=60, facecolors="white", edgecolors=CRITICAL, linewidths=1.8, zorder=3)
+        elif st_ == "RAY SINIRI":
             a2.scatter(x, top, s=60, marker="^", color=SERIOUS, zorder=3)
         else:
             a2.scatter(x, top, s=60, marker="x", color=CRITICAL, linewidths=2, zorder=3)
@@ -298,14 +305,15 @@ def fig_mismatch(S: Setup, out: Path):
     a2.set_ylabel("LQR'a geçiş [s]")
     a2.set_title(f"Her sapma için sonuç ({T:g} s)", pad=22)
     h = [plt.Line2D([], [], ls="", marker="o", color=GOOD, ms=7),
+         plt.Line2D([], [], ls="", marker="o", mfc="white", mec=CRITICAL, mew=1.8, ms=7),
          plt.Line2D([], [], ls="", marker="^", color=SERIOUS, ms=7),
          plt.Line2D([], [], ls="", marker="x", color=CRITICAL, ms=7, mew=2)]
-    legend_above(a2, h, ["dengede kaldı", "ray ucuna çarptı", "swing-up bitmedi"], ncol=3)
+    legend_above(a2, h, ["dengede kaldı", "yakalandı, tutulamadı", "ray ucuna çarptı", "swing-up bitmedi"], ncol=4)
     fig.savefig(out / "model_uyumsuzlugu.png")
     plt.close(fig)
     # sarkacın dik konuma en çok yaklaştığı açı (ilk 3 s'lik sallanma hariç)
-    closest = {k: float(dist_deg(r.th)[r.t > 3.0].min()) for k, (r, e, tb) in res.items()}
-    return {k: (e.status, tb, e.max_x, closest[k]) for k, (r, e, tb) in res.items()}
+    closest = {k: float(dist_deg(r.th)[r.t > 3.0].min()) for k, (r, e, tb, st_) in res.items()}
+    return {k: (st_, tb, e.max_x, closest[k]) for k, (r, e, tb, st_) in res.items()}
 
 
 # ---------------------------------------------------------------- README
@@ -322,21 +330,24 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
     unit = "V" if S.p.input_mode == "voltage" else "N"
     st = lambda s: {"BAŞARILI": "dengede kaldı", "SINIRDA": "dengede kaldı (ray ucuna yakın)",
                     "RAY SINIRI": "ray ucuna çarptı", "BAŞARISIZ": "swing-up bitmedi", "FAULT": "hata",
-                    "DÜŞTÜ": "düştü, swing-up yeniden kaldırdı"}.get(s, s)
+                    "DÜŞTÜ": "düştü, swing-up yeniden kaldırdı",
+                    "TUTAMADI": "LQR yakaladı ama tutamadı"}.get(s, s)
     placeholder = getattr(S.p, "placeholder", None)
     L = [f"# Rapor şekilleri",
          "",
          f"`tools/rapor_sekilleri.py` ile {date.today():%d.%m.%Y} tarihinde üretildi. **Elle düzenlemeyin;** "
          "parametreler değişince script'i yeniden çalıştırın.",
          "",
-         f"* Parametreler: `{params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path}`"
+         f"* Parametreler: `{(params_path.relative_to(ROOT_DIR) if params_path.is_relative_to(ROOT_DIR) else params_path).as_posix()}`"
          f" (M = {S.p.M:g} kg, m = {S.p.m:g} kg, l = {S.p.l:g} m, ray ±{S.p.rail_half:g} m, "
          f"giriş: {'motor gerilimi' if unit == 'V' else 'kuvvet'}, |u| ≤ {S.p.u_max:g} {unit})",
          f"* Kontrolcü: arayüzün varsayılanları; Q = diag{Q}, R = {R:g}, Ts = {TS * 1000:g} ms, "
          f"yakalama {CATCH_DEG:g}°, bırakma {RELEASE_DEG:g}°, enerji bazlı swing-up (hedef enerji oranı "
          f"{S.e_ratio:g})",
          "* K = [" + ", ".join(f"{v:.2f}" for v in S.K) + "]",
-         "* Sensör: 12-bit açı ve 48 CPR enkoder kuantalaması; dik bölgede Kalman (firmware gibi)",
+         f"* Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde {ENC_CPR_MOTOR:g} CPR"
+         + (f" × {S.p.motor.gear:g} redüktör = {ENC_CPR_MOTOR * S.p.motor.gear:g} sayım/tur" if unit == "V" else "")
+         + f", {encoder_resolution(S.p) * 1000:.3f} mm/sayım); dik bölgede Kalman (firmware gibi)",
          ""]
     if placeholder or "YER TUTUCU" in str(getattr(S.p, "note", "")):
         L += ["> ⚠ **Parametreler yer tutucu değerlerdir.** Mekatronik ekibi gerçek ölçüleri `config/params.json`'a "
@@ -413,12 +424,17 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
         cl = [mm[k][3] for k in ks]
         L += ["",
               f"**Not:** Gerçek sarkaç modeldekinden {side} olduğunda ({pct_range(ks)}) swing-up tamamlanmıyor: sarkaç "
-              f"her salınımda dik konuma ancak {min(cl):.0f}–{max(cl):.0f}°'ye kadar yaklaşıyor, {CATCH_DEG:g}°'lik "
+              f"her salınımda dik konuma ancak {f'{min(cl):.0f}' if round(min(cl)) == round(max(cl)) else f'{min(cl):.0f}–{max(cl):.0f}'}°'ye kadar yaklaşıyor, {CATCH_DEG:g}°'lik "
               "yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç "
               "farklıysa bu hedef de kayıyor."]
         if side == "hafif/kısa":
             L[-1] += (" Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin \"KRİTİK\" "
                       "sonucuyla tutarlıdır.")
+    lost = [k for k, v in mm.items() if v[0] == "TUTAMADI"]
+    if lost:
+        L += ["", f"**Not:** {pct_range(lost)} sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu "
+              "tutamadı ve swing-up süre sonuna kadar yeniden tamamlanmadı. LQR nominal modelle tasarlandığı için "
+              "sapma büyüyünce denge payı azalıyor."]
     if rail:
         L += ["", f"Araba ray ucuna çarpan noktalar: {', '.join(f'{(k - 1) * 100:+.0f}%' for k in rail)}."]
     (out / "README.md").write_text("\n".join(L) + "\n", encoding="utf-8")
@@ -431,7 +447,7 @@ def main():
     ap.add_argument("--params", type=Path, default=ROOT_DIR / "config/params.json")
     ap.add_argument("--out", type=Path, default=ROOT_DIR / "docs/media/rapor")
     ap.add_argument("--e-ratio", type=float, default=1.0,
-                    help="swing-up hedef enerji oranı E_ref / (m·g·l) (arayüz varsayılanı 1.0)")
+                    help="swing-up hedef enerji oranı: aşağıdan ölçülen hedef enerji / 2mgl (arayüz varsayılanı 1.0; mekatroniğin E_ref = 1.02·mgl'si burada 1.01)")
     args = ap.parse_args()
     p = load_params(args.params)
     K, _, _ = design_lqr(p, Q, [[R]], Ts=TS)

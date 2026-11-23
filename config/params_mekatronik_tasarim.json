@@ -1,5 +1,5 @@
 {
-  "_aciklama": "ÖN DEĞERLENDİRME. Mekatronik ara raporundaki TASARIM değerleri (Bölüm 13.2 Tablo 15, +20 g uç kütlesi; Bölüm 12.1 ve 14.1). Ölçüm değil. Motorun elektriksel değerleri (R, Kt, Ke) hâlâ 37D yer tutucusu; JGB37-520 datasheet'i gelince güncellenmeli. Asıl parametre dosyası config/params.json'dur; bu dosya yalnız docs/mekatronik_on_degerlendirme.md için kullanılır.",
+  "_aciklama": "ÖN DEĞERLENDİRME. Mekatronik ara raporunun 23.11.2026 sürümündeki TASARIM değerleri (Bölüm 13.2 Tablo 15, +20 g uç kütlesi; Bölüm 12.1 ve 14.1). Ölçüm değil. Motor: JGB37-520, 19:1; R yer tutucu (2.18 Ω), Kt ve Ke Tablo 16'daki α_V = 2.26 N/V ve b_elec = 48.41 N·s/m'yi verecek şekilde seçildi (Kt = α·R·r/N, Ke = b·R·r²/(Kt·N²)); J_rotor arabaya yansıyan 1.346 kg'dan (J = 1.346·r²/N²), T_f 3.0 N araba sürtünmesinden (T_f = F·r/N). Datasheet gelince güncellenmeli. Asıl parametre dosyası config/params.json'dur; bu dosya yalnız docs/mekatronik_on_degerlendirme.md için kullanılır.",
   "placeholder": true,
   "M": 1.28,
   "m": 0.105,
@@ -13,14 +13,14 @@
   "input_mode": "voltage",
   "motor": {
     "R": 2.18,
-    "Kt": 0.00892,
-    "Ke": 0.01104,
+    "Kt": 0.0024761,
+    "Ke": 0.010765,
     "gear": 19.0,
     "r_pulley": 0.009549,
     "V_max": 12.0,
-    "J_rotor": 0.0,
-    "T_f": 0.0,
+    "J_rotor": 3.4e-07,
+    "T_f": 0.0015077,
     "B_m": 0.0
   },
-  "note": "Mekatronik tasarım değerleri (+20 g uç kütlesi) — ölçüm değil, motor elektriksel değerleri yer tutucu"
+  "note": "Mekatronik tasarım değerleri (+20 g uç kütlesi) — ölçüm değil; motor Tablo 16'dan, datasheet bekleniyor"
 }

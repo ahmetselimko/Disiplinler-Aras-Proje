@@ -4,8 +4,8 @@
 
 * Parametreler: `config/params_mekatronik_tasarim.json` (M = 1.28 kg, m = 0.105 kg, l = 0.0992 m, ray ±0.4 m, giriş: motor gerilimi, |u| ≤ 12 V)
 * Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up (hedef enerji oranı 1.05)
-* K = [-9.59, -46.64, -80.89, -11.31]
-* Sensör: 12-bit açı ve 48 CPR enkoder kuantalaması; dik bölgede Kalman (firmware gibi)
+* K = [-9.83, -46.64, -101.46, -14.36]
+* Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 48 CPR × 19 redüktör = 912 sayım/tur, 0.066 mm/sayım); dik bölgede Kalman (firmware gibi)
 
 > ⚠ **Parametreler yer tutucu değerlerdir.** Mekatronik ekibi gerçek ölçüleri `config/params.json`'a girince şekiller yeniden üretilmelidir; sayılar değişecektir.
 > Swing-up hedef enerji oranı arayüz varsayılanından (1.0) farklı: **1.05**.
@@ -19,7 +19,7 @@
 
 | LQR'a geçiş | Yerleşme (±2°) | Max \|x\| | Max \|u\| | Sonuç |
 |---|---|---|---|---|
-| 5.45 s | 5.64 s | 0.122 m | 9.88 V | dengede kaldı |
+| 4.32 s | 4.55 s | 0.139 m | 12.00 V | dengede kaldı |
 
 ## 2. Dürtmeye tepki — `durtme.png`
 
@@ -29,11 +29,11 @@
 
 | İtme | Max \|θ\| | Max \|x\| | İtmeden sonra yerleşme (±2°) | Sonuç |
 |---|---|---|---|---|
-| 0.3 N | 2.2° | 0.046 m | 0.28 s | dengede kaldı |
-| 0.7 N | 5.0° | 0.108 m | 0.55 s | dengede kaldı |
-| 1 N | 6.8° | 0.206 m | 0.77 s | dengede kaldı |
+| 0.2 N | 1.3° | 0.142 m | — | dengede kaldı |
+| 0.5 N | 3.0° | 0.138 m | 0.52 s | dengede kaldı |
+| 0.7 N | 5.0° | 0.222 m | 0.82 s | dengede kaldı |
 
-LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): **≈ 1.1 N**. Daha büyük itmelerde LQR sarkacı tutamıyor; sarkaç düşüyor ya da araba ray ucuna çarpıyor.
+LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): **≈ 0.8 N**. Daha büyük itmelerde LQR sarkacı tutamıyor; sarkaç düşüyor ya da araba ray ucuna çarpıyor.
 
 ## 3. Kutup haritası — `kutup_haritasi.png`
 
@@ -43,9 +43,9 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 
 | | Kutuplar |
 |---|---|
-| Açık çevrim (s) | -133.91, -6.87, 0.00, 6.65 |
-| Kapalı çevrim (s karşılığı) | -162.11, -8.64, -4.40, -0.45 |
-| Kapalı çevrim (z) | 0.7231, 0.9829, 0.9912, 0.9991 (en büyük \|z\| = 0.9991) |
+| Açık çevrim (s) | -18.14, -6.83, 0.00, 6.67 |
+| Kapalı çevrim (s karşılığı) | -22.02, -8.82, -4.29, -0.46 |
+| Kapalı çevrim (z) | 0.9569, 0.9825, 0.9915, 0.9991 (en büyük \|z\| = 0.9991) |
 
 ## 4. Model uyumsuzluğu — `model_uyumsuzlugu.png`
 
@@ -55,18 +55,22 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 
 | m ve l sapması | Sonuç | LQR'a geçiş | Max \|x\| | Dike en yakın (t > 3 s) |
 |---|---|---|---|---|
-| -30% | dengede kaldı | 11.83 s | 0.143 m | 0.0° |
-| -25% | dengede kaldı | 9.08 s | 0.139 m | 0.0° |
-| -20% | dengede kaldı | 8.12 s | 0.133 m | 0.0° |
-| -15% | dengede kaldı | 7.20 s | 0.131 m | 0.0° |
-| -10% | dengede kaldı | 6.31 s | 0.128 m | 0.0° |
-| -5% | dengede kaldı | 6.31 s | 0.126 m | 0.0° |
-| +0% | dengede kaldı | 5.45 s | 0.122 m | 0.0° |
-| +5% | dengede kaldı | 5.44 s | 0.122 m | 0.0° |
-| +10% | dengede kaldı | 5.49 s | 0.201 m | 0.0° |
-| +15% | swing-up bitmedi | — | 0.119 m | 19.6° |
-| +20% | swing-up bitmedi | — | 0.118 m | 19.5° |
-| +25% | swing-up bitmedi | — | 0.118 m | 20.5° |
-| +30% | swing-up bitmedi | — | 0.117 m | 21.0° |
+| -30% | swing-up bitmedi | — | 0.163 m | 90.8° |
+| -25% | swing-up bitmedi | — | 0.156 m | 85.3° |
+| -20% | dengede kaldı | 7.65 s | 0.190 m | 0.0° |
+| -15% | dengede kaldı | 5.62 s | 0.147 m | 0.0° |
+| -10% | dengede kaldı (ray ucuna yakın) | 4.93 s | 0.304 m | 0.0° |
+| -5% | dengede kaldı | 4.23 s | 0.143 m | 0.0° |
+| +0% | dengede kaldı | 4.32 s | 0.143 m | 0.0° |
+| +5% | dengede kaldı | 3.57 s | 0.143 m | 0.0° |
+| +10% | dengede kaldı | 3.55 s | 0.143 m | 0.0° |
+| +15% | dengede kaldı | 3.57 s | 0.158 m | 0.0° |
+| +20% | dengede kaldı (ray ucuna yakın) | 3.60 s | 0.301 m | 0.0° |
+| +25% | LQR yakaladı ama tutamadı | 3.62 s | 0.305 m | 9.5° |
+| +30% | swing-up bitmedi | — | 0.133 m | 15.8° |
 
-**Not:** Gerçek sarkaç modeldekinden ağır/uzun olduğunda (+15% … +30%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 19–21°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
+**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -25%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 85–91°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor. Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin "KRİTİK" sonucuyla tutarlıdır.
+
+**Not:** Gerçek sarkaç modeldekinden ağır/uzun olduğunda (+30%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 16°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
+
+**Not:** +25% sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu tutamadı ve swing-up süre sonuna kadar yeniden tamamlanmadı. LQR nominal modelle tasarlandığı için sapma büyüyünce denge payı azalıyor.
