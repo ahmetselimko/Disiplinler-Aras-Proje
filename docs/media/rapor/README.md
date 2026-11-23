@@ -3,7 +3,7 @@
 `tools/rapor_sekilleri.py` ile 23.11.2026 tarihinde üretildi. **Elle düzenlemeyin;** parametreler değişince script'i yeniden çalıştırın.
 
 * Parametreler: `config/params.json` (M = 0.5 kg, m = 0.2 kg, l = 0.3 m, ray ±0.4 m, giriş: motor gerilimi, |u| ≤ 12 V)
-* Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up
+* Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up (hedef enerji oranı 1)
 * K = [-9.52, -27.29, -61.49, -9.74]
 * Sensör: 12-bit açı ve 48 CPR enkoder kuantalaması; dik bölgede Kalman (firmware gibi)
 
@@ -23,7 +23,7 @@
 
 ![Dürtmeye tepki](durtme.png)
 
-*Şekil 2. Sarkaç dengedeyken t = 1 s'de ağırlık merkezine 50 ms süren yatay itme uygulanır.*
+*Şekil 2. Sarkaç dengedeyken t = 1 s'de ağırlık merkezine 50 ms süren yatay itme uygulanır. Kuvvetler, LQR'ın kurtarabildiği en büyük itmenin %30, %60, %90'ıdır.*
 
 | İtme | Max \|θ\| | Max \|x\| | İtmeden sonra yerleşme (±2°) | Sonuç |
 |---|---|---|---|---|
@@ -31,7 +31,7 @@
 | 2 N | 6.6° | 0.178 m | 0.73 s | dengede kaldı |
 | 3 N | 9.9° | 0.297 m | 0.88 s | dengede kaldı |
 
-LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): **≈ 3.3 N**. Bunu aşan itmelerde araba ±0.4 m'lik ray ucuna çarpıyor.
+LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): **≈ 3.3 N**. Daha büyük itmelerde LQR sarkacı tutamıyor; sarkaç düşüyor ya da araba ray ucuna çarpıyor.
 
 ## 3. Kutup haritası — `kutup_haritasi.png`
 
@@ -67,6 +67,6 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 | +25% | dengede kaldı | 6.21 s | 0.157 m | 0.0° |
 | +30% | dengede kaldı | 7.18 s | 0.209 m | 0.0° |
 
-**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (bu taramada -30% … -5%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 17–53°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin "KRİTİK" sonucuyla tutarlıdır: sarkacın boyu ve kütlesi ölçülürken hesaplanandan küçük çıkmaması önemlidir.
+**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -5%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 17–53°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor. Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin "KRİTİK" sonucuyla tutarlıdır.
 
-Ağır tarafta başarısız olan noktalar (+20%) tek tek; komşu değerler başarılı. Ağır tarafta swing-up daha uzun sürüyor ve yakalama anındaki duruma göre araba ray ucuna yaklaşabiliyor.
+Araba ray ucuna çarpan noktalar: +20%.
