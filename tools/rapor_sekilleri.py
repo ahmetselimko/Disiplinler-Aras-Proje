@@ -237,6 +237,7 @@ def fig_poles(S: Setup, out: Path):
     near = [abs(z.real) for z in allp if abs(z.real) <= near_lim]
     zoom = max(8.0, 1.6 * max(near, default=0.0))
     zoom = min(zoom, 0.8 * abs(float(allp.real.min())) * 1.12)
+    zoom = max(zoom, 1.4 * float(ol.real.max()))       # kararsız kutup yakın görünümün içinde kalsın
     im = max(1.0, 1.3 * float(np.abs(np.concatenate([ol.imag, cls.imag])).max()))
     for ax, full in ((a1, True), (a2, False)):
         ax.axhline(0, color=INK2, lw=0.6)
@@ -262,7 +263,8 @@ def fig_poles(S: Setup, out: Path):
     a1.set_ylabel("Sanal kısım [rad/s]")
     a1.set_xlim(min(np.concatenate([ol.real, cls.real])) * 1.12, max(8.0, max(ol.real) * 1.5, zoom * 0.75 * 1.05))
     a1.axvspan(-zoom, zoom * 0.75, facecolor="none", edgecolor=INK2, lw=0.8, ls="--")
-    a1.text(0.98, 0.04, "kararsız\nbölge →", transform=a1.transAxes, ha="right", fontsize=7, color=INK2)
+    # yazı yakın görünümdeki geniş kararsız bölgenin içine (sol panelde çizgilerle çakışıyordu)
+    a2.text(0.375 * zoom, -0.9 * im, "kararsız bölge", ha="center", va="bottom", fontsize=7, color=INK2)
     a1.set_title("s-düzlemi")
     a2.set_title(f"Yakın görünüm (kesikli çerçeve)")
     h, lab = a2.get_legend_handles_labels()
@@ -294,8 +296,8 @@ def fig_mismatch(S: Setup, out: Path):
     seen = {("ok" if v[3] in ("BAŞARILI", "SINIRDA") else v[3] if v[3] in kinds else "fail") for v in res.values()}
     order = [k for k in kinds if k in seen]
     h = [plt.Line2D([], [], ls="", ms=7, **kinds[k][0]) for k in order]
-    ncol = len(order) if len(order) <= 4 else 3
-    two_rows = len(order) > ncol
+    ncol = len(order) if len(order) <= 4 else 4
+    two_rows = len(order) > ncol                         # en çok 7 tür → en çok 2 satır
     fig = plt.figure(figsize=(7.4, 6.1 if two_rows else 5.8))
     gs = fig.add_gridspec(2, 1, height_ratios=(1.25, 1.0), hspace=0.62 if two_rows else 0.42)
     a1 = fig.add_subplot(gs[0])
