@@ -3,8 +3,9 @@
 TelemetryReader.sinks listesine eklenir; satırlar okuyucu thread'inden gelir, dosyaya tamponlu yazılır.
 
 θ işareti: yeni kayıtların başlığında `# theta_pozitif: sol` bulunur (θ > 0 sarkaç sola yatık, #50).
-Bu alanı olmayan eski kayıtlar θ sağa + kuralıyla yazılmıştır; load_recording onları okurken θ, θ̇ ve
-kayıttaki K'ların θ, θ̇ kazançlarını ters çevirir, böylece oynatma ve simülasyonla karşılaştırma bozulmaz.
+Bu alanı olmayan eski kayıtlar θ sağa + kuralıyla yazılmış sayılır (başlıksız, elle üretilmiş bir CSV de);
+load_recording onları okurken θ, θ̇, kayıttaki K'ların θ, θ̇ kazançlarını ve θ taşıyan komut alanlarını
+(eski biçim kick `dth`, reset `th0_deg`) ters çevirir; oynatma ve simülasyonla karşılaştırma bozulmaz.
 """
 
 from __future__ import annotations
@@ -240,8 +241,12 @@ def _convert_old_theta_sign(meta: dict, events: list[dict], name: str = "") -> b
         ack["K"] = _flip_gain(ack["K"])
     for ev in events:
         fields = ev.get("fields")
-        if ev.get("kind") == "command_sent" and isinstance(fields, dict) and "K" in fields:
-            fields["K"] = _flip_gain(fields["K"])
+        if ev.get("kind") == "command_sent" and isinstance(fields, dict):
+            if "K" in fields:
+                fields["K"] = _flip_gain(fields["K"])
+            for key in ("dth", "th0_deg"):           # kick (eski biçim) ve reset: θ işaretli alanlar
+                if isinstance(fields.get(key), (int, float)) and not isinstance(fields[key], bool):
+                    fields[key] = -fields[key]
         settings = ev.get("settings")
         if ev.get("kind") == "pc_design_snapshot" and isinstance(settings, dict):
             if "K" in settings:

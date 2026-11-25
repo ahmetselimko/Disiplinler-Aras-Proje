@@ -93,7 +93,7 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 |---|---|---|
 | LQR K (θ sola +, #50) | [−9.52, −27.29, 61.49, 9.74] | [−9.83, −46.64, 101.46, 14.36] |
 | Aşağıdan kalkış: LQR'a geçiş | 4.34 s | 4.32 s |
-| Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.142 m / **12.0 V** (gerilim sınırında) |
+| Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.143 m / **12.0 V** (gerilim sınırında) |
 | LQR'ın kurtardığı en büyük itme (50 ms, sarkaca) | ≈ 3.3 N | **≈ 0.8 N** |
 | Model uyumsuzluğunda dengede kaldığı aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−15% … +20%** (−10%'da bir kez düştü, yeniden kalktı) |
 

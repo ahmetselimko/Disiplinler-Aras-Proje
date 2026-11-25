@@ -29,6 +29,9 @@ COMMANDS = ("ping", "hb", "start", "stop", "estop", "home", "calib", "set_gain",
 # bağlantı bekçisi: PC "hb"yi bu aralıkla gönderir; cihaz hareketli modda (HOMING, SWING_UP, WAIT, BALANCE,
 # FRICTION) bu süre boyunca hiç komut satırı almazsa motoru keser (FAULT "link"). Firmware'deki
 # LINK_TIMEOUT_MS ile aynı olmalı (test denetler).
+# θ işaret kuralı (#50): θ > 0 sarkaç sola yatık. Firmware ve sanal ESP32 boot olayında ve ping yanıtında
+# "theta": THETA_CONVENTION bildirir; bildirmeyen (eski, θ sağa +) cihaza arayüz K göndermez.
+THETA_CONVENTION = "sol"
 HB_PERIOD_S = 0.25
 LINK_TIMEOUT_S = 1.0
 # yalnız sanal ESP32'de geçerli komutlar (firmware'de yok): dürt, fiziği dondur/sürdür, başlangıç durumuna dön

@@ -172,3 +172,55 @@ def test_firmware_uses_left_positive_theta():
     line = next(s for s in gains.splitlines() if s.startswith("static const float LQR_K[4]"))
     K = [float(v.strip().rstrip("f")) for v in line.split("{")[1].split("}")[0].split(",")]
     assert K[2] > 0 and K[3] > 0                 # θ sola +: θ ve θ̇ kazançları pozitif (eski gains.h'de negatifti)
+
+
+def test_old_recording_sim_commands_with_theta_fields_are_flipped(tmp_path):
+    """Eski kayıttaki θ taşıyan komut alanları (eski biçim kick dth, reset th0_deg) da çevrilir."""
+    from pendulum_lab.recorder import load_recording
+    path = tmp_path / "eski.csv"
+    path.write_text(
+        '# event: {"kind": "command_sent", "cmd": "kick", "fields": {"dth": 1.5}}\n'
+        '# event: {"kind": "command_sent", "cmd": "reset", "fields": {"th0_deg": 170.0}}\n'
+        't,x,dx,th,dth,u,mode\n0,0,0,0.1,0.2,0,IDLE\n0.01,0,0,0.1,0.2,0,IDLE\n', encoding="utf-8")
+    s = load_recording(path)
+    assert [e["fields"] for e in s.events] == [{"dth": -1.5}, {"th0_deg": -170.0}]
+    assert s.th[0] == pytest.approx(-0.1) and s.dth[0] == pytest.approx(-0.2)
+
+
+def test_device_reports_theta_convention_and_old_firmware_gets_no_gain():
+    """Firmware ve sanal ESP32 boot/ping'de "theta":"sol" bildirir; bildirmeyen cihaza arayüz K göndermez."""
+    from pathlib import Path
+    from gui.state import AppState
+    from pendulum_lab.comm import protocol as P
+    from pendulum_lab.comm.mock_device import MockDevice
+    fw = (Path(__file__).resolve().parents[1] / "firmware" / "esp32_pendulum" / "esp32_pendulum.ino").read_text(
+        encoding="utf-8")
+    assert fw.count('\\"theta\\":\\"sol\\"') == 2 and P.THETA_CONVENTION == "sol"
+    out = []
+    dev = MockDevice(realtime=False)
+    dev.output = out.append
+    dev.start()
+    dev.feed(P.encode_command("ping"))
+    dev.step()
+    msgs = [P.parse_line(o) for o in out]
+    boot = next(m for m in msgs if isinstance(m, P.Event) and m.name == "boot")
+    ping = next(m for m in msgs if isinstance(m, P.Ack) and m.cmd == "ping")
+    assert boot.data["theta"] == "sol" and ping.data["theta"] == "sol"
+
+    class _Reader:
+        transport = object()
+        def __init__(self): self.sent = []
+        def send(self, cmd, **f): self.sent.append(cmd)
+    st = AppState(Path(__file__).resolve().parents[1] / "config" / "params.json")
+    st.p.placeholder = False
+    for info, gain_sent in (({"fw": "ref-1.1", "Ts": 0.002}, False),
+                            ({"fw": "ref-1.2", "theta": "sag", "Ts": 0.002}, False),
+                            ({"fw": "ref-1.2", "theta": "sol", "Ts": 0.002}, True)):
+        st.set_reader(_Reader())
+        logs = []
+        st.log.connect(logs.append)
+        st.on_device_info(info, boot=True)
+        st.log.disconnect(logs.append)
+        assert ("set_gain" in st.reader.sent) == gain_sent, info
+        assert "set_param" in st.reader.sent                       # swing-up anahtarı her durumda gider
+        assert any("θ kuralı" in m for m in logs) == (not gain_sent)

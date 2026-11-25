@@ -42,7 +42,8 @@ REF_PATH = Path(__file__).resolve().parent / "data" / "theta_isaret_referans.jso
 TS = 0.002
 Q = (10.0, 1.0, 100.0, 1.0)
 R = 0.1
-# Referansın üretildiği anki config/params.json (25.11.2026), sürtünmeli: Coulomb telafisi de denensin
+# Referansın üretildiği anki config/params.json (25.11.2026); yalnız T_f = 0.0015 (dosyada 0) bilerek eklendi:
+# swing-up'taki Coulomb telafisi ve sürtünmeli denge de denensin
 PARAMS = {
     "M": 0.5, "m": 0.2, "l": 0.3, "I": 0.0, "b": 0.1, "c": 0.0005, "g": 9.81, "rail_half": 0.4,
     "u_max": 12.0, "input_mode": "voltage",

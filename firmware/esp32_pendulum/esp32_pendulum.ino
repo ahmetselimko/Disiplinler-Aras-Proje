@@ -70,7 +70,7 @@ static const int LIM_PRESSED = HIGH;                  //   NC switch + INPUT_PUL
                                                       //   NO switch kullanılırsa LOW yapın (kopuk kablo fark edilmez!)
 
 // ============================================================ DONANIM SABİTLERİ
-static const char *FW_NAME = "ref-1.1";
+static const char *FW_NAME = "ref-1.2";                // 1.2: θ sola + (#50); boot/ping "theta":"sol" bildirir
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // θ > 0: sarkaç SOLA yatık (mekatronik raporu 8.1.3, #50). Sola yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
@@ -617,7 +617,7 @@ static void handleCommand(const char *line) {
   if (!strcmp(cmd, "ping")) {
     char extra[112];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
     // açılış kalibrasyonu (~1.1 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
-    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
+    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"theta\":\"sol\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
              FW_NAME, s.homed ? "true" : "false",
              !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");
     sendAck("ping", true, "pong", extra); return;
@@ -738,7 +738,7 @@ void setup() {
   S.mode = IDLE;
 
   Serial.print("\n");   // ROM'un 115200 baud açılış mesajı 921600'de çöp görünür: boot satırına yapışmasın
-  Serial.printf("{\"evt\":\"boot\",\"fw\":\"%s\",\"Ts\":%.4f}\n", FW_NAME, CTRL_PERIOD_MS / 1000.0f);
+  Serial.printf("{\"evt\":\"boot\",\"fw\":\"%s\",\"theta\":\"sol\",\"Ts\":%.4f}\n", FW_NAME, CTRL_PERIOD_MS / 1000.0f);
   xTaskCreatePinnedToCore(ctrlTask, "ctrl", 4096, nullptr, configMAX_PRIORITIES - 1, nullptr, 1);
   xTaskCreatePinnedToCore(commTask, "comm", 6144, nullptr, 2, nullptr, 0);
 }
