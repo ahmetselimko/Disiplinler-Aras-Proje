@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **273 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–23.11.2026 tarihli turlar); bulunanların hepsi düzeltildi, son iki turda yeni kod hatası çıkmadı. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **273 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor JGB37-520 (mekatronik ara raporunda son seçim); datasheet'i gelmediği için motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle θ işareti dışında birebir aynı (testle doğrulanıyor).
 
@@ -124,7 +124,7 @@ Son PR'lar (#35, #36, #37) yapay zekâ araçlarıyla hazırlandığı için, esk
 
 Küçük, bilinen fark: sanal ESP32'de homing yol sınırı hatası (`homing_travel`) yok (firmware'de var). Sürtünme ölçümünde uç switch'i ve yazılımsal ray sınırı ikisinde de denetlenir; `calib` olayı 22.11.2026'da eklendi. `hassasiyet_raporu.md` 25.11.2026'da güncel kasnakla (r = 9.55 mm) yeniden üretildi; sınıflar değişti: KRİTİK olanlar `l`, `motor.Kt`, `motor.Ke`, `motor.gear`, `motor.r_pulley`, `motor.T_f`; `m` ve `I` artık TOLERANSLI.
 
-### 4.2 Uçtan uca test ve bağımsız inceleme (22–23.11.2026)
+### 4.2 Uçtan uca test ve bağımsız inceleme (22–25.11.2026)
 Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → homing → swing-up → denge → dürt → duraklat → durdur → acil stop → sıfırla → sürtünme ölçümü → tüm sekmeler → kayıt oynatma) ve kod üç ayrı ajana (model/kontrol, haberleşme/firmware, arayüz) inceletildi. Model, LQR, Kalman, swing-up, mod geçişleri, Matlab işaret dönüşümü ve protokol uyumu doğru bulundu. Düzeltilenler:
 
 | Önem | Konu | Düzeltme |

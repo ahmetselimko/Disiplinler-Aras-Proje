@@ -682,7 +682,9 @@ def test_homing_faults_when_left_sensor_reads_pressed_all_the_time():
     _run(dev, 6.0)
     assert not dev.homed and dev.sup.mode.value == "FAULT"
     assert any(b'"reason":"homing_switch"' in o for o in out)
-    assert 'raiseFault(mode, "homing_switch")' in INO and "HOME_SW_CLEAR_M = 0.05f" in INO
+    from pendulum_lab.comm import mock_device as MD
+    m = re.search(r"static const float HOME_SW_CLEAR_M = ([\d.]+)f;", INO)
+    assert 'raiseFault(mode, "homing_switch")' in INO and m and float(m.group(1)) == MD.HOME_SW_CLEAR
 
 
 def test_homing_still_works_with_healthy_switches():
@@ -696,7 +698,7 @@ def test_ping_reports_angle_calibration_and_gui_warns():
     dev.feed(P.encode_command("ping"))
     dev.step()
     assert any(b'"angle_ok":true' in o for o in out)
-    assert '\\"angle_ok\\":%s' in INO and "s.angle_ok" in INO
+    assert 'angle_ok\\":false' in INO and "!s.calib_done" in INO      # kalibrasyon bitmeden alan yok
     st = _state()
     logs = []
     st.log.connect(logs.append)

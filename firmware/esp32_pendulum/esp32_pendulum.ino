@@ -159,7 +159,7 @@ struct Shared {
   uint32_t n; float t, x, dx, th, dth, u; Mode mode;   // telemetri örneği (telemetry_hz'de)
   bool tel_valid;                                    // ilk gerçek örnek yazıldı mı (açılışta sıfırlar gönderilmesin)
   float lx, ldx, lth, ldth;                          // HER adımda güncel durum (komut kabul kuralları için)
-  bool homed, angle_ok;
+  bool homed, angle_ok, calib_done;                  // calib_done: açılış kalibrasyonu bitti (önce angle_ok anlamsız)
   // iletişim → kontrol
   float K[4]; float catch_rad, release_rad, x_ref, u_max;
   float catch_dth, catch_x, catch_dx;                // LQR'a giriş sınırları: |θ̇| [rad/s], |x| [m], |ẋ| [m/s]
@@ -412,7 +412,7 @@ void ctrlTask(void *) {
   vTaskDelay(pdMS_TO_TICKS(1000));
   float raw_hang = 0;
   bool angle_ok = calibrateAngle(raw_hang);
-  portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.ev_calib = true; portEXIT_CRITICAL(&mux);
+  portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.calib_done = true; S.ev_calib = true; portEXIT_CRITICAL(&mux);
 
   TickType_t last = xTaskGetTickCount();
   for (;;) {
@@ -616,8 +616,10 @@ static void handleCommand(const char *line) {
   if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
     char extra[112];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
-    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s,\"angle_ok\":%s", CTRL_PERIOD_MS / 1000.0f,
-             FW_NAME, s.homed ? "true" : "false", s.angle_ok ? "true" : "false");
+    // açılış kalibrasyonu (~1.1 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
+    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
+             FW_NAME, s.homed ? "true" : "false",
+             !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");
     sendAck("ping", true, "pong", extra); return;
   }
   if (!strcmp(cmd, "set_gain")) {
