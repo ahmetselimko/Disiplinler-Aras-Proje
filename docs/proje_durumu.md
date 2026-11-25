@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **302 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **305 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler **mekatronik ara raporunun (23.11.2026) tasarım değerleri** (#50 Aşama 2): +20 g uç kütleli sarkaç (m = 0.105 kg, l = 0.0992 m), araba M = 1.28 kg, JGB37-520 19:1 (Tablo 16: α = 2.26 N/V, b = 48.41 N·s/m), 3 N sürtünme, enkoder 44 CPR (836 sayım/tur, 0.072 mm). Uç kütlesiz ve +50 g seçenekleri `params_ucsuz.json` / `params_50g.json`. Ölçüm değil (`placeholder: true`). Bu değerlerle K = [−9.83, −46.64, +101.47, +14.36]; aşağıdan kalkış ~4.3 s, max \|x\| ≈ 0.14 m (swing-up hedef enerji oranı 1.05). Ölçüm gelince yalnızca `config/params.json` değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle birebir aynı (testle doğrulanıyor).
 * **θ işareti (#50 Aşama 1, 25.11.2026):** bütün projede mekatronik raporundaki (8.1.3) ve Matlab'daki kural geçerli: θ = 0 dik, **θ > 0 sarkaç sola yatık**, x ve F sağa pozitif. Fiziksel davranış değişmedi (eski kodla alınmış referans senaryolarla doğrulandı: `tests/test_theta_isaret.py`); K'nın θ, θ̇ kazançlarının işareti döndü, ör. K = [−9.52, −27.29, +61.49, +9.74]. Eski kurala göre üretilmiş `gains.h` kullanılmamalı; firmware `ref-1.2` boot/ping'de `"theta":"sol"` bildirir, bildirmeyen (eski) cihaza arayüz K göndermez. Eski CSV kayıtları (başlıkta `theta_pozitif` yok) okunurken otomatik çevrilir; başlıksız CSV eski kuralda sayılır.
@@ -87,6 +87,12 @@ Toplantı notları ve tahtadaki plana göre:
 | **Homing'i kim başlatacak** | Kapandı | Kart açılınca bekler; kalibrasyon yalnızca arayüzdeki KALİBRE ET ile, sol switch'i bularak (`protokol.md` §6) |
 
 ---
+
+**Swing-up karar çalışması (#50 Aşama 3, 25.11.2026):** `python tools/swingup_karar.py` → [`swingup_karar_calismasi.md`](swingup_karar_calismasi.md). Uç kütlesi (yok / +20 g / +50 g) × geçiş kuralı (bizim 15°/30° ya da mekatroniğin 10°/25° + θ̇, x, ẋ şartları) × E_ratio (1.00–1.10) × ray (±0.40 / 0.60 / 0.80 m) × sürtünme telafisi; her durum 3 gürültü tohumu ve m, l ±%5 ile (900 koşu, tasarım değerleri). Tablolardan çıkanlar:
+* Her rayda ve telafi açık/kapalı sağlam: **+20 g veya +50 g, bizim kural, E_ratio 1.05** (+50 g'de 1.02 de; +20 g'de 1.10 da, ama araba 0.36 m'ye gidiyor). Uç kütlesiz sarkaç yalnız telafi açık ve E_ratio 1.10'da sağlam.
+* **Mekatroniğin geçiş kuralı** (özellikle \|θ̇\| ≤ 1.5 rad/s) E_ratio > 1'de sarkaç dikten hızlı geçtiği için çoğu durumda yakalayamıyor; sağlam olduğu tek durum +50 g, E_ratio 1.02 (telafi açık) ve 1.05 (telafi kapalı).
+* **Ray uzunluğu** 60 grubun yalnız 1'inde sonucu değiştirdi: mevcut swing-up kazançlarıyla ±0.40 m yetiyor.
+* Varsayılanlar (eşikler #11, `rail_half`) değiştirilmedi; karar iki ekibin.
 
 ## 4. Bağımsız kod incelemesi
 
