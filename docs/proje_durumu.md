@@ -207,6 +207,14 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Eski CSV dönüşümü θ taşıyan komut alanlarını (eski biçim kick `dth`, reset `th0_deg`) çevirmiyordu; dönüşüm arayüzde görünmüyordu | İkisi de çevrilir; Kayıt Oynatma özetinde "eski θ kuralıyla alınmış kayıt, çevrildi" notu; başlıksız CSV'nin eski kural sayıldığı belgelendi |
 | Belge | Test sayısı; `mekatronik_on_degerlendirme.md`'de yeniden üretilen şekillerle uyuşmayan max \|x\| (0.142 → 0.143 m); `katki_10.md`'deki motorlu model K'ları eski 12.7 mm kasnakla hesaplanmıştı; referans senaryo dosyasında T_f açıklaması | Düzeltildi; K'lar güncel `params.json` ile yeniden hesaplandı |
 
+**#50 Aşama 1, ikinci tur (25.11.2026):** birinci turun düzeltmeleri doğrulandı (tampon boyutları, protokol ↔ kod, arayüzün bütün K gönderim yolları). Sanal ESP32'de calib → homing → swing-up → denge → dürtmeler → x_ref → reset senaryosu eski ve yeni kodla ayna başlangıçla koşuldu: 7856 telemetri satırında x, ẋ, u ve mod aynı, θ, θ̇ ters. Bulgular:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | #50 öncesi dışa aktarılmış bir `gains.h` yeni firmware'le hatasız derleniyordu; onda `LQR_K`'nın θ, θ̇ kazançları ve Kalman matrisleri ters işaretli kalır. Kalman matrisleri yalnız `gains.h`'den geldiği için PC düzeltemez ve kart `"theta":"sol"` bildirdiğinden uyarı çıkmazdı (simülasyonda: eski Kalman matrisleriyle sarkaç düşüyor, araba ray sonuna gidiyor) | `gains.h`'ye `#define THETA_POSITIVE_LEFT 1`; firmware bu makro yoksa `#error` ile derlenmez. `gains.h` yeniden üretildi, test denetliyor |
+| Küçük | θ engeli cihaz bilgisi gelene kadar kapalıydı: ping yanıtı gelmeden ya da `fw` alanı olmayan bir boot/ping'den sonra K gidiyordu (protokol.md ile çelişki) | K yalnız cihaz `"theta":"sol"` bildirdikten sonra gider; bilgi henüz yoksa ayrı uyarı. `{"Ts": …}` ile çağıran eski testler cihaz bilgisini tam verecek şekilde güncellendi |
+| Küçük | Eski firmware'e bağlıyken alınan kayıt `theta_pozitif: sol` diye işaretleniyordu (oynatma ayna görüntüsü olurdu); uyarı grafiklerin ters olduğunu söylemiyordu | Kayıt başlığına `theta_pozitif: sag` yazılır (okurken çevrilir); uyarı metni genişletildi |
+| Belge | Kılavuzda otomatik yükleme koşulu ve sorun giderme satırları, firmware README'de `ref-1.2` / `theta` alanı / eski `gains.h` notu yoktu | Eklendi |
+
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
 ---

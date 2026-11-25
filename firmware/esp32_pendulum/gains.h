@@ -1,11 +1,14 @@
 // Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin
-// 2026-11-25 19:30:31
+// 2026-11-25 20:13:11
 // Q = [10.0, 1.0, 100.0, 1.0]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage T_f=0.0 B_m=0.0
 #pragma once
 // UYARI: YER TUTUCU parametrelerle üretildi — gerçek ölçüler girilip yeniden üretilmeli.
 #warning "gains.h YER TUTUCU parametrelerle uretildi: olculmus degerleri girip arayuzden yeniden disa aktarin"
 
+// θ işaret kuralı: θ > 0 sarkaç SOLA yatık (#50). Firmware bu makro yoksa derlenmez: eski (θ sağa +)
+// gains.h'de K'nın θ, θ̇ kazançları ve Kalman matrisleri ters işaretlidir.
+#define THETA_POSITIVE_LEFT 1
 #define CTRL_TS_S          0.002000f
 #define CTRL_PERIOD_MS     2
 #define CTRL_RATE_HZ       500

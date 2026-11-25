@@ -72,8 +72,9 @@ class AppState(QtCore.QObject):
 
     @property
     def theta_mismatch(self) -> bool:
-        """Cihaz bilgi verdi ama θ kuralı bizimkiyle aynı değil (θ'yı bildirmeyen eski firmware dahil)."""
-        return self.device_info_seen and self.device_theta != P.THETA_CONVENTION
+        """Bağlı cihaz θ kuralını bizimkiyle aynı bildirmedi (θ'yı bildirmeyen eski firmware dahil).
+        Cihaz bilgisi (ping yanıtı / boot) henüz gelmediyse de True: K yalnız olumlu onaydan sonra gider."""
+        return self.reader is not None and self.device_theta != P.THETA_CONVENTION
 
     @property
     def placeholder_on_real_device(self) -> bool:
@@ -95,9 +96,8 @@ class AppState(QtCore.QObject):
         yanıtı aynı ayarları ikinci kez göndermez."""
         if "Ts" in data:
             self.device_Ts = float(data["Ts"])
-        if "fw" in data:                         # boot ve ping yanıtı fw'yi her zaman taşır
-            self.device_info_seen = True
-            self.device_theta = data.get("theta")
+        self.device_info_seen = True             # boot ya da ping yanıtı
+        self.device_theta = data.get("theta")
         now = time.monotonic()
         if not boot and now - self._last_info < 1.0:
             return
@@ -107,7 +107,9 @@ class AppState(QtCore.QObject):
         if self.theta_mismatch:
             self.log.emit(f"UYARI: cihaz θ kuralını bildirmedi ya da farklı bildirdi (theta={self.device_theta!r}); "
                           f"bu arayüz θ'yı '{P.THETA_CONVENTION}' (sola yatınca pozitif, #50) sayar. Eski firmware "
-                          "olabilir: K GÖNDERİLMEZ (θ kazançları ters çalışır, sarkaç düşer). Firmware'i güncelleyin.")
+                          "olabilir: K GÖNDERİLMEZ (θ kazançları ters çalışır, sarkaç düşer); θ grafikleri ve "
+                          "animasyon ters işaretlidir, kayıtlar eski kural (sağa +) olarak işaretlenir. "
+                          "Firmware'i güncelleyin.")
         if data.get("angle_ok") is False:      # açılıştaki calib olayı bağlanmadan önce gelip kaybolmuş olabilir
             self.log.emit("UYARI: cihazın açı kalibrasyonu BAŞARISIZ — sarkacı aşağıda hareketsiz tutup "
                           "'Açı Sıfırla (calib)'a basın; olmadan BAŞLAT reddedilir.")
@@ -145,8 +147,12 @@ class AppState(QtCore.QObject):
                           "girişini destekler — Tasarım sekmesinde giriş türünü voltage yapıp K'yı yeniden hesaplayın.")
             return False
         if self.theta_mismatch:
-            self.log.emit("K gönderilmedi: cihazın θ kuralı bu arayüzünkiyle aynı değil (eski firmware?). "
-                          "Firmware'i güncelleyip yeniden bağlanın.")
+            if not self.device_info_seen:
+                self.log.emit("K gönderilmedi: cihaz bilgisi (ping yanıtı) henüz gelmedi; θ kuralı doğrulanamadı. "
+                              "Biraz bekleyip tekrar deneyin.")
+            else:
+                self.log.emit("K gönderilmedi: cihazın θ kuralı bu arayüzünkiyle aynı değil (eski firmware?). "
+                              "Firmware'i güncelleyip yeniden bağlanın.")
             return False
         if self.placeholder_on_real_device and not force:
             self.log.emit("K gönderilmedi: parametreler yer tutucu ve gerçek karta bağlısınız.")
@@ -193,6 +199,8 @@ class AppState(QtCore.QObject):
         su = self.swingup
         return {
             "schema_version": 1,
+            # eski (θ sağa +) firmware'e bağlıyken telemetri eski kuraldadır: load_recording okurken çevirir
+            "theta_pozitif": "sag" if (self.device_info_seen and self.device_theta != P.THETA_CONVENTION) else "sol",
             "settings_scope": "PC tasarım anlık görüntüsü; gönderilen komutlar ve cihaz ACK/olayları event satırlarında",
             "device_Ts": self.device_Ts,
             "device_acknowledged_settings": dict(getattr(self.reader, "applied_settings", {})),

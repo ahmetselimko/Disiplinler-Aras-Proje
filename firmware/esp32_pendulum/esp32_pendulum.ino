@@ -27,6 +27,9 @@
 #if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX) || !defined(MOTOR_GEAR) || !defined(PULLEY_R_M)
 #error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX / MOTOR_GEAR / PULLEY_R_M yok. Arayüzden yeniden dışa aktarın."
 #endif
+#ifndef THETA_POSITIVE_LEFT
+#error "gains.h eski θ kuralıyla (sağa +) üretilmiş: LQR_K ve KALMAN_* ters işaretli, sarkaç düşer. Arayüzden yeniden dışa aktarın (#50)."
+#endif
 #ifndef P_FC
 #define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
 #endif

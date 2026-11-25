@@ -117,13 +117,19 @@ def _make_old_csv(new_path, old_path):
     old_path.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
-def test_new_recording_header_marks_theta_left_positive(tmp_path):
+def test_new_recording_header_marks_theta_sign(tmp_path):
     from pendulum_lab.recorder import Recorder
-    rec = Recorder(tmp_path / "a.csv", meta={"kaynak": "test", "theta_pozitif": "sag"})   # çağıran yanlış verse de
+    rec = Recorder(tmp_path / "a.csv", meta={"kaynak": "test"})
     rec.close()
     text = (tmp_path / "a.csv").read_text(encoding="utf-8")
-    assert text.splitlines()[0] == "# theta_pozitif: sol"
-    assert text.count("theta_pozitif") == 1
+    assert text.splitlines()[0] == "# theta_pozitif: sol" and text.count("theta_pozitif") == 1
+    # eski firmware'e bağlıyken arayüz "sag" verir: başlık bunu taşır, okuyan çevirir
+    rec = Recorder(tmp_path / "b.csv", meta={"kaynak": "test", "theta_pozitif": "sag"})
+    rec.close()
+    assert (tmp_path / "b.csv").read_text(encoding="utf-8").splitlines()[0] == "# theta_pozitif: sag"
+    with pytest.raises(ValueError):
+        Recorder(tmp_path / "c.csv", meta={"theta_pozitif": "yukari"})
+    assert not (tmp_path / "c.csv").exists()
 
 
 def test_old_recording_is_converted_on_load(tmp_path):
@@ -168,7 +174,12 @@ def test_firmware_uses_left_positive_theta():
     assert "float F = (P_M_CART + P_M_POLE) * a - ml * c * ddth + ml * s * dth * dth + P_B * dx;" in fw
     assert "a = -p.su_kE * (E - E_target) * dth * cosf(th);" in fw
     assert "SOLA" in fw.split("ANGLE_SIGN", 1)[1].split("\n", 1)[0]
+    assert "#ifndef THETA_POSITIVE_LEFT\n#error" in fw                 # eski gains.h derlenmesin
     gains = (fw_dir / "gains.h").read_text(encoding="utf-8")
+    assert "#define THETA_POSITIVE_LEFT 1" in gains
+    from pendulum_lab.export import gains_header
+    from pendulum_lab.model.params import PendulumParams
+    assert "#define THETA_POSITIVE_LEFT 1" in gains_header(PendulumParams(), [0, 0, 0, 0], 0.002)
     line = next(s for s in gains.splitlines() if s.startswith("static const float LQR_K[4]"))
     K = [float(v.strip().rstrip("f")) for v in line.split("{")[1].split("}")[0].split(",")]
     assert K[2] > 0 and K[3] > 0                 # θ sola +: θ ve θ̇ kazançları pozitif (eski gains.h'de negatifti)
@@ -213,7 +224,11 @@ def test_device_reports_theta_convention_and_old_firmware_gets_no_gain():
         def send(self, cmd, **f): self.sent.append(cmd)
     st = AppState(Path(__file__).resolve().parents[1] / "config" / "params.json")
     st.p.placeholder = False
+    st.set_reader(_Reader())
+    assert not st.push_to_device(force=True) and "set_gain" not in st.reader.sent   # cihaz bilgisi gelmeden K yok
+    assert not st.push_to_device() and "set_gain" not in st.reader.sent
     for info, gain_sent in (({"fw": "ref-1.1", "Ts": 0.002}, False),
+                            ({"Ts": 0.002}, False),
                             ({"fw": "ref-1.2", "theta": "sag", "Ts": 0.002}, False),
                             ({"fw": "ref-1.2", "theta": "sol", "Ts": 0.002}, True)):
         st.set_reader(_Reader())
@@ -224,3 +239,4 @@ def test_device_reports_theta_convention_and_old_firmware_gets_no_gain():
         assert ("set_gain" in st.reader.sent) == gain_sent, info
         assert "set_param" in st.reader.sent                       # swing-up anahtarı her durumda gider
         assert any("θ kuralı" in m for m in logs) == (not gain_sent)
+        assert st.get_metadata()["theta_pozitif"] == ("sol" if gain_sent else "sag")   # kayıt başlığı

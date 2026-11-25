@@ -26,6 +26,8 @@ arduino-cli compile --fqbn esp32:esp32:esp32 firmware/esp32_pendulum     # klasi
 ```
 Aynı derleme her push ve PR'da GitHub Actions'ta iki kart × iki core sürümüyle tekrarlanır (`.github/workflows/test.yml`).
 
+**θ işaret kuralı (#50, firmware `ref-1.2`):** θ > 0 sarkaç **sola** yatık (mekatronik raporu 8.1.3). Firmware boot olayında ve ping yanıtında `"theta":"sol"` bildirir; arayüz bunu bildirmeyen (eski) karta K göndermez. #50'den önce dışa aktarılmış bir `gains.h` (`THETA_POSITIVE_LEFT` makrosu yok) **derlenmez** (`#error`): onda K'nın θ, θ̇ kazançları ve Kalman matrisleri ters işaretlidir. Arayüzden yeniden dışa aktarın.
+
 **ESP32-S3-DevKitC-1'de iki USB portu var:** bilgisayara **"COM" (UART)** yazan port bağlanmalı; `Serial` (921600 baud) oradan çıkar. Arduino IDE'de "USB CDC On Boot" **Disabled** (varsayılan) kalmalı.
 
 ## Dosyalar
@@ -109,6 +111,6 @@ Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı t
 
 ## İlk açılış kontrol listesi
 1. Motor sürücüsünün EN pini bağlı değilken yükleyin, Seri Monitör'de (921600) telemetrinin geldiğini görün.
-2. `docs/protokol.md` §2'deki işaret kontrolünü yapın.
+2. `docs/protokol.md` §2'deki işaret kontrolünü yapın (sarkacı **sola** yatırınca `th` pozitif olmalı; değilse `ANGLE_SIGN = -1`).
 3. Arayüzden **KALİBRE ET** ile homing'i deneyin (elinizi acil stop'ta tutun).
 4. Önce **Swing-up açık** kutusunu kaldırıp sarkacı elle dik tutun, **BAŞLAT** ile yalnızca LQR'ı deneyin. Sonra swing-up'ı açın.

@@ -44,8 +44,13 @@ class Recorder:
     def __init__(self, path: str | Path, meta: dict | None = None):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        meta = dict(meta or {})
+        # telemetrinin θ kuralı: varsayılan yeni kural; eski (θ sağa +) firmware'e bağlıyken arayüz "sag" verir
+        sign = meta.pop(THETA_SIGN_KEY, THETA_SIGN_VALUE)
+        if sign != THETA_SIGN_VALUE and sign not in OLD_THETA_SIGN_VALUES:
+            raise ValueError(f"tanınmayan {THETA_SIGN_KEY} değeri {sign!r}")
+        meta = {THETA_SIGN_KEY: sign, **meta}
         self._f = open(self.path, "x", newline="", encoding="utf-8")   # "x": varsa üzerine yazma
-        meta = {THETA_SIGN_KEY: THETA_SIGN_VALUE, **{k: v for k, v in (meta or {}).items() if k != THETA_SIGN_KEY}}
         for k, v in meta.items():
             encoded = v if isinstance(v, str) and '\n' not in v and '\r' not in v else json.dumps(v, ensure_ascii=False, allow_nan=False)
             self._f.write(f"# {k}: {encoded}\n")

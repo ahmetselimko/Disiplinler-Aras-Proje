@@ -17,7 +17,7 @@ python main.py
 ## 1. Bağlanma
 Üstteki **Port** listesinde varsayılan olarak **★ Sanal ESP32 (simülasyon)** seçilidir. Donanım yokken her şey bu sanal cihazla denenir. Gerçek kart takılıysa listede ESP32'nin COM portu da görünür (yenilemek için ⟳). Baud: **921600**. **Bağlan**'a basın.
 
-Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı her durumda (güvenlik) gönderilir. K ve diğer ayarlar ise yalnız cihazın kontrol periyodu (Ts) tasarımdakiyle aynıysa, parametreler yer tutucu değilse ve giriş türü `voltage` ise otomatik yüklenir ve sağ alttaki günlükte görünür. Ts farklıysa K **gönderilmez** ve uyarı çıkar; yer tutucu parametrelerle gerçek kartta K yalnız **K'yı Cihaza Gönder** ile onaylanarak gider.
+Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı her durumda (güvenlik) gönderilir. K ve diğer ayarlar ise yalnız cihaz θ kuralını `"theta":"sol"` olarak bildirdiyse (#50; eski firmware bildirmez), cihazın kontrol periyodu (Ts) tasarımdakiyle aynıysa, parametreler yer tutucu değilse ve giriş türü `voltage` ise otomatik yüklenir ve sağ alttaki günlükte görünür. Ts farklıysa K **gönderilmez** ve uyarı çıkar; yer tutucu parametrelerle gerçek kartta K yalnız **K'yı Cihaza Gönder** ile onaylanarak gider.
 
 ## 2. Canlı İzleme sekmesi
 
@@ -126,6 +126,8 @@ RMSE büyükse önce parametreleri (özellikle motor değerleri ve sürtünme) g
 | "✗ sürtünme ölçümü: yeterli hıza ulaşılamadı" | Gerilim (6 V), yol (8 cm) veya süre sınırına takıldı: sürtünme çok yüksek ya da araba sıkışıyor. Mekanizmayı elle itip kontrol edin |
 | "✗ start: açı kalibrasyonu başarısız" | Sarkacı aşağıda durdurup **Açı Sıfırla (calib)** |
 | Gerçek karta bağlanınca "Yer tutucu parametreler" uyarısı, K gönderilmiyor | `config/params.json` hâlâ yer tutucu. Tasarım sekmesinde ölçülmüş değerleri girip **Ölçülmüş gerçek değerler** kutusunu işaretleyin, **Parametre Kaydet**. Kart o zamana kadar derlendiği `gains.h` ile çalışır |
+| "UYARI: cihaz θ kuralını bildirmedi ya da farklı bildirdi" / "K gönderilmedi: cihazın θ kuralı …" | Kartta #50 öncesi (θ sağa +) firmware var: K gönderilmez, θ grafikleri ve animasyon ters, kayıtlar eski kural olarak işaretlenir. Firmware'i güncelleyin; `gains.h`'yi arayüzden yeniden dışa aktarın (eski `gains.h` yeni firmware'le derlenmez) |
+| "K gönderilmedi: cihaz bilgisi (ping yanıtı) henüz gelmedi" | Bağlandıktan hemen sonra basıldı; bir saniye bekleyip tekrar deneyin |
 | "UYARI: cihaz Ts = … ms, tasarım Ts = … ms" | Tasarım sekmesinde Ts'yi cihazınkiyle aynı yapıp K Hesapla → Cihaza Gönder |
 | "olay: fault reason=homing_wrong_side" | Homing'de sağ uç sensörü tetiklendi: motor veya enkoder yönü ters (protokol.md §2) ya da sağ sensörün kablosu kopuk/sürekli basılı |
 | "olay: fault reason=homing_switch" | Sol uç sensörü araba uzaklaştığı hâlde basılı kalıyor: kablosu kopuk ya da sensör takılı. Kabloyu ve sensörü kontrol edin |
