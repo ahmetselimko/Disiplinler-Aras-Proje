@@ -27,6 +27,10 @@ START_X_MARGIN = 0.10     # BAŞLAT için rayın ucuna en az bu kadar uzak olmal
 START_MAX_SPEED = 0.2     # BAŞLAT için araba hızı bundan düşük olmalı [m/s]
 # Geçiş (SWING_UP → BALANCE) varsayılanları. catch_x / catch_dx, ray ±0.4 m iken geçişi kısıtlamaz
 # (yazılımsal ray sınırı ve aracın en yüksek hızı zaten daha dar); ray daha uzunsa catch_x de artırılmalı.
+# Yakalama / bırakma açıları [°]: arayüzün, gains.h dışa aktarımının ve rapor araçlarının ortak varsayılanı
+# (değişince hepsi birlikte değişsin). Mekatronik raporu 10°/25° kullanıyor; ortak karar #11 / #50 Aşama 3.
+CATCH_DEG = 15.0
+RELEASE_DEG = 30.0
 CATCH_DTH = 5.0           # LQR'a girişte açısal hız sınırı [rad/s]
 CATCH_X = 0.40            # LQR'a girişte araba konum sınırı |x| [m]
 CATCH_DX = 2.0            # LQR'a girişte araba hız sınırı |ẋ| [m/s]
@@ -48,7 +52,7 @@ CODE_MODES = {i: m for m, i in MODE_CODES.items()}
 
 class Supervisor:
     def __init__(self, p: PendulumParams, K, swingup: EnergySwingUp | None = None,
-                 catch_deg: float = 15.0, release_deg: float = 30.0, catch_dth: float = CATCH_DTH,
+                 catch_deg: float = CATCH_DEG, release_deg: float = RELEASE_DEG, catch_dth: float = CATCH_DTH,
                  soft_margin: float = 0.03, swingup_enabled: bool = True,
                  catch_x: float = CATCH_X, catch_dx: float = CATCH_DX):
         self.p = p

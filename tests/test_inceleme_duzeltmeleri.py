@@ -335,7 +335,9 @@ def test_homing_with_reversed_encoder_faults_slowly_not_at_full_speed():
         if dev.sup.mode.value == "FAULT":
             break
     assert dev.sup.mode.value == "FAULT" and not dev.homed
-    assert vmax < 0.3
+    # homing_runaway sınırı 0.3 m/s: o adımda motor kesilir (mekatronik parametreleriyle bu sınıra ulaşılıyor)
+    assert vmax < 0.32
+    assert any(b"homing_runaway" in o or b"homing_wrong_side" in o for o in out)
     assert 'raiseFault(mode, "homing_runaway")' in INO
 
 

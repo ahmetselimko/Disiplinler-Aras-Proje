@@ -78,7 +78,7 @@ Bu ayarlar **Cihaza Gönder** ile karta gider ve **gains.h Dışa Aktar** ile fi
 ### Lineer olmayan simülasyon
 ![Simülasyon](media/simulasyon.png)
 
-Başlangıç açısı (180° = aşağıda), başlangıç konumu x₀ ve hızları ẋ₀, θ̇₀, süre, gerçekçi sensör (AS5600 12-bit, 48 CPR enkoder), **Kalman filtresi** (dik bölgede hız Kalman ile kestirilir; firmware'deki gibi varsayılan açık, kapatılırsa yalnız 25 Hz türev filtresi), gürültü, gecikme, dürtme anı/kuvveti/süresi/yeri (sarkaca veya arabaya) ve **model uyumsuzluğu** (gerçek sistem tasarımdan %X farklı) seçilip **▶ Simüle Et**'e basılır. Sonuç θ, x, u ve mod grafikleriyle gelir; sağda **▶ Oynat** ile animasyon izlenir (hız 0.25x–2x). Solda özet: LQR'ın ilk devreye girdiği an, en büyük |x| (ray sınırına göre), en büyük |u|.
+Başlangıç açısı (180° = aşağıda), başlangıç konumu x₀ ve hızları ẋ₀, θ̇₀, süre, gerçekçi sensör (AS5600 12-bit, 44 CPR × 19 enkoder), **Kalman filtresi** (dik bölgede hız Kalman ile kestirilir; firmware'deki gibi varsayılan açık, kapatılırsa yalnız 25 Hz türev filtresi), gürültü, gecikme, dürtme anı/kuvveti/süresi/yeri (sarkaca veya arabaya) ve **model uyumsuzluğu** (gerçek sistem tasarımdan %X farklı) seçilip **▶ Simüle Et**'e basılır. Sonuç θ, x, u ve mod grafikleriyle gelir; sağda **▶ Oynat** ile animasyon izlenir (hız 0.25x–2x). Solda özet: LQR'ın ilk devreye girdiği an, en büyük |x| (ray sınırına göre), en büyük |u|.
 
 Gerçek parametreler gelince **ilk iş** buradan θ₀ = 180° ile denemektir: son mod BALANCE olmalı ve max |x| ray sınırının altında kalmalı.
 

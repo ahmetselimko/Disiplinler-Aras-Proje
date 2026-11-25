@@ -31,7 +31,7 @@ import numpy as np
 from .analysis.summary import TrialSummary, compute_trial_summary
 from .comm.reader import COLUMNS, match_ack, mode_name
 from .control.lqr import design_lqr
-from .control.supervisor import Mode, Supervisor
+from .control.supervisor import CATCH_DEG, RELEASE_DEG, Mode, Supervisor
 from .control.swingup import EnergySwingUp
 from .model.params import PendulumParams
 from .sim.simulator import SensorModel, SimResult, simulate_closed_loop
@@ -285,8 +285,8 @@ def _extract_replay_config(meta: dict, fallback_state=None):
     fb_K = getattr(fallback_state, "K", None)
     fb_Ts = getattr(fallback_state, "Ts", 0.002)
     fb_su = getattr(fallback_state, "swingup", None)
-    fb_catch = getattr(fallback_state, "catch_deg", 15.0)
-    fb_release = getattr(fallback_state, "release_deg", 30.0)
+    fb_catch = getattr(fallback_state, "catch_deg", CATCH_DEG)
+    fb_release = getattr(fallback_state, "release_deg", RELEASE_DEG)
     fb_su_en = getattr(fallback_state, "swingup_enabled", True)
     fb_xref = getattr(fallback_state, "x_ref", 0.0)
 

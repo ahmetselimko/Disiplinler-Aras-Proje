@@ -17,9 +17,14 @@ python tools/rapor_sekilleri.py --params config/params_mekatronik_tasarim.json \
        --out docs/media/rapor_mekatronik --e-ratio 1.05   # şekiller
 ```
 
+> **#50 Aşama 2 (25.11.2026):** bu belgedeki tasarım değerleri artık projenin asıl parametre dosyasında:
+> `config/params.json` (+20 g), `config/params_ucsuz.json`, `config/params_50g.json`; enkoder 44 CPR (836 sayım /
+> çıkış turu), swing-up hedef enerji oranı varsayılanı 1.05. Aşağıdaki "`params.json` (yer tutucu)" sütunu Aşama 2
+> öncesi dosyayı gösterir. §2 tabloları 44 CPR enkoderle yeniden üretildi (`python tools/mekatronik_on_degerlendirme.py`).
+
 ## 1. Ölçüler: yer tutucu ve mekatronik tasarımı
 
-| Büyüklük | `params.json` (yer tutucu) | Mekatronik tasarımı | Kaynak |
+| Büyüklük | `params.json` (Aşama 2 öncesi yer tutucu) | Mekatronik tasarımı | Kaynak |
 |---|---|---|---|
 | Sarkaç kütlesi m | 0.20 kg | 0.085 / **0.105** / 0.135 kg (uç kütlesiz / **+20 g** / +50 g) | Bölüm 13.2, Tablo 15 |
 | Pivot–ağırlık merkezi l | **0.30 m** | 0.064 / **0.099** / 0.133 m | Tablo 15 |
@@ -43,7 +48,7 @@ kısa olduğu için daha hızlı devriliyor (açık çevrim kararsız kutup 5.77
 ## 2. Swing-up: uç kütlesi × hedef enerji oranı
 
 Kontrolcü arayüzün varsayılanları (Q = diag(10, 1, 100, 1), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°).
-Sarkaç aşağıda başlıyor, 30 s. "Dike en fazla" = sarkacın dik konuma en çok yaklaştığı açı.
+Sarkaç aşağıda başlıyor, 30 s. Enkoder 44 CPR × 19 (Aşama 2). "Dike en fazla" = sarkacın dik konuma en çok yaklaştığı açı.
 
 **Hedef enerji oranının tanımı:** bizim `E_ratio`, hedef enerjiyi aşağı-durağan konumdan ölçüp dik konum enerjisine
 (2mgl) oranlar. Mekatroniğin E_ref = 1.02·mgl'si (enerji dikte +mgl, aşağıda −mgl) bizim tanımımızda **1.01**'dir.
@@ -52,34 +57,34 @@ Sarkaç aşağıda başlıyor, 30 s. "Dike en fazla" = sarkacın dik konuma en �
 
 | Hedef enerji oranı | uç kütlesiz | +20 g | +50 g |
 |---|---|---|---|
-| **1.00 (şu anki varsayılan)** | ✘ dike en fazla 32° | ✘ dike en fazla 22° | ✘ 3.8 s'de yakalandı ama tutulamadı |
-| 1.01 (= mekatroniğin E_ref 1.02·mgl'si) | ✘ dike en fazla 30° | ✘ dike en fazla 18° | ✔ 3.8 s (max \|x\| 0.15 m) |
+| 1.00 (#50 öncesi varsayılan) | ✘ dike en fazla 32° | ✘ dike en fazla 22° | ✘ 3.8 s'de yakalandı ama tutulamadı |
+| 1.01 (= mekatroniğin E_ref 1.02·mgl'si) | ✘ dike en fazla 29° | ✘ dike en fazla 18° | ✔ 3.8 s (max \|x\| 0.15 m) |
 | 1.02 | ✘ dike en fazla 27° | ✔ 4.4 s (max \|x\| 0.23 m) | ✔ 3.7 s (max \|x\| 0.15 m) |
-| **1.05** | ✘ dike en fazla 16° | ✔ 4.3 s (max \|x\| 0.14 m) | ✔ 3.7 s (max \|x\| 0.15 m) |
-| 1.10 | ✔ 5.5 s (max \|x\| 0.14 m) | ✔ 4.3 s (max \|x\| 0.19 m) | ✔ ilk yakalama 3.7 s; düştü, yeniden yakalandı (max \|x\| 0.29 m) |
+| **1.05 (varsayılan, #50 Aşama 2)** | ✘ dike en fazla 16° | ✔ 4.3 s (max \|x\| 0.14 m) | ✔ 3.7 s (max \|x\| 0.15 m) |
+| 1.10 | ✔ 5.6 s (max \|x\| 0.27 m) | ✔ 4.3 s (max \|x\| 0.21 m) | ✔ ilk yakalama 3.7 s; düştü, yeniden yakalandı (max \|x\| 0.29 m) |
 
-**Sürtünme telafisi KAPALI** (`fc_volt` = 0, şu anki varsayılan; fizikte 3 N sürtünme var):
+**Sürtünme telafisi KAPALI** (`fc_volt` = 0; kontrolcü T_f'yi bilmiyor; fizikte 3 N sürtünme var):
 
 | Hedef enerji oranı | uç kütlesiz | +20 g | +50 g |
 |---|---|---|---|
-| **1.00 (şu anki varsayılan)** | ✘ dike en fazla 90° | ✘ dike en fazla 27° | ✘ dike en fazla 21° |
-| 1.01 (= mekatroniğin E_ref 1.02·mgl'si) | ✘ dike en fazla 90° | ✘ dike en fazla 25° | ✘ dike en fazla 17° |
-| 1.02 | ✘ dike en fazla 90° | ✘ dike en fazla 22° | ✔ 5.4 s (max \|x\| 0.14 m) |
-| **1.05** | ✘ dike en fazla 90° | ✔ 7.2 s (max \|x\| 0.14 m) | ✔ 5.4 s (max \|x\| 0.14 m) |
-| 1.10 | ✘ dike en fazla 89° | ✘ ray ucuna çarptı | ✔ ilk yakalama 5.3 s; düştü, yeniden yakalandı (max \|x\| 0.36 m) |
+| 1.00 (#50 öncesi varsayılan) | ✘ dike en fazla 180° | ✘ dike en fazla 27° | ✘ dike en fazla 21° |
+| 1.01 (= mekatroniğin E_ref 1.02·mgl'si) | ✘ dike en fazla 180° | ✘ dike en fazla 25° | ✘ dike en fazla 17° |
+| 1.02 | ✘ dike en fazla 180° | ✘ dike en fazla 22° | ✔ 5.4 s (max \|x\| 0.14 m) |
+| **1.05 (varsayılan, #50 Aşama 2)** | ✘ dike en fazla 90° | ✔ 7.2 s (max \|x\| 0.14 m) | ✔ 5.4 s (max \|x\| 0.14 m) |
+| 1.10 | ✘ dike en fazla 89° | ✔ ilk yakalama 6.4 s; düştü, yeniden yakalandı (max \|x\| 0.35 m) | ✔ ilk yakalama 5.3 s; düştü, yeniden yakalandı (max \|x\| 0.36 m) |
 
 **Sonuçlar:**
-1. **Mevcut varsayılanlarla (oran 1.00, telafi kapalı) swing-up hiçbir seçenekte tamamlanmıyor.** Uç kütlesiz sarkaç
-   yataya ancak çıkabiliyor (dike en fazla 90°); +20 g ve +50 g'de dike 21–27°'ye kadar gelip 15°'lik yakalama
-   bölgesine giremiyor.
+1. **#50 öncesi varsayılanlarla (oran 1.00, telafi kapalı) swing-up hiçbir seçenekte tamamlanmıyor.** Uç kütlesiz sarkaç
+   hiç kalkmıyor (telafisiz 3 N sürtünme ilk dürtmeyi yutuyor); +20 g ve +50 g'de dike 21–27°'ye kadar gelip 15°'lik
+   yakalama bölgesine giremiyor. Bu yüzden Aşama 2'de varsayılan oran 1.05 yapıldı.
 2. **Uç kütlesi takılmalı.** Uç kütlesiz sarkaç yalnız telafi açıkken ve oran 1.10'da kalkıyor; telafi kapalıyken hiç
    kalkmıyor. Mekatronik raporu da uç kütlesini "titreşimi azaltmak" için öneriyor (Bölüm 13.2); bu sonuç ayrıca
    swing-up için de gerekli olduğunu gösteriyor.
 3. **Hedef enerji oranı 1.05 civarına çekilmeli.** 1.05, +20 g ve +50 g'de telafi açık da kapalı da kalkan tek
    değer. Mekatroniğin değeri (bizde 1.01) yalnız +50 g ve telafi açıkken yetiyor.
 4. **Sürtünme telafisi önemli.** 3 N sürtünme, enerji pompalamanın küçük itmelerini yutuyor. İlk donanım denemesinden
-   önce sürtünme ölçümü (arayüzdeki "Sürtünme ölç") yapılıp telafi açılmalı. ("Kapalı = şu anki varsayılan" ifadesi
-   `params.json` içindir; arayüz bu belgenin parametre dosyasıyla bağlanırsa T_f'den fc_volt ≈ 1.33 V gönderir.)
+   önce sürtünme ölçümü (arayüzdeki "Sürtünme ölç") yapılıp telafi açılmalı. (Aşama 2'den beri `params.json`'da T_f tasarım
+   değerinde, yani arayüz bağlanınca fc_volt ≈ 1.33 V gönderir; sürtünme ölçülünce güncellenmeli.)
 5. **Sınırdaki durumlar hassas.** Örneğin +50 g, oran 1.00, telafi açık: sarkaç yakalanıyor ama tutulamıyor; motor
    sabitlerinin son basamaktaki yuvarlaması bile bu hücreyi "dengede kaldı" ile "tutulamadı" arasında değiştirdi.
    Karar verirken tek hücreye değil, satırın ve sütunun genel eğilimine bakılmalı.

@@ -11,6 +11,7 @@ from ..control.lqr import design_lqr
 from ..control.supervisor import Supervisor
 from ..control.swingup import EnergySwingUp
 from ..model.params import PendulumParams
+from ..filters import ENC_CPR_MOTOR
 from ..sim.simulator import SensorModel, simulate_closed_loop
 from .summary import find_settling_time, input_saturation_time
 
@@ -131,7 +132,7 @@ def evaluate_result(r, p, threshold_deg=2.0, hold_s=1.0):
 
 
 def _sensor(nominal) -> SensorModel:
-    """Deneylerde kullanılan sensör: 12-bit açı, nominal redüktör/kasnakla 48 CPR enkoder, gürültüsüz."""
+    """Deneylerde kullanılan sensör: 12-bit açı, nominal redüktör/kasnakla ENC_CPR_MOTOR'luk enkoder, gürültüsüz."""
     return SensorModel.for_params(nominal, seed=0)
 
 
@@ -260,7 +261,7 @@ def generate_markdown_report(results):
         import json
         cfg = results.settings
         lines += ["## Tekrarlanabilir deney ayarları", "",
-                  f"- Her deney: {cfg['sim_time']:g} s; Ts = {cfg['dt']:g} s; sensör: AS5600 12-bit ve 48 CPR motor "
+                  f"- Her deney: {cfg['sim_time']:g} s; Ts = {cfg['dt']:g} s; sensör: AS5600 12-bit ve {ENC_CPR_MOTOR:g} CPR motor "
                   "enkoderi (kuantalama), gürültü yok; hız dik bölgede Kalman filtresiyle, geniş açıda 25 Hz türev "
                   "filtresiyle kestirilir (firmware gibi).",
                   f"- Başarı: son en az {cfg['hold_s']:g} s boyunca BALANCE ve |θ| ≤ {cfg['threshold_deg']:g}°; FAULT ve ray teması yok.",

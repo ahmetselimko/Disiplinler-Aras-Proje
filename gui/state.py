@@ -11,7 +11,7 @@ from PyQt5 import QtCore
 from pendulum_lab.comm import protocol as P
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.control.lqr import design_lqr
-from pendulum_lab.control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
+from pendulum_lab.control.supervisor import CATCH_DEG, CATCH_DTH, CATCH_DX, CATCH_X, RELEASE_DEG
 from pendulum_lab.control.swingup import EnergySwingUp
 from pendulum_lab.model.params import PendulumParams, load_params
 
@@ -37,8 +37,8 @@ class AppState(QtCore.QObject):
         self.R = 0.1
         self.Ts = 0.002
         self.swingup = EnergySwingUp()
-        self.catch_deg = 15.0
-        self.release_deg = 30.0
+        self.catch_deg = CATCH_DEG      # LQR'a geçiş / bırakma açıları [°] (supervisor.py'deki ortak varsayılan)
+        self.release_deg = RELEASE_DEG
         self.catch_dth = CATCH_DTH      # LQR'a girişte |θ̇| sınırı [rad/s]
         self.catch_x = CATCH_X          # LQR'a girişte |x| sınırı [m]
         self.catch_dx = CATCH_DX        # LQR'a girişte |ẋ| sınırı [m/s]

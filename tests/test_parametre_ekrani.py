@@ -49,12 +49,12 @@ def test_longer_disturbance_pushes_cart_further(qapp):
         page.T.setValue(1.0)
         page.real_cb.setChecked(False)
         page.dist_t.setValue(0.1)
-        page.dist_F.setValue(2.0)
+        page.dist_F.setValue(0.3)                              # hafif sarkaç (+20 g): devirmeyecek kadar küçük
         page.dist_dur.setValue(duration_ms)
         page.run()
         return np.max(np.abs(page.result.x))
 
-    assert final_x(200) > final_x(20)
+    assert final_x(80) > final_x(20)
 
 
 def test_design_tab_g_roundtrip(qapp):
@@ -83,7 +83,8 @@ FIRMWARE = Path(__file__).resolve().parents[1] / "firmware" / "esp32_pendulum" /
 def test_energy_ratio_sets_target_energy():
     p = PendulumParams()
     mgl = p.m * p.g * p.l
-    assert EnergySwingUp().target_energy(p) == pytest.approx(0.0)          # varsayılan: dik konum
+    assert EnergySwingUp().target_energy(p) == pytest.approx(0.1 * mgl)    # varsayılan 1.05: dik konumun %5 fazlası
+    assert EnergySwingUp(E_ratio=1.0).target_energy(p) == pytest.approx(0.0)  # 1.0: tam dik konum
     assert EnergySwingUp(E_ratio=1.1).target_energy(p) == pytest.approx(0.2 * mgl)
     # dik ve yavaşça dönerken (E ≈ 0): oran 1 ise enerji terimi sıfır, oran > 1 ise sarkaç hâlâ itilir
     s = [0.0, 0.0, 0.0, 0.5]

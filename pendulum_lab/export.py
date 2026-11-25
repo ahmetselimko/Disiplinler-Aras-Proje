@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
+from .control.supervisor import CATCH_DEG, CATCH_DTH, CATCH_DX, CATCH_X, RELEASE_DEG
 from .control.swingup import EnergySwingUp
 from .filters import design_kalman
 
@@ -30,8 +30,8 @@ def _c_mat(M) -> list[str]:
     return [f"  {_c_vec(row)}," for row in M]
 
 
-def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float = 15.0,
-                 release_deg: float = 30.0, catch_dth: float = CATCH_DTH, catch_x: float = CATCH_X,
+def gains_header(p, K, Ts: float, Q=None, R=None, swingup=None, catch_deg: float = CATCH_DEG,
+                 release_deg: float = RELEASE_DEG, catch_dth: float = CATCH_DTH, catch_x: float = CATCH_X,
                  catch_dx: float = CATCH_DX) -> str:
     K = np.asarray(K, dtype=float).ravel()
     period_ms = Ts * 1000
