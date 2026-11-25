@@ -92,8 +92,8 @@ class SimulationPage(QtWidgets.QWidget):
             f"b={p_ref.b:g}; Q=diag(25, 4, 32.83, 1), R={MATLAB_R:g}, kuvvet sınırı ±{MATLAB_F_MAX:g} N). "
             "Sonuç Matlab'ın sonucuyla karşılaştırılabilir.\n"
             "Kapalı: projenin parametreleri ve Tasarım sekmesindeki Q, R; K kuvvet girişli model için yeniden "
-            "hesaplanır, kuvvet sınırı yoktur.\nBu durumda K Matlab'ınkiyle aynı değildir (yalnız Matlab'ın işaret "
-            "kuralıyla gösterilir).")
+            "hesaplanır, kuvvet sınırı yoktur.\nBu durumda K Matlab'ınkiyle aynı değildir (θ işaret kuralı "
+            "aynıdır: sola +).")
         self.run_btn = QtWidgets.QPushButton("▶ Simüle Et")
         self.run_btn.setStyleSheet("QPushButton{font-weight:bold;padding:6px}")
         f.addRow(self.matlab_cb)

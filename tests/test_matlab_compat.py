@@ -86,7 +86,7 @@ def test_sign_conversions_are_identity():
     np.testing.assert_allclose(gain_from_matlab(K), K)
 
 
-def test_closed_loop_poles_match_in_both_conventions(p):
+def test_closed_loop_poles_match_matlab(p):
     """İki tarafın kendi modeli ve kendi K'sıyla kapalı çevrim kutupları aynı."""
     _, _, cl = design_lqr(p, MATLAB_Q, MATLAB_R)
     A_m, B_m = matlab_AB(p.M, p.m, p.l, p.I, p.b, p.g)

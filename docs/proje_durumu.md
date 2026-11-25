@@ -226,6 +226,8 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 
 **#50 Aşama 1, dördüncü tur (25.11.2026):** üçüncü turun düzeltmeleri gerçek arayüzle sanal ESP32 üzerinden doğrulandı (kayıt bilgi beklemesi, ping yeniden isteme, eski firmware benzetiminde kayıt ve oynatma, `demo_kayit.py`). Kritik/önemli bulgu yok. Tek bulgu (Küçük, tutarlılık): tanınmayan bir `cihaz_theta_pozitif` değeri (yalnız elle düzenlenmiş dosyada olur) sessizce "sol" sayılıyordu; artık `theta_pozitif` gibi `ValueError` verir, test eklendi.
 
+**#50 Aşama 1, beşinci tur (son kontrol, 25.11.2026):** bütün diff taze gözle incelendi; denklemler yeniden türetildi, eski ve yeni kod ayna başlangıçla karşılaştırıldı (ideal sensörle fark ≤ 1e-13), `gains.h` yeniden üretilip birebir aynı bulundu. **Yeni kod hatası bulunmadı.** Belge: `protokol.md`'deki `set_gain` örneği eski kuraldaki K'yı gösteriyordu (kopyalanıp gönderilse sarkaç düşerdi; main'de de böyleydi); `mimari.md`'de otomatik yüklemenin θ koşulu eksikti; Analiz sekmesinde bir ipucu eski "iki işaret" ifadesini taşıyordu. Düzeltildi.
+
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
 ---
