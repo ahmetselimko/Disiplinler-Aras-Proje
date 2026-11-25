@@ -126,6 +126,7 @@ def _state(placeholder=False):
     from gui.state import AppState
     st = AppState("yok/params.json")
     st.p = PendulumParams(placeholder=placeholder)
+    st.clear_params_fallback()                     # dosya yok ama parametreler testte açıkça verildi
     return st
 
 

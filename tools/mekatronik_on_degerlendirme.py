@@ -10,7 +10,8 @@ E_ratio bizim tanımımızdır: hedef enerji aşağı-durağan konumdan ölçül
 Mekatroniğin E_ref = 1.02·mgl'si (enerji dikte +mgl, aşağıda −mgl) bizim tanımımızda E_ratio = 1.01'dir.
 
 İki tablo yazdırılır: sürtünme telafisi AÇIK (kontrolcü 3 N'u biliyor, firmware'de ölçülen fc_volt gönderilmiş gibi)
-ve KAPALI (fc_volt = 0, şu anki varsayılan).
+ve KAPALI (fc_volt = 0: kontrolcü sürtünmeyi bilmiyor; Aşama 2'den beri params.json'da T_f tasarım değerinde,
+yani arayüzün varsayılanı telafi açık).
 
     python tools/mekatronik_on_degerlendirme.py
 

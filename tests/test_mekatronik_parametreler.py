@@ -87,3 +87,50 @@ def test_catch_release_defaults_have_single_source():
     h = gains_header(PendulumParams(), [0, 0, 0, 0], 0.002)
     assert f"#define CATCH_RAD          {math.radians(CATCH_DEG):.6f}f" in h
     assert f"#define RELEASE_RAD        {math.radians(RELEASE_DEG):.6f}f" in h
+
+
+def test_old_recording_without_e_ratio_replays_with_legacy_value():
+    """E_ratio'suz eski kayıt başlığı 1.0 ile alınmıştı: oynatma bugünkü varsayılanla (1.05) koşmamalı."""
+    from pendulum_lab.recorder import LEGACY_E_RATIO, _extract_replay_config
+    assert LEGACY_E_RATIO == 1.0
+    old = {"swingup": {"k_E": 100.0, "a_max": 4.0, "k_x": 10.0, "k_v": 6.0, "a_kick": 2.0, "E_target": 0.0}}
+    assert _extract_replay_config(old)[4].E_ratio == 1.0
+    new = {"swingup": {"k_E": 100.0, "E_ratio": 1.05}}
+    assert _extract_replay_config(new)[4].E_ratio == 1.05
+
+
+def test_unreadable_params_file_blocks_gain_send_and_export(tmp_path):
+    """params.json okunamazsa genel varsayılanlarla (10:1, 12.7 mm) açılır: K gönderilmez, gains.h yazılmaz."""
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt5 import QtWidgets
+    from gui import design_tab
+    from gui.state import AppState
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(["test"])
+    bad = tmp_path / "config" / "params.json"
+    bad.parent.mkdir()
+    bad.write_text("{bozuk", encoding="utf-8")
+    st = AppState(bad)
+    assert st.params_fallback and "GENEL" in st.startup_warning
+    sent = []
+
+    class _R:
+        transport = object()
+        def send(self, cmd, **f): sent.append(cmd)
+    st.set_reader(_R())
+    st.device_info_seen, st.device_theta = True, "sol"
+    assert st.push_to_device(force=True) is False and "set_gain" not in sent
+    tab = design_tab.DesignTab(st)
+    warned = []
+    orig = QtWidgets.QMessageBox.warning
+    QtWidgets.QMessageBox.warning = staticmethod(lambda *a, **k: warned.append(a[1]))
+    try:
+        tab.export()
+    finally:
+        QtWidgets.QMessageBox.warning = orig
+    assert warned == ["gains.h dışa aktarılmadı"]
+    st.clear_params_fallback()
+    assert st.push_to_device(force=True) is True and "set_gain" in sent
+    tab.close()
+    assert AppState(ROOT / "config" / "params.json").params_fallback is False
+    assert app is not None

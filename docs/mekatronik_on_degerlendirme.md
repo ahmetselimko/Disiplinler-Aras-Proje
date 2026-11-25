@@ -80,8 +80,10 @@ Sarkaç aşağıda başlıyor, 30 s. Enkoder 44 CPR × 19 (Aşama 2). "Dike en f
 2. **Uç kütlesi takılmalı.** Uç kütlesiz sarkaç yalnız telafi açıkken ve oran 1.10'da kalkıyor; telafi kapalıyken hiç
    kalkmıyor. Mekatronik raporu da uç kütlesini "titreşimi azaltmak" için öneriyor (Bölüm 13.2); bu sonuç ayrıca
    swing-up için de gerekli olduğunu gösteriyor.
-3. **Hedef enerji oranı 1.05 civarına çekilmeli.** 1.05, +20 g ve +50 g'de telafi açık da kapalı da kalkan tek
-   değer. Mekatroniğin değeri (bizde 1.01) yalnız +50 g ve telafi açıkken yetiyor.
+3. **Hedef enerji oranı 1.05 civarına çekilmeli** (Aşama 2'de yapıldı). 1.05 ve 1.10, +20 g ve +50 g'de telafi açık
+   da kapalı da kalkıyor (1.10'da bazı hücrelerde sarkaç bir kez düşüp yeniden yakalanıyor ve araba 0.35 m'ye kadar
+   gidiyor); 1.05 daha az ray kullanıyor. Mekatroniğin değeri (bizde 1.01) yalnız +50 g ve telafi açıkken yetiyor.
+   Ayrıntılı sağlamlık taraması: `docs/swingup_karar_calismasi.md` (Aşama 3).
 4. **Sürtünme telafisi önemli.** 3 N sürtünme, enerji pompalamanın küçük itmelerini yutuyor. İlk donanım denemesinden
    önce sürtünme ölçümü (arayüzdeki "Sürtünme ölç") yapılıp telafi açılmalı. (Aşama 2'den beri `params.json`'da T_f tasarım
    değerinde, yani arayüz bağlanınca fc_volt ≈ 1.33 V gönderir; sürtünme ölçülünce güncellenmeli.)
@@ -91,25 +93,26 @@ Sarkaç aşağıda başlıyor, 30 s. Enkoder 44 CPR × 19 (Aşama 2). "Dike en f
 
 ## 3. Önerilen ayarla sonuçlar (+20 g, oran 1.05, telafi açık)
 
-Ayrıntılı şekiller ve tablolar: [`media/rapor_mekatronik/README.md`](media/rapor_mekatronik/README.md). Yer tutucu
-parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.md)):
+Ayrıntılı şekiller ve tablolar: [`media/rapor_mekatronik/README.md`](media/rapor_mekatronik/README.md) (Aşama 2'den
+beri `media/rapor/README.md` de aynı değerlerle üretiliyor). Sol sütun Aşama 2 öncesi yer tutucu parametrelerin
+sonuçlarıdır; kaynağı git geçmişindeki `docs/media/rapor/README.md` (Aşama 1 sonu):
 
-| | Yer tutucu (oran 1.00) | Mekatronik tasarımı, +20 g (oran 1.05) |
+| | Aşama 2 öncesi yer tutucu (oran 1.00) | Mekatronik tasarımı, +20 g (oran 1.05) |
 |---|---|---|
 | LQR K (θ sola +, #50) | [−9.52, −27.29, 61.49, 9.74] | [−9.83, −46.64, 101.46, 14.36] |
 | Aşağıdan kalkış: LQR'a geçiş | 4.34 s | 4.32 s |
-| Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.143 m / **12.0 V** (gerilim sınırında) |
+| Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.142 m / **12.0 V** (gerilim sınırında) |
 | LQR'ın kurtardığı en büyük itme (50 ms, sarkaca) | ≈ 3.3 N | **≈ 0.8 N** |
-| Model uyumsuzluğunda dengede kaldığı aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−15% … +20%** (−10%'da bir kez düştü, yeniden kalktı) |
+| Model uyumsuzluğunda dengede bittiği aralık (m ve l birlikte) | 0 … +30% (+20% hariç) | **−20% … +20%** (−20% ve −10%'da bir kez düştü, yeniden kalktı) |
 
 * **İtmeye dayanıklılık dörtte birine düşüyor.** Kısa ve hafif sarkaç çok daha küçük bir itmeyle devriliyor; 0.8 N'dan
   büyük itmelerde LQR sarkacı tutamıyor.
 * **Motor gerilim sınırında çalışıyor.** Swing-up sırasında 12 V'a dayanıyor: motorun gerçek kuvveti (≈ 27 N durma)
   yer tutucudakinden çok düşük ve rotorun 1.35 kg'lık yansıyan kütlesi arabayı ağırlaştırıyor. Datasheet gelince
   yeniden bakılmalı.
-* **Model uyumsuzluğu:** −%15 … +%20 aralığında deneme dengede bitiyor; −%10'da LQR sarkacı bir kez bırakıyor ve
-  swing-up yeniden kaldırıyor (araba 0.31 m'ye kadar gidiyor), +%20'de araba ray ucuna yaklaşıyor.
-  −%20'de yakalanıyor ama araba ray ucuna çarpıyor; −%25 ve altında sarkaç yakalama bölgesine hiç yaklaşamıyor;
+* **Model uyumsuzluğu:** −%20 … +%20 aralığında deneme dengede bitiyor; −%20 ve −%10'da LQR sarkacı bir kez bırakıyor
+  ve swing-up yeniden kaldırıyor (araba 0.29–0.33 m'ye kadar gidiyor), +%20'de araba ray ucuna yaklaşıyor (0.35 m).
+  −%25 ve altında sarkaç yakalama bölgesine hiç yaklaşamıyor;
   +%25'te LQR yakalıyor ama tutamıyor, +%30'da yakalama bölgesinin hemen dışında kalıyor. **m ve l'nin ölçülerek doğru
   girilmesi şart.**
 * **Dengede sürtünmeden doğan konum kayması:** LQR Coulomb sürtünmesini telafi etmez (firmware'de de telafi yalnız
@@ -124,14 +127,14 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 |---|---|---|---|
 | θ işareti | ~~Sağa (+x) yatınca pozitif~~ → **sola yatınca pozitif** (#50 Aşama 1) | Sola yatınca pozitif (Bölüm 8.1.3); "enkoder, AS5600 ve motor kablolaması bu işarete uymalı" | #1 kapandı (#50) |
 | LQR'a geçiş / bırakma | 15° / 30° | 10° / 25°; ayrıca \|θ̇\| ≤ 1.5 rad/s, \|x\| ≤ 0.25 m, \|ẋ\| ≤ 0.70 m/s (Bölüm 8.4) | #11 |
-| Swing-up hedef enerjisi | 1.00 (arayüzden ayarlanabilir) | E_ref = 1.02·mgl (Bölüm 8.2.4) = bizim tanımımızda 1.01 | #11 |
+| Swing-up hedef enerjisi | **1.05** (#50 Aşama 2; arayüzden ayarlanabilir) | E_ref = 1.02·mgl (Bölüm 8.2.4) = bizim tanımımızda 1.01 | #11 |
 | Kontrol döngüsü | 500 Hz | Bölüm 8'de 2 ms (500 Hz), Bölüm 1.6'da 1 kHz | #2 |
 | Telemetri | 200 Hz | 500–1000 Hz (Bölüm 1.6) | #2 |
 | USB bağlantısı | Kartın "COM" (UART) portu | Kart seçiminin ana gerekçesi Native USB (Bölüm 1.6) | #2 |
 | Enkoder okuma | Kesme (interrupt) | Donanım sayacı PCNT (Bölüm 1.6) | — |
 | θ̇ tahmini | Türev filtresi + dik bölgede Kalman; MPU6050 kullanılmıyor | AS5600 türevi + MPU6050 jiroskobu birleştirmesi (Bölüm 8.1.4) | #50 |
 | Kontrol girişi | Motor gerilimi (modelde motor var) | Kuvvet; donanımda motor modeliyle gerilime çevrilecek (Bölüm 8.1.5) | — |
-| Motor verisi | "Datasheet yok, 48 CPR yer tutucu" | 19:1, 836 CPR, 2.2 / 3.1 kg·cm, α = 2.26 N/V (satın alınca doğrulanacak) | #50 |
+| Motor verisi | Rapordaki değerler işlendi (#50 Aşama 2): 19:1, 44 CPR (836 sayım/tur), Tablo 16'daki α ve b | 19:1, 836 CPR, 2.2 / 3.1 kg·cm, α = 2.26 N/V (satın alınca doğrulanacak) | #50 |
 
 Mekatronik raporunun kendi içindeki tutarsızlıklar (onlara iletildi): araba kütlesi Bölüm 1.2'de 500–600 g,
 Bölüm 12–15'te 1.10 kg; rotorun yansıyan kütlesi Bölüm 8.1.5'te ≈ 25 kg (eski 43.8:1 motor), Bölüm 14.1'de

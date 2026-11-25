@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from ..control.lqr import design_lqr
-from ..control.supervisor import Supervisor
+from ..control.supervisor import CATCH_DEG, RELEASE_DEG, Supervisor
 from ..control.swingup import EnergySwingUp
 from ..model.params import PendulumParams
 from ..filters import ENC_CPR_MOTOR
@@ -144,7 +144,7 @@ def _sensor_settings(nominal) -> dict:
 
 
 def _run_case(nominal, real, K, sim_time, dt, initial_deg, threshold_deg, hold_s,
-              swingup=None, catch_deg=15.0, release_deg=30.0):
+              swingup=None, catch_deg=CATCH_DEG, release_deg=RELEASE_DEG):
     sup = Supervisor(copy.deepcopy(nominal), K, swingup=copy.deepcopy(swingup),
                      catch_deg=catch_deg, release_deg=release_deg)
     sup.start()
@@ -174,7 +174,7 @@ def _zero_scales(p):
 def run_sensitivity_sweep(nominal=None, K=None, params_to_test=DEFAULT_PARAMS_TO_TEST,
                           variations=DEFAULT_VARIATIONS, sim_time=12.0, dt=.002,
                           threshold_deg=2.0, hold_s=1.0, Q=(10., 1., 100., 1.), R=.1,
-                          swingup=None, catch_deg=15., release_deg=30., zero_scales=None,
+                          swingup=None, catch_deg=CATCH_DEG, release_deg=RELEASE_DEG, zero_scales=None,
                           progress=None):
     """Sabit nominal K/model ile birbirinden bağımsız swing-up ve 5° denge deneyleri.
 

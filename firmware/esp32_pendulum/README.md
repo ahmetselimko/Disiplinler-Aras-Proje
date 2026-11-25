@@ -104,13 +104,14 @@ Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı t
 | `#ifndef P_FC … #define P_FC 0.0f` (derleme anı denetimlerinde) | Eski `gains.h`'de `P_FC` yoksa telafiyi kapatır, derleme bozulmaz | — |
 | `FC_V_COMP = 0.01f` | Bu hızın [m/s] altında araba duruyor sayılır | `dynamics.V_COMP` |
 | `accelToVolt` içindeki `F += / -= fc_N` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde. `fc_N` başta `P_FC`'dir; `set_param fc_volt` gelince `fc_volt·MOTOR_ALPHA` olur | `dynamics.coulomb_compensation` |
-| `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (`motor.T_f` = 0 iken 0) | `export.gains_header` |
+| `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (şu anki `gains.h`'de rapordaki 3 N tasarım değeri; ölçülmedi) | `export.gains_header` |
 | `gains.h` → `P_B` | Artık motor mili viskoz sürtünmesini de (B_m·N²/r²) içerir | `PendulumParams.b_cart` |
 
-**Neden:** Kuru sürtünme swing-up'ın küçük itmelerini yutar. Mekatronik tasarım değerleriyle (3 N) telafisiz +20 g sarkaç ancak ~7 s'de, uçsuz sarkaç hiç kalkmıyor; telafiyle +20 g ~4.3 s'de kalkıyor (`docs/mekatronik_on_degerlendirme.md`). Telafi yalnız swing-up'ta çalışır; LQR'da ve homing'de yoktur. Homing sürtünmeyi hız döngüsünün integraliyle (PI, `HOME_KI`) yener; böylece T_f yanlış tahmin edilse ya da hiç ölçülmese de KALİBRE ET biter (#30). `params.json`'da T_f şimdilik rapordaki 3 N'dan (tasarım değeri); arayüz bağlanınca `fc_volt` olarak gönderir. Sürtünme Ölç ile gerçek değer bulunmalı.
+**Neden:** Kuru sürtünme swing-up'ın küçük itmelerini yutar. Mekatronik tasarım değerleriyle (3 N) telafisiz +20 g sarkaç ancak ~7 s'de, uçsuz sarkaç hiç kalkmıyor; telafiyle +20 g ~4.3 s'de kalkıyor (`docs/mekatronik_on_degerlendirme.md`). Telafi yalnız swing-up'ta çalışır; LQR'da ve homing'de yoktur. Homing sürtünmeyi hız döngüsünün integraliyle (PI, `HOME_KI`) yener; böylece T_f yanlış tahmin edilse ya da hiç ölçülmese de KALİBRE ET biter (#30). `params.json`'da T_f şimdilik rapordaki 3 N'dan (tasarım değeri). Parametreler yer tutucu sayıldığı sürece arayüz bunu gerçek karta onaysız göndermez; kart `gains.h`'deki `P_FC` (3 N) ile çalışır. Simülasyonda gerçek sürtünme 0–4.5 N iken de bu telafiyle kalkış sürüyor; yine de **Sürtünme Ölç** ile gerçek değer bulunmalı (aşağıdaki kontrol listesi, 4. adım).
 
 ## İlk açılış kontrol listesi
 1. Motor sürücüsünün EN pini bağlı değilken yükleyin, Seri Monitör'de (921600) telemetrinin geldiğini görün.
 2. `docs/protokol.md` §2'deki işaret kontrolünü yapın (sarkacı **sola** yatırınca `th` pozitif olmalı; değilse `ANGLE_SIGN = -1`).
 3. Arayüzden **KALİBRE ET** ile homing'i deneyin (elinizi acil stop'ta tutun).
-4. Önce **Swing-up açık** kutusunu kaldırıp sarkacı elle dik tutun, **BAŞLAT** ile yalnızca LQR'ı deneyin. Sonra swing-up'ı açın.
+4. Sarkaç aşağıda dururken **Sürtünme Ölç**: sonucu kabul edin (telafi karta gider) ve **Parametre Kaydet**.
+5. Önce **Swing-up açık** kutusunu kaldırıp sarkacı elle dik tutun, **BAŞLAT** ile yalnızca LQR'ı deneyin. Sonra swing-up'ı açın.

@@ -44,6 +44,8 @@ THETA_SIGN_VALUE = "sol"
 OLD_THETA_SIGN_VALUES = ("sag", "sağ")
 # Yeni arayüzün kaydında cihazın (telemetrinin) θ kuralı; "sag": eski firmware, yalnız θ, θ̇ sütunları çevrilir
 DEVICE_THETA_KEY = "cihaz_theta_pozitif"
+# Kayıt başlığındaki swing-up ayarlarında E_ratio yoksa (eski kayıt): #50 Aşama 2 öncesi varsayılan
+LEGACY_E_RATIO = 1.0
 
 
 class Recorder:
@@ -303,6 +305,8 @@ def _extract_replay_config(meta: dict, fallback_state=None):
         # yalnız EnergySwingUp'ın bugün tanıdığı alanlar: eski kayıtlardaki kaldırılmış alanlar
         # (ör. E_target) hata vermesin, yeni alanlar (ör. E_ratio) da kendiliğinden okunsun
         su_kw = {k: float(v) for k, v in su_raw.items() if k in SWINGUP_FIELDS}
+        # E_ratio'suz eski kayıtlar (E_target dönemi) 1.0 ile alındı; bugünkü varsayılan (1.05, #50 Aşama 2) değil
+        su_kw.setdefault("E_ratio", LEGACY_E_RATIO)
         swingup = EnergySwingUp(**su_kw)
     else:
         swingup = copy.deepcopy(fb_su) if fb_su is not None else EnergySwingUp()

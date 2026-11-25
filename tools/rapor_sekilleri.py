@@ -2,7 +2,7 @@
 """Rapor şekillerini üretir (#25): aşağıdan kalkış, dürtmeye tepki, kutup haritası, model uyumsuzluğu.
 
 Ayarlar arayüzün varsayılanlarıyla aynıdır (Q = diag(10, 1, 100, 1), R = 0.1, Ts = 2 ms, enerji bazlı
-swing-up, yakalama 15°, bırakma 30°, 12-bit açı + 48 CPR enkoder kuantalaması, Kalman açık), yani şekiller
+swing-up, yakalama 15°, bırakma 30°, 12-bit açı + ENC_CPR_MOTOR (44) CPR enkoder kuantalaması, Kalman açık), yani şekiller
 Analiz sekmesinde aynı ayarlarla görülenin aynısıdır. Parametreler değişince (ör. mekatronik gerçek ölçüleri
 girince) tek komutla yeniden üretilir:
 
@@ -466,9 +466,6 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
               f"her salınımda dik konuma ancak {f'{min(cl):.0f}' if round(min(cl)) == round(max(cl)) else f'{min(cl):.0f}–{max(cl):.0f}'}°'ye kadar yaklaşıyor, {CATCH_DEG:g}°'lik "
               "yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç "
               "farklıysa bu hedef de kayıyor."]
-        if side == "hafif/kısa" and prel == "config/params.json":   # hassasiyet raporu bu dosyayla üretildi
-            L[-1] += (" Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin \"KRİTİK\" "
-                      "sonucuyla tutarlıdır.")
     fell = [k for k, v in mm.items() if v[0] == "DÜŞTÜ"]
     if fell:
         L += ["", f"**Not:** {pct_range(fell)} sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı "

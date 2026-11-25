@@ -26,10 +26,10 @@ BOB_SHAPES = ("point", "sphere", "cube")
 class MotorParams:
     """Redüktörlü DC motor + kayış kasnağı (input_mode='voltage' için).
 
-    Varsayılanlar Pololu 37D 12V katalog değerlerinden türetilmiş YER TUTUCULARDIR (config/params.json ile
-    aynı; tools/motor_karsilastirma.py MOTOR_CATALOG). Motor teyit bekliyor (BOM v3: JGB37-520 / FIT0186);
-    kesinleşince hem burası hem params.json güncellenmeli. Kasnak: config/params.json'da BOM v3'teki
-    HTD3M 20 diş (r = 9.55 mm); buradaki varsayılan eski GT2 40 diş değeridir (testler buna dayanır).
+    Buradaki varsayılanlar GENEL yer tutuculardır (Pololu 37D 12V, 10:1, GT2 40 diş; testler bunlara dayanır)
+    ve projenin parametreleri DEĞİLDİR. Projenin değerleri config/params.json'dadır (#50 Aşama 2'den beri
+    mekatronik raporunun JGB37-520 19:1 / HTD3M 20 diş değerleri). Arayüz params.json'ı okuyamazsa bu
+    varsayılanlarla açılır ama K'yı cihaza göndermez ve gains.h dışa aktarmaz (gui/state.py params_fallback).
     """
     R: float = 2.18         # sargı direnci [ohm]
     Kt: float = 0.00892     # tork sabiti, motor mili [N·m/A]
@@ -73,6 +73,8 @@ class MotorParams:
 
 @dataclass
 class PendulumParams:
+    """Araba-sarkaç parametreleri. Varsayılanlar GENEL yer tutucudur (M 0.5, m 0.2, l 0.3; MotorParams'a bakın);
+    projenin değerleri config/params.json'dadır."""
     M: float = 0.5          # araba kütlesi [kg]
     m: float = 0.2          # sarkacın toplam kütlesi [kg]
     l: float = 0.3          # pivot → sarkaç ağırlık merkezi [m]

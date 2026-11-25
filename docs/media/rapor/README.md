@@ -67,7 +67,7 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 | +25% | LQR yakaladı ama tutamadı | 3.64 s | 0.278 m | 11.6° |
 | +30% | swing-up bitmedi | — | 0.132 m | 15.5° |
 
-**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -25%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 85–91°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor. Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin "KRİTİK" sonucuyla tutarlıdır.
+**Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -25%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 85–91°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
 
 **Not:** Gerçek sarkaç modeldekinden ağır/uzun olduğunda (+30%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 16°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
 
