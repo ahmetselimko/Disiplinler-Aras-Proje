@@ -214,7 +214,11 @@ def load_recording(path: str | Path) -> RecordedSession:
     arr = np.array([r[:6] for r in rows], dtype=float)
     modes = [r[6] for r in rows]
     flip = _convert_old_theta_sign(meta, events, p.name)
-    if meta.get(DEVICE_THETA_KEY) in OLD_THETA_SIGN_VALUES:   # yeni arayüz, eski firmware: yalnız telemetri
+    dev = meta.get(DEVICE_THETA_KEY)
+    if dev is not None and dev != THETA_SIGN_VALUE and dev not in OLD_THETA_SIGN_VALUES:
+        raise ValueError(f"{p.name}: tanınmayan {DEVICE_THETA_KEY} değeri {dev!r} (beklenen "
+                         f"{THETA_SIGN_VALUE!r} ya da {OLD_THETA_SIGN_VALUES[0]!r})")
+    if dev in OLD_THETA_SIGN_VALUES:                          # yeni arayüz, eski firmware: yalnız telemetri
         flip = True
         meta["cihaz_theta_donusturuldu"] = True
     if flip:

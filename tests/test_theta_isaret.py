@@ -164,6 +164,11 @@ def test_unknown_theta_sign_value_is_rejected(tmp_path):
                     encoding="utf-8")
     with pytest.raises(ValueError, match="theta_pozitif"):
         load_recording(path)
+    for bad in ("yukari", "SAG"):
+        path.write_text(f"# theta_pozitif: sol\n# cihaz_theta_pozitif: {bad}\nt,x,dx,th,dth,u,mode\n"
+                        "0,0,0,0,0,0,IDLE\n0.01,0,0,0,0,0,IDLE\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="cihaz_theta_pozitif"):
+            load_recording(path)
 
 
 def test_firmware_uses_left_positive_theta():

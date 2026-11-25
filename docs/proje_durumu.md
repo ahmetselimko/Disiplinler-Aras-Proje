@@ -224,6 +224,8 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Cihaz bilgisi gelmeden başlatılan kayıt yanlış θ kuralıyla işaretlenebilirdi | Bilgi gelmeden kayıt başlatılmaz (ping yeniden istenir) |
 | Belge | Firmware'deki "eski gains.h" yedek yorumları ve `katki_14_15.md` artık yanıltıcıydı (#50 öncesi `gains.h` `#error` verir); recorder açıklamaları yeni durumu anlatmıyordu | Güncellendi |
 
+**#50 Aşama 1, dördüncü tur (25.11.2026):** üçüncü turun düzeltmeleri gerçek arayüzle sanal ESP32 üzerinden doğrulandı (kayıt bilgi beklemesi, ping yeniden isteme, eski firmware benzetiminde kayıt ve oynatma, `demo_kayit.py`). Kritik/önemli bulgu yok. Tek bulgu (Küçük, tutarlılık): tanınmayan bir `cihaz_theta_pozitif` değeri (yalnız elle düzenlenmiş dosyada olur) sessizce "sol" sayılıyordu; artık `theta_pozitif` gibi `ValueError` verir, test eklendi.
+
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 
 ---
