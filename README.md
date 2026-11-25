@@ -67,7 +67,7 @@ taramasının tanımları ve çalıştırılması: **[3, 6 ve 13 numaralı göre
 ```bash
 python -m pytest -q
 ```
-Testler her push ve PR'da GitHub Actions ile de otomatik çalışır; firmware de aynı iş akışında iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derlenir. Şunları doğrular: analitik doğrusallaştırma ile sayısal jacobian'ın eşleşmesi, LQR/DLQR sonuçlarının `python-control` ile aynı çıkması, 500 Hz ve 12-bit sensörle LQR dengesi, aşağıdan swing-up + yakalama, %20 model hatasına dayanıklılık, Coulomb sürtünmesi ve telafisi, Kalman filtresinin titreşimi azaltması, Python–firmware parametre/protokol eşliği, Matlab modeliyle (doğrusal ve doğrusal olmayan) eşleşme, kayıt oynatma, protokol, halka tampon, kayıp satır sayımı, sanal cihazla gerçek zamanlı 500 Hz kayıpsız okuma, duraklat/sıfırla ve arayüz butonları.
+Testler her push ve PR'da GitHub Actions ile de otomatik çalışır; firmware de aynı iş akışında iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derlenir. Şunları doğrular: analitik doğrusallaştırma ile sayısal jacobian'ın eşleşmesi, LQR/DLQR sonuçlarının `python-control` ile aynı çıkması, 500 Hz ve 12-bit sensörle LQR dengesi, aşağıdan swing-up + yakalama, karma bir model hatasında (M +%20, m −%15, l +%10) yakalama, Coulomb sürtünmesi ve telafisi, Kalman filtresinin titreşimi azaltması, Python–firmware parametre/protokol eşliği, Matlab modeliyle (doğrusal ve doğrusal olmayan) eşleşme, kayıt oynatma, protokol, halka tampon, kayıp satır sayımı, sanal cihazla gerçek zamanlı 500 Hz kayıpsız okuma, duraklat/sıfırla ve arayüz butonları.
 
 ## Klasörler
 ```

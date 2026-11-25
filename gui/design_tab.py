@@ -191,7 +191,7 @@ class DesignTab(QtWidgets.QWidget):
         right.addWidget(self.pz, 2)
 
         self.b_calc.clicked.connect(self.calculate)
-        self.w_measured.toggled.connect(self.calculate)
+        self.w_measured.toggled.connect(self._on_measured)
         self.b_send.clicked.connect(self.send)
         self.b_export.clicked.connect(self.export)
         self.b_load.clicked.connect(self.load)
@@ -217,6 +217,16 @@ class DesignTab(QtWidgets.QWidget):
         w.setValue(value)
         self._exact[w] = float(value)
         self._shown[w] = w.value()
+
+    def _on_measured(self, checked: bool):
+        """'Ölçülmüş' kutusu. Güvenli yön hemen uygulanır: işaret kaldırılınca durum, hesap başarısız olsa da
+        yer tutucu olur (K gerçek karta onaysız gitmesin). İşaretlenip hesap başarısız olursa kutu geri alınır."""
+        if not checked:
+            self.state.p.placeholder = True
+        if not self.calculate() and checked:
+            self.w_measured.blockSignals(True)
+            self.w_measured.setChecked(False)
+            self.w_measured.blockSignals(False)
 
     def _on_params_replaced(self):
         """Parametreler dışarıdan değişti (sürtünme ölçümü T_f'yi yazdı). Yalnız değişen motor değerleri kutulara

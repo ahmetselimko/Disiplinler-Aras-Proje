@@ -100,6 +100,8 @@ static const float HOME_KI = 30.0f;                   // [1/s²]
 static const float HOME_I_MAX = 10.0f;                // integral sınırı [m/s²]
 static const float HOME_RUNAWAY_V = 0.30f;            // homing'de |ẋ| bunu aşarsa (normal ≤ 0.15) → FAULT (yön ters)
 static const float HOME_SAT_S = 0.30f;                // homing'de gerilim bu süreden uzun doyumda → FAULT
+static const float HOME_SW_CLEAR_M = 0.05f;            // sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa
+                                                       // sensör takılı/kablo kopuk (NC ve TCST2103'te kopuk = basılı) → FAULT
 static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba hızı bundan düşük olmalı [m/s] (mock ile aynı)
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 // bağlantı bekçisi: hareketli modda PC'den bu süre satır gelmezse FAULT "link" (protocol.py LINK_TIMEOUT_S ile aynı)
@@ -157,7 +159,7 @@ struct Shared {
   uint32_t n; float t, x, dx, th, dth, u; Mode mode;   // telemetri örneği (telemetry_hz'de)
   bool tel_valid;                                    // ilk gerçek örnek yazıldı mı (açılışta sıfırlar gönderilmesin)
   float lx, ldx, lth, ldth;                          // HER adımda güncel durum (komut kabul kuralları için)
-  bool homed, angle_ok;
+  bool homed, angle_ok, calib_done;                  // calib_done: açılış kalibrasyonu bitti (önce angle_ok anlamsız)
   // iletişim → kontrol
   float K[4]; float catch_rad, release_rad, x_ref, u_max;
   float catch_dth, catch_x, catch_dx;                // LQR'a giriş sınırları: |θ̇| [rad/s], |x| [m], |ẋ| [m/s]
@@ -410,7 +412,7 @@ void ctrlTask(void *) {
   vTaskDelay(pdMS_TO_TICKS(1000));
   float raw_hang = 0;
   bool angle_ok = calibrateAngle(raw_hang);
-  portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.ev_calib = true; portEXIT_CRITICAL(&mux);
+  portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.calib_done = true; S.ev_calib = true; portEXIT_CRITICAL(&mux);
 
   TickType_t last = xTaskGetTickCount();
   for (;;) {
@@ -482,6 +484,8 @@ void ctrlTask(void *) {
       // uca koşar. Hız beklenenin 2 katını aşarsa ya da gerilim uzun süre doyumdaysa çarpmadan dur.
       else if ((k * dt - home_t0 > 0.2f && fabsf(dx) > HOME_RUNAWAY_V) || home_sat > HOME_SAT_S)
         mode = raiseFault(mode, "homing_runaway");   // ilk 0.2 s hız kestirimi oturuyor
+      // sol sensör hep "basılı" okunuyor (kopuk kablo, NO/NC karışıklığı): sıfır yanlış olurdu
+      else if (home_phase == 2 && limL && x > -RAIL_HALF_M + HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
         x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
       } else {
@@ -578,7 +582,8 @@ static void handleSetParam(JsonObject d) {
     if (!(v >= pl->lo && v <= pl->hi)) { sendAck("set_param", false, "aralık dışı"); return; }
     if (!strcmp(key, "catch_deg")) catch_deg = v;
     if (!strcmp(key, "release_deg")) release_deg = v;
-    if (!strcmp(key, "x_ref") && fabsf(v) > RAIL_HALF_M - 0.1f) { sendAck("set_param", false, "x_ref ray sınırına çok yakın"); return; }
+    // 1e-4: PC sınıra kırptığı değeri gönderir; float32 yuvarlaması sınırı birkaç ulp aşabilir (ör. ray 0.302 m)
+    if (!strcmp(key, "x_ref") && fabsf(v) > RAIL_HALF_M - 0.1f + 1e-4f) { sendAck("set_param", false, "x_ref ray sınırına çok yakın"); return; }
     if (!strcmp(key, "u_max") && v > V_SUPPLY) { sendAck("set_param", false, "u_max besleme gerilimini aşamaz"); return; }
   }
   if (catch_deg >= release_deg) { sendAck("set_param", false, "catch_deg < release_deg olmalı"); return; }
@@ -610,9 +615,11 @@ static void handleCommand(const char *line) {
 
   if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
-    char extra[64];
-    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s", CTRL_PERIOD_MS / 1000.0f, FW_NAME,
-             s.homed ? "true" : "false");
+    char extra[112];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
+    // açılış kalibrasyonu (~1.1 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
+    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
+             FW_NAME, s.homed ? "true" : "false",
+             !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");
     sendAck("ping", true, "pong", extra); return;
   }
   if (!strcmp(cmd, "set_gain")) {
