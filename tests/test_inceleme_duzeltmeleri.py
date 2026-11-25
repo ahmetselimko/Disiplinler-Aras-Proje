@@ -672,3 +672,66 @@ def test_replay_warns_when_real_board_never_acknowledged_k(tmp_path):
 def test_placeholder_messages_mention_swingup_is_still_sent():
     for f in ("gui/state.py", "gui/connection_panel.py"):
         assert "swing-up açık/kapalı" in (ROOT / f).read_text(encoding="utf-8")
+
+
+# ------------------------------------------------------------------ tam proje denetimi (25.11.2026)
+def test_homing_faults_when_left_sensor_reads_pressed_all_the_time():
+    dev, out = _offline(x0=-0.2)
+    dev.stuck_switch = "L"                                        # NC/TCST2103'te kopuk kablo = hep "basılı"
+    dev.feed(P.encode_command("home"))
+    _run(dev, 6.0)
+    assert not dev.homed and dev.sup.mode.value == "FAULT"
+    assert any(b'"reason":"homing_switch"' in o for o in out)
+    assert 'raiseFault(mode, "homing_switch")' in INO and "HOME_SW_CLEAR_M = 0.05f" in INO
+
+
+def test_homing_still_works_with_healthy_switches():
+    dev, out = _offline(x0=-0.2)
+    _home(dev)
+    assert not any(b'homing_switch' in o for o in out)
+
+
+def test_ping_reports_angle_calibration_and_gui_warns():
+    dev, out = _offline()
+    dev.feed(P.encode_command("ping"))
+    dev.step()
+    assert any(b'"angle_ok":true' in o for o in out)
+    assert '\\"angle_ok\\":%s' in INO and "s.angle_ok" in INO
+    st = _state()
+    logs = []
+    st.log.connect(logs.append)
+    st.on_device_info({"Ts": 0.002, "fw": "x", "angle_ok": False})
+    assert any("açı kalibrasyonu BAŞARISIZ" in m for m in logs)
+
+
+def test_clamped_xref_is_accepted_for_awkward_rail_lengths():
+    import numpy as np
+    from pendulum_lab import load_params
+    p = load_params(ROOT / "config" / "params.json")
+    for rail in (0.302, 0.309, 0.346):
+        p.rail_half = rail
+        dev = MockDevice(params=p, seed=0, realtime=False)
+        out = []
+        dev.output = out.append
+        dev.start()
+        st = _state()
+        st.p.rail_half = rail
+        x = float(np.float32(st.clamp_xref(1.0)))                 # firmware float32 olarak alır
+        dev.feed(P.encode_command("set_param", x_ref=x))
+        dev.step()
+        assert any(b'"ack":"set_param","ok":true' in o for o in out), rail
+    assert "RAIL_HALF_M - 0.1f + 1e-4f" in INO
+
+
+def test_measured_checkbox_is_fail_safe(qapp, monkeypatch):
+    from gui import design_tab
+    from PyQt5 import QtWidgets
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *a, **k: None)
+    st = _state(placeholder=False)
+    tab = design_tab.DesignTab(st)
+    assert tab.w_measured.isChecked() and st.p.placeholder is False
+    tab.w_release.setValue(tab.w_catch.value())                  # hesap başarısız olacak (histerezis yok)
+    tab.w_measured.setChecked(False)                              # güvenli yön: hesap başarısız olsa da uygulanır
+    assert st.p.placeholder is True
+    tab.w_measured.setChecked(True)                               # hesap başarısız → kutu geri alınır
+    assert not tab.w_measured.isChecked() and st.p.placeholder is True

@@ -100,6 +100,8 @@ static const float HOME_KI = 30.0f;                   // [1/s²]
 static const float HOME_I_MAX = 10.0f;                // integral sınırı [m/s²]
 static const float HOME_RUNAWAY_V = 0.30f;            // homing'de |ẋ| bunu aşarsa (normal ≤ 0.15) → FAULT (yön ters)
 static const float HOME_SAT_S = 0.30f;                // homing'de gerilim bu süreden uzun doyumda → FAULT
+static const float HOME_SW_CLEAR_M = 0.05f;            // sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa
+                                                       // sensör takılı/kablo kopuk (NC ve TCST2103'te kopuk = basılı) → FAULT
 static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba hızı bundan düşük olmalı [m/s] (mock ile aynı)
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 // bağlantı bekçisi: hareketli modda PC'den bu süre satır gelmezse FAULT "link" (protocol.py LINK_TIMEOUT_S ile aynı)
@@ -482,6 +484,8 @@ void ctrlTask(void *) {
       // uca koşar. Hız beklenenin 2 katını aşarsa ya da gerilim uzun süre doyumdaysa çarpmadan dur.
       else if ((k * dt - home_t0 > 0.2f && fabsf(dx) > HOME_RUNAWAY_V) || home_sat > HOME_SAT_S)
         mode = raiseFault(mode, "homing_runaway");   // ilk 0.2 s hız kestirimi oturuyor
+      // sol sensör hep "basılı" okunuyor (kopuk kablo, NO/NC karışıklığı): sıfır yanlış olurdu
+      else if (home_phase == 2 && limL && x > -RAIL_HALF_M + HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
         x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
       } else {
@@ -578,7 +582,8 @@ static void handleSetParam(JsonObject d) {
     if (!(v >= pl->lo && v <= pl->hi)) { sendAck("set_param", false, "aralık dışı"); return; }
     if (!strcmp(key, "catch_deg")) catch_deg = v;
     if (!strcmp(key, "release_deg")) release_deg = v;
-    if (!strcmp(key, "x_ref") && fabsf(v) > RAIL_HALF_M - 0.1f) { sendAck("set_param", false, "x_ref ray sınırına çok yakın"); return; }
+    // 1e-4: PC sınıra kırptığı değeri gönderir; float32 yuvarlaması sınırı birkaç ulp aşabilir (ör. ray 0.302 m)
+    if (!strcmp(key, "x_ref") && fabsf(v) > RAIL_HALF_M - 0.1f + 1e-4f) { sendAck("set_param", false, "x_ref ray sınırına çok yakın"); return; }
     if (!strcmp(key, "u_max") && v > V_SUPPLY) { sendAck("set_param", false, "u_max besleme gerilimini aşamaz"); return; }
   }
   if (catch_deg >= release_deg) { sendAck("set_param", false, "catch_deg < release_deg olmalı"); return; }
@@ -610,9 +615,9 @@ static void handleCommand(const char *line) {
 
   if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
-    char extra[64];
-    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s", CTRL_PERIOD_MS / 1000.0f, FW_NAME,
-             s.homed ? "true" : "false");
+    char extra[112];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
+    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s,\"angle_ok\":%s", CTRL_PERIOD_MS / 1000.0f,
+             FW_NAME, s.homed ? "true" : "false", s.angle_ok ? "true" : "false");
     sendAck("ping", true, "pong", extra); return;
   }
   if (!strcmp(cmd, "set_gain")) {

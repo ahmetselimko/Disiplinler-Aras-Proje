@@ -5,7 +5,7 @@
 Sanal ESP32'ye bağlanır, adım adım kullanımı oynatır (bağlan → kalibre et → başlat → dürt →
 tasarım → simülasyon → acil stop), her kareye açıklama yazısı ve basılan butona çerçeve ekler.
 Çıktılar docs/media/ altına yazılır:
-    demo.mp4 (veya demo.webm)  — tam tur, 10 kare/s
+    demo.webm (kodlayıcı yoksa demo.mp4)  — tam tur, 10 kare/s
     demo.gif                    — README için kısa canlı izleme bölümü
     *.png                       — sekme ekran görüntüleri
 Arayüz değiştiğinde bu betik yeniden çalıştırılarak medya güncellenir.
@@ -46,12 +46,16 @@ class Recorder:
 
     def _open(self, w: int, h: int):
         OUT.mkdir(parents=True, exist_ok=True)
-        # tarayıcıda oynayan biçimler öncelikli: H.264 MP4 → VP8 WebM → MPEG-4 MP4
-        for fourcc, name in (("avc1", "demo.mp4"), ("VP80", "demo.webm"), ("mp4v", "demo.mp4")):
+        # README ve kullanım kılavuzu demo.webm'e bağlı: önce VP8 WebM. Açılamazsa MP4'e düşülür ve
+        # belgelerin bağlantısının elle güncellenmesi gerektiği yazılır.
+        for fourcc, name in (("VP80", "demo.webm"), ("avc1", "demo.mp4"), ("mp4v", "demo.mp4")):
             path = OUT / name
             wr = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*fourcc), FPS, (w, h))
             if wr.isOpened():
                 self.writer, self.video_path, self.codec = wr, path, fourcc
+                if name != "demo.webm":
+                    print(f"UYARI: WebM kodlayıcı yok, video {name} olarak yazıldı; README.md ve "
+                          "docs/kullanim_kilavuzu.md demo.webm'e bağlı, bağlantıyı güncelleyin.")
                 return
         raise RuntimeError("Hiçbir video kodlayıcı açılamadı")
 

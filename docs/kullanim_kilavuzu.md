@@ -1,6 +1,6 @@
 # Kullanım Kılavuzu — Ters Sarkaç Kontrol Arayüzü
 
-🎬 **Tanıtım videosu (44 s):** [docs/media/demo.webm](media/demo.webm). GitHub'da açılmazsa "Download raw file" ile indirip tarayıcıda veya VLC'de açın.
+🎬 **Tanıtım videosu (~45 s):** [docs/media/demo.webm](media/demo.webm). GitHub'da açılmazsa "Download raw file" ile indirip tarayıcıda veya VLC'de açın.
 
 ![Arayüz kullanımı](media/demo.gif)
 
@@ -127,5 +127,6 @@ RMSE büyükse önce parametreleri (özellikle motor değerleri ve sürtünme) g
 | "✗ start: açı kalibrasyonu başarısız" | Sarkacı aşağıda durdurup **Açı Sıfırla (calib)** |
 | Gerçek karta bağlanınca "Yer tutucu parametreler" uyarısı, K gönderilmiyor | `config/params.json` hâlâ yer tutucu. Tasarım sekmesinde ölçülmüş değerleri girip **Ölçülmüş gerçek değerler** kutusunu işaretleyin, **Parametre Kaydet**. Kart o zamana kadar derlendiği `gains.h` ile çalışır |
 | "UYARI: cihaz Ts = … ms, tasarım Ts = … ms" | Tasarım sekmesinde Ts'yi cihazınkiyle aynı yapıp K Hesapla → Cihaza Gönder |
-| "olay: fault reason=homing_wrong_side" | Homing'de araba sağa gitti: motor veya enkoder yönü ters (protokol.md §2) |
+| "olay: fault reason=homing_wrong_side" | Homing'de sağ uç sensörü tetiklendi: motor veya enkoder yönü ters (protokol.md §2) ya da sağ sensörün kablosu kopuk/sürekli basılı |
+| "olay: fault reason=homing_switch" | Sol uç sensörü araba uzaklaştığı hâlde basılı kalıyor: kablosu kopuk ya da sensör takılı. Kabloyu ve sensörü kontrol edin |
 | Veri hızı 0 / "Bağlantı koptu" | Kablo, port, baud (921600) kontrolü; ESP32'nin seri monitörü açıksa kapatın |

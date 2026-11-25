@@ -47,6 +47,7 @@ HOME_RUNAWAY_V = 0.30    # homing'de |ẋ| bunu aşarsa (normal en çok 0.15) ko
 HOME_SAT_S = 0.30        # homing'de gerilim bu süreden uzun doyumda kalırsa → FAULT (firmware ile aynı)
 HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
 HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı [m/s] (firmware ile aynı)
+HOME_SW_CLEAR = 0.05     # sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa sensör takılı → FAULT (firmware ile aynı)
 FW_NAME = "mock-1.1"
 
 
@@ -55,6 +56,7 @@ class MockDevice:
                  seed: int | None = None, realtime: bool = True, x0: float | None = None,
                  limit_switches: bool = True, link_timeout: float | None = None, enc_sign: float = 1.0):
         self.limit_switches = limit_switches
+        self.stuck_switch: str | None = None   # test: "L"/"R" sensörü hep basılı okur (kopuk kablo, NC/TCST2103)
         # enc_sign = −1: enkoder ters bağlanmış gibi (firmware'de X_SIGN yanlış) — kablolama hatası testleri için
         self.enc_sign = enc_sign
         self._home_sat = 0.0
@@ -172,7 +174,8 @@ class MockDevice:
         if cmd == "hb":
             return b""
         if cmd == "ping":
-            return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, homed=self.homed)
+            # angle_ok: sanal sensör her zaman kalibre (firmware'de açılış/calib sonucunu söyler)
+            return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, homed=self.homed, angle_ok=True)
         if cmd == "set_gain":  # çalışırken de kabul edilir (firmware kritik bölgede değiştirir)
             sup.set_gain(a.get("K", []))
             return P.encode_ack("set_gain")
@@ -278,7 +281,7 @@ class MockDevice:
         release = float(a.get("release_deg", math.degrees(self.sup.release)))
         if catch >= release:
             return "catch_deg < release_deg olmalı"
-        if "x_ref" in a and abs(float(a["x_ref"])) > self.p.rail_half - 0.1:
+        if "x_ref" in a and abs(float(a["x_ref"])) > self.p.rail_half - 0.1 + 1e-4:   # firmware ile aynı tolerans
             return "x_ref ray sınırına çok yakın"
         if "u_max" in a and self.p.input_mode == "voltage" and float(a["u_max"]) > self.p.motor.V_max:
             return "u_max besleme gerilimini aşamaz"
@@ -313,6 +316,8 @@ class MockDevice:
 
     # ------------------------------------------------------------ 500 Hz döngü
     def _switch(self, side: str) -> bool:
+        if self.stuck_switch == side:
+            return True
         lim = self.p.rail_half
         return self.s[0] <= -lim + 1e-9 if side == "L" else self.s[0] >= lim - 1e-9
 
@@ -339,6 +344,9 @@ class MockDevice:
                 return 0.0
             v_des = -HOME_SPEED
         else:                                 # ortaya dön
+            if self._switch("L") and s_hat[0] > -p.rail_half + HOME_SW_CLEAR:
+                self._fault("homing_switch")    # sol sensör hep "basılı": sıfır yanlış olurdu
+                return 0.0
             v_des = max(-0.15, min(0.15, -2.0 * s_hat[0]))
             if abs(s_hat[0]) < 0.002 and abs(s_hat[1]) < 0.02:
                 self.sup.mode = Mode.IDLE

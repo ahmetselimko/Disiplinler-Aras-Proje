@@ -43,7 +43,7 @@ ACK/olayları `# event:` JSON satırlarında tutulur; ret yanıtları da korunur
 Başlıkta cihazın ACK ile kabul ettiği bilinen ayarlar ayrıca saklanır. Kayıt
 sırasında PC tasarımı yeniden hesaplanırsa yeni Q/R, Ts ve parametreler de bir
 `pc_design_snapshot` olayı olarak korunur.
-Firmware'in PC'den değiştirilemeyen a_kick/E_target gibi varsayılanları PC
+Firmware'in PC'den değiştirilemeyen a_kick gibi varsayılanları PC
 tasarım değerlerinden farklı olabilir; fiziksel parametreler firmware'e otomatik yüklenmez.
 
 Örnek veri okuma:

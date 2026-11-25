@@ -92,6 +92,9 @@ class AppState(QtCore.QObject):
         self._last_info = now
         ts = f"  Ts={self.device_Ts * 1000:g} ms" if self.device_Ts else "  (Ts bildirilmedi)"
         self.log.emit(f"Cihaz: fw={data.get('fw', '?')}{ts}")
+        if data.get("angle_ok") is False:      # açılıştaki calib olayı bağlanmadan önce gelip kaybolmuş olabilir
+            self.log.emit("UYARI: cihazın açı kalibrasyonu BAŞARISIZ — sarkacı aşağıda hareketsiz tutup "
+                          "'Açı Sıfırla (calib)'a basın; olmadan BAŞLAT reddedilir.")
         if self.placeholder_on_real_device:
             self.send_swingup()                  # güvenlik: K gitmese de swing-up kapalıysa kart bunu bilmeli
             self.log.emit("UYARI: parametreler YER TUTUCU — K ve ayarlar (swing-up açık/kapalı hariç) gerçek karta "
