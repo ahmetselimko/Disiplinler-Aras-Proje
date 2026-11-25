@@ -16,7 +16,7 @@ Mekatronik + Bilgisayar disiplinlerarası ters sarkaç projesinin yazılım tara
 * **`gui/` + `main.py`**: Canlı izleme ve kontrol arayüzü (PyQt5 + PyQtGraph).
 * **Sanal ESP32**: donanım gelmeden arayüzün uçtan uca çalıştırılabilmesi için.
 * **`firmware/esp32_pendulum/`**: ESP32 kodu (aynı kontrol mantığı). GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle hatasız derleniyor; **kartta henüz denenmedi**.
-* **`matlab/`**: mekatronik ekibinin Matlab/Simulink dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`). Model Python kütüphanesiyle θ işareti dışında aynıdır; bkz. [matlab/README.md](matlab/README.md).
+* **`matlab/`**: mekatronik ekibinin Matlab/Simulink dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`). Model Python kütüphanesiyle aynıdır; θ işareti de aynı (sola yatınca pozitif, #50); bkz. [matlab/README.md](matlab/README.md).
 * **`docs/`**: protokol, mimari, parametre tablosu, Matlab karşılıkları, kullanım kılavuzu, görev katkı belgeleri.
 
 Ne yapıldı, mekatronik ekipte neler bekleniyor, artılar/eksiler ve yapılacaklar için bkz. **[docs/proje_durumu.md](docs/proje_durumu.md)**. Güncel görevler: **[Görevler](https://github.com/ahmetselimko/Disiplinler-Aras-Proje/issues)** · **[Pano](https://github.com/users/ahmetselimko/projects/4)**.

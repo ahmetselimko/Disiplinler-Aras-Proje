@@ -32,7 +32,7 @@ def test_upright_is_unstable_and_hanging_is_stable():
 def test_sign_convention_push_right_tips_pendulum_back():
     p = PendulumParams(input_mode="force")
     ddx, ddth = accelerations(p, [0, 0, 0, 0], 1.0)
-    assert ddx > 0 and ddth < 0
+    assert ddx > 0 and ddth > 0  # araba sağa → sarkaç geride, yani sola yatar: θ sola + (#50)
     _, ddth_g = accelerations(p, [0, 0, 0.1, 0], 0.0)
     assert ddth_g > 0  # θ>0 iken yerçekimi daha da yatırır
 
@@ -41,9 +41,10 @@ def test_energy_conserved_without_friction():
     p = PendulumParams(input_mode="force", b=0.0, c=0.0)
     r = simulate_open_loop(p, [0, 0, 2.0, 0], 3.0)
     E = [energy(p, th, dth) for th, dth in zip(r.y[2], r.y[3])]
-    # araba serbest olduğu için sarkaç enerjisi tek başına korunmaz; toplam mekanik enerjiye bak
+    # araba serbest olduğu için sarkaç enerjisi tek başına korunmaz; toplam mekanik enerjiye bak.
+    # Ağırlık merkezi x − l·sinθ'da (θ sola +) → hızı ẋ − l·cosθ·θ̇, çapraz terim −m·l·ẋ·θ̇·cosθ
     ml = p.m * p.l
-    total = [0.5 * (p.M + p.m) * dx ** 2 + ml * dx * dth * math.cos(th) + e
+    total = [0.5 * (p.M + p.m) * dx ** 2 - ml * dx * dth * math.cos(th) + e
              for dx, th, dth, e in zip(r.y[1], r.y[2], r.y[3], E)]
     assert np.ptp(total) < 1e-5
 

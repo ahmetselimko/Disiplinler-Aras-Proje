@@ -30,7 +30,7 @@ class LiveTab(QtWidgets.QWidget):
 
         # ---- sol: kayan grafikler
         self.glw = pg.GraphicsLayoutWidget()
-        self.p_th = self.glw.addPlot(row=0, col=0, title="Sarkaç açısı θ [°]  (0 = dik)")
+        self.p_th = self.glw.addPlot(row=0, col=0, title="Sarkaç açısı θ [°]  (0 = dik, + sola)")
         self.p_x = self.glw.addPlot(row=1, col=0, title="Araba konumu x [m]")
         self.p_u = self.glw.addPlot(row=2, col=0, title="Kontrol girişi u")
         self.p_e = self.glw.addPlot(row=3, col=0, title="Sarkaç enerjisi E [J]  (0 = dik)")
@@ -111,9 +111,10 @@ class LiveTab(QtWidgets.QWidget):
         self.kick_at.addItem("arabaya", "cart")
         self.kick_at.setToolTip("sarkaca: ağırlık merkezine yatay kuvvet\n"
                                 "arabaya: arabaya yatay kuvvet (Matlab'daki \"Apply push\" ile aynı)")
-        # varsayılan 1.2 N × 50 ms: eski sabit dürtmeyle (θ̇'ye +1 rad/s) aynı büyüklükte
+        # varsayılan 1.2 N × 50 ms: eski sabit dürtmeyle (|θ̇|'ye ~1 rad/s) aynı büyüklükte
         self.kick_F = spin(1.2, -20.0, 20.0, 2, 0.5, "N")
-        self.kick_F.setToolTip("Dürtme kuvveti (+ : +x yönüne, yani sağa)")
+        self.kick_F.setToolTip("Dürtme kuvveti (+ : +x yönüne, yani sağa). Sarkaca sağa itme dik sarkacı sağa "
+                               "(θ < 0), arabaya sağa itme sola (θ > 0) yatırır")
         self.kick_dur = spin(50.0, 1.0, 2000.0, 0, 10.0, "ms")
         self.kick_dur.setToolTip("Dürtme süresi")
         self.b_friction = QtWidgets.QPushButton("Sürtünme Ölç")
@@ -126,7 +127,7 @@ class LiveTab(QtWidgets.QWidget):
         self.b_reset.setToolTip("Yalnız simülasyon: BEKLEMEDE'ye döner, sarkaç θ₀ açısında durağan konur "
                                 "(kalibre edildiyse araba x = 0 noktasına)")
         self.th0 = spin(180.0, -180.0, 180.0, 0, 5, "°")
-        self.th0.setToolTip("Sıfırlamada başlangıç açısı θ₀ (0 = dik, 180 = aşağıda)")
+        self.th0.setToolTip("Sıfırlamada başlangıç açısı θ₀ (0 = dik, + = sola yatık, 180 = aşağıda)")
         self.b_rec = QtWidgets.QPushButton("● Kaydı Başlat")
         self.b_rec.setCheckable(True)
         btns.addWidget(self.b_home, 0, 0)

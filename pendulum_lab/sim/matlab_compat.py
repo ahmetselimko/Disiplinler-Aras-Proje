@@ -2,12 +2,12 @@
 
 Matlab dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m`, `cart_pendulum_lqr_sim.slx`)
 bu projeyle aynı denklemleri kullanır (doğrusal ve doğrusal olmayan model; tests/test_matlab_compat.py).
-İki fark vardır:
 
-1. θ işareti: Matlab'da sarkaç SOLA yatınca θ > 0, bu projede (Python, firmware, docs/protokol.md)
-   +x yönüne (SAĞA) yatınca θ > 0. Durum dönüşümü s_matlab = T·s, T = diag(1, 1, −1, −1).
-   Bu yüzden K'nın θ ve θ̇ kazançlarının işareti terstir:  K_matlab = K·T.
-2. Deneme biçimi (`cart_pendulum_application.m`): sürekli zamanlı kontrolcü (örnekleme yok),
+θ işareti: #50 Aşama 1'den beri proje de Matlab gibi "sarkaç SOLA yatınca θ > 0" kuralını kullanır
+(mekatronik raporu 8.1.3). Durumlar ve K iki tarafta aynıdır; Matlab'da hesaplanan K doğrudan kullanılabilir.
+Eskiden (θ sağa +) gereken dönüşüm fonksiyonları geriye uyumluluk için duruyor ve artık birim dönüşümdür.
+
+Kalan fark, deneme biçimi (`cart_pendulum_application.m`): sürekli zamanlı kontrolcü (örnekleme yok),
    kuvvet girişi, ±Fmax = 10 N kuvvet sınırı, ideal sensör, sabit adımlı RK4 (dt = 2.5 ms); araba
    ±0.2 m'ye ulaşınca veya |θ| ≥ 90° olunca deneme durur. Dış itme (Apply push) arabaya uygulanır.
 
@@ -26,14 +26,14 @@ import numpy as np
 from ..model.dynamics import accelerations
 from ..model.params import PendulumParams
 
-# s_matlab = MATLAB_SIGN @ s_proje  (θ ve θ̇'nın işareti ters). T⁻¹ = T.
-MATLAB_SIGN = np.diag([1.0, 1.0, -1.0, -1.0])
+# s_matlab = MATLAB_SIGN @ s_proje. İşaret kuralları aynı olduğundan birim matris (#50 öncesi diag(1, 1, −1, −1)).
+MATLAB_SIGN = np.eye(4)
 
 # cart_pendulum_lqr.m içindeki tasarım ağırlıkları
 # Q = diag(1 ./ [0.2, 0.5, deg2rad(10), 1].^2),  R = 1 / Fmax^2
 MATLAB_Q = (25.0, 4.0, 1.0 / math.radians(10.0) ** 2, 1.0)
 MATLAB_R = 0.01
-# cart_pendulum_lqr.m'nin bu değerlerle bulduğu K (Matlab'ın θ işaretinde, issue #1 ve #10)
+# cart_pendulum_lqr.m'nin bu değerlerle bulduğu K (Matlab'la proje artık aynı işarette; issue #1, #10, #50)
 MATLAB_K_REFERENCE = (-50.0, -45.37, 168.66, 33.25)
 
 # cart_pendulum_application.m deneme ayarları
@@ -51,22 +51,22 @@ def matlab_reference_params() -> PendulumParams:
 
 
 def state_to_matlab(s) -> np.ndarray:
-    """Proje durumu [x, ẋ, θ, θ̇] → Matlab durumu (θ işareti ters)."""
+    """Proje durumu [x, ẋ, θ, θ̇] → Matlab durumu. İşaret kuralı aynı: kopya döner (geriye uyumluluk)."""
     return MATLAB_SIGN @ np.asarray(s, dtype=float)
 
 
 def state_from_matlab(s) -> np.ndarray:
-    """Matlab durumu → proje durumu (dönüşüm kendi tersidir)."""
+    """Matlab durumu → proje durumu. İşaret kuralı aynı: kopya döner (geriye uyumluluk)."""
     return MATLAB_SIGN @ np.asarray(s, dtype=float)
 
 
 def gain_to_matlab(K) -> np.ndarray:
-    """Projede hesaplanan K → Matlab'da aynı kontrolcüyü veren K (θ ve θ̇ kazançlarının işareti ters)."""
+    """Projede hesaplanan K → Matlab'da aynı kontrolcüyü veren K. İşaret kuralı aynı: K'nın kopyası."""
     return np.asarray(K, dtype=float).reshape(-1) @ MATLAB_SIGN
 
 
 def gain_from_matlab(K) -> np.ndarray:
-    """Matlab'da hesaplanan K → bu projede (ve ESP32'de) kullanılacak K."""
+    """Matlab'da hesaplanan K → bu projede (ve ESP32'de) kullanılacak K. İşaret kuralı aynı: K'nın kopyası."""
     return np.asarray(K, dtype=float).reshape(-1) @ MATLAB_SIGN
 
 
@@ -81,7 +81,7 @@ def force_model(p: PendulumParams) -> PendulumParams:
 @dataclass
 class MatlabSimResult:
     t: np.ndarray          # (n,)
-    s: np.ndarray          # (n, 4) proje işaretinde durum [x, ẋ, θ, θ̇]
+    s: np.ndarray          # (n, 4) durum [x, ẋ, θ, θ̇] (θ sola +, Matlab'la aynı)
     u: np.ndarray          # (n,) kuvvet [N]
     stop_reason: str       # "time" (süre bitti), "rail" (|x| ≥ sınır), "angle" (|θ| ≥ 90°)
 
@@ -107,9 +107,8 @@ def simulate_matlab_compatible(p: PendulumParams, K, s0, T: float = 10.0, *, x_r
     """`cart_pendulum_application.m` ile aynı deneme: sürekli LQR, kuvvet girişi, RK4.
 
     p        : mekanik parametreler (input_mode ne olursa olsun kuvvet girişiyle simüle edilir)
-    K        : PROJE işaretinde LQR kazancı, u = −K·(s − [x_ref, 0, 0, 0]).
-               Matlab'dan gelen K için önce gain_from_matlab(K) kullanın.
-    s0       : proje işaretinde başlangıç durumu
+    K        : LQR kazancı, u = −K·(s − [x_ref, 0, 0, 0]). Matlab'dan gelen K doğrudan verilebilir.
+    s0       : başlangıç durumu (θ sola +)
     disturbance(t) -> ek kuvvet [N] (arabaya, Matlab'daki "Apply push" gibi), isteğe bağlı
     f_max    : kontrol kuvveti sınırı [N]; Matlab'daki gibi yalnız kontrolcü kuvveti sınırlanır, dış itme
                sınırlanmaz. None: sınırsız

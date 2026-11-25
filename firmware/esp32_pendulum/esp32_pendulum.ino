@@ -72,7 +72,7 @@ static const int LIM_PRESSED = HIGH;                  //   NC switch + INPUT_PUL
 // ============================================================ DONANIM SABİTLERİ
 static const char *FW_NAME = "ref-1.1";
 static const uint8_t AS5600_ADDR = 0x36;
-static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
+static const float ANGLE_SIGN = +1.0f;                // θ > 0: sarkaç SOLA yatık (mekatronik raporu 8.1.3, #50). Sola yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
 static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder, 4x sayım. YER TUTUCU: motor teyit bekliyor (BOM v3: JGB37-520 ya da FIT0186); kesinleşince düzenleyin
 // redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
@@ -287,8 +287,8 @@ static const float FC_V_COMP = 0.01f;   // [m/s] altında araba duruyor sayılı
 static float fc_N = P_FC;
 static float accelToVolt(float dx, float th, float dth, float a, bool coulomb) {
   float s = sinf(th), c = cosf(th), ml = P_M_POLE * P_L;
-  float ddth = (ml * P_G * s - P_C * dth - ml * c * a) / P_J;
-  float F = (P_M_CART + P_M_POLE) * a + ml * c * ddth - ml * s * dth * dth + P_B * dx;
+  float ddth = (ml * P_G * s - P_C * dth + ml * c * a) / P_J;            // θ sola +: J·θ̈ = mgl·sinθ + ml·cosθ·ẍ − c·θ̇
+  float F = (P_M_CART + P_M_POLE) * a - ml * c * ddth + ml * s * dth * dth + P_B * dx;
   // Coulomb sürtünme telafisi (dynamics.coulomb_compensation): hareket yönünde, duruyorsa istenen ivme yönünde.
   // Yalnız swing-up'ta; homing'de kapalı (coulomb = false)
   if (coulomb) {
@@ -298,7 +298,7 @@ static float accelToVolt(float dx, float th, float dth, float a, bool coulomb) {
   return (F + MOTOR_BETA * dx) / MOTOR_ALPHA;
 }
 
-// Enerji bazlı swing-up (swingup.EnergySwingUp ile aynı)
+// Enerji bazlı swing-up (swingup.EnergySwingUp ile aynı). θ sola + iken dE/dt = m·l·a·θ̇·cosθ → a = −k_E·Ẽ·θ̇·cosθ
 static float swingUpAccel(const Shared &p, float x, float dx, float th, float dth) {
   float E = 0.5f * P_J * dth * dth + P_M_POLE * P_G * P_L * (cosf(th) - 1.0f);
   float E_target = (p.su_eratio - 1.0f) * 2 * P_M_POLE * P_G * P_L;   // EnergySwingUp.target_energy
@@ -306,7 +306,7 @@ static float swingUpAccel(const Shared &p, float x, float dx, float th, float dt
   if (fabsf(dth) < 0.05f && fabsf(wrapAngle(th)) > 2.8f && E < -0.99f * 2 * P_M_POLE * P_G * P_L)
     a = p.su_akick * (x > 1e-3f ? -1.0f : 1.0f);
   else
-    a = p.su_kE * (E - E_target) * dth * cosf(th);
+    a = -p.su_kE * (E - E_target) * dth * cosf(th);
   a = clampf(a, -p.su_amax, p.su_amax);
   a += -p.su_kx * x - p.su_kv * dx;
   return clampf(a, -p.su_amax, p.su_amax);

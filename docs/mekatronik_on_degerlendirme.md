@@ -91,7 +91,7 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 
 | | Yer tutucu (oran 1.00) | Mekatronik tasarımı, +20 g (oran 1.05) |
 |---|---|---|
-| LQR K | [−9.52, −27.29, −61.49, −9.74] | [−9.83, −46.64, −101.46, −14.36] |
+| LQR K (θ sola +, #50) | [−9.52, −27.29, 61.49, 9.74] | [−9.83, −46.64, 101.46, 14.36] |
 | Aşağıdan kalkış: LQR'a geçiş | 4.34 s | 4.32 s |
 | Max \|x\| / max \|u\| | 0.157 m / 6.7 V | 0.142 m / **12.0 V** (gerilim sınırında) |
 | LQR'ın kurtardığı en büyük itme (50 ms, sarkaca) | ≈ 3.3 N | **≈ 0.8 N** |
@@ -117,7 +117,7 @@ parametrelerle karşılaştırma ([`media/rapor/README.md`](media/rapor/README.m
 
 | Konu | Bilgisayar ekibi (yazılım ve rapor) | Mekatronik raporu | İlgili issue |
 |---|---|---|---|
-| θ işareti | Sağa (+x) yatınca pozitif | Sola yatınca pozitif (Bölüm 8.1.3); "enkoder, AS5600 ve motor kablolaması bu işarete uymalı" | #1 (karar: sola pozitif, #50) |
+| θ işareti | ~~Sağa (+x) yatınca pozitif~~ → **sola yatınca pozitif** (#50 Aşama 1) | Sola yatınca pozitif (Bölüm 8.1.3); "enkoder, AS5600 ve motor kablolaması bu işarete uymalı" | #1 kapandı (#50) |
 | LQR'a geçiş / bırakma | 15° / 30° | 10° / 25°; ayrıca \|θ̇\| ≤ 1.5 rad/s, \|x\| ≤ 0.25 m, \|ẋ\| ≤ 0.70 m/s (Bölüm 8.4) | #11 |
 | Swing-up hedef enerjisi | 1.00 (arayüzden ayarlanabilir) | E_ref = 1.02·mgl (Bölüm 8.2.4) = bizim tanımımızda 1.01 | #11 |
 | Kontrol döngüsü | 500 Hz | Bölüm 8'de 2 ms (500 Hz), Bölüm 1.6'da 1 kHz | #2 |
@@ -135,7 +135,7 @@ Bölüm 12–15'te 1.10 kg; rotorun yansıyan kütlesi Bölüm 8.1.5'te ≈ 25 k
 ## 5. Mekatronik ekibinden beklenenler
 1. **Uç kütlesi:** takılacak mı, hangisi (+20 g / +50 g)? Bu belgeye göre takılması gerekiyor.
 2. **JGB37-520 datasheet'i:** R, Kt, Ke ve enkoder; ya da motor gelince ölçüm.
-3. **θ işareti ve geçiş eşikleri** için ortak karar (#1, #11).
+3. **Geçiş eşikleri** için ortak karar (#11). (θ işareti kararlaştırıldı ve uygulandı: sola pozitif, #50.)
 4. **Kontrol döngüsü ve USB portu:** 500 Hz mi 1 kHz mi; UART mı Native USB mi (#2).
 5. **Raydaki kullanılabilir yol** (şasi 2.18 m; şu an ±0.40 m varsayılıyor).
 6. Montaj bitince **ölçülmüş** m, l, M ve sürtünme. Bunlar gelince `config/params.json` güncellenir,

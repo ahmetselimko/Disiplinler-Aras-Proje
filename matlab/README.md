@@ -8,32 +8,29 @@ Bu klasörde mekatronik ekibinin Matlab dosyaları bulunur (issue #10):
 | `cart_pendulum_application.m` | Deneme: sürekli LQR, kuvvet girişi (±10 N sınırlı), RK4 dt = 2.5 ms; ±0.2 m veya \|θ\| ≥ 90°'de durur. Dış itme (Apply push) arabaya uygulanır |
 | `cart_pendulum_lqr_sim.slx` | Simulink modeli (ode45, RelTol 1e-7, ±Fmax kuvvet sınırı) |
 
-## θ işareti — dikkat
-Matlab dosyalarında θ, sarkaç **sola** yatınca pozitiftir. Python kütüphanesinde, ESP32 firmware'inde ve
-[`docs/protokol.md`](../docs/protokol.md)'de ise sarkaç **sağa (+x)** yatınca pozitiftir. Bu yüzden K'nın θ ve θ̇
-kazançlarının işareti terstir:
+## θ işareti
+Matlab dosyalarında, mekatronik raporunda (Bölüm 8.1.3) ve **#50'den beri** Python kütüphanesinde, ESP32 firmware'inde ve
+[`docs/protokol.md`](../docs/protokol.md)'de θ, sarkaç **sola** yatınca pozitiftir. A, B ve K iki tarafta aynıdır:
 
 ```
 Matlab K = [−50, −45.37, +168.66, +33.25]
-Proje  K = [−50, −45.37, −168.66, −33.25]   ← ESP32'ye giden budur
+Proje  K = [−50, −45.37, +168.66, +33.25]   (aynı parametre, Q, R ile)
 ```
 
-**Matlab'da hesaplanan bir K'yı doğrudan ESP32'ye göndermeyin, sarkaç anında düşer.** Önce dönüştürün:
+Matlab'da hesaplanan K'nın işareti değiştirilmez. **Dikkat:** #50'den önce proje θ'yı sağa pozitif sayıyordu ve
+K'nın θ, θ̇ kazançları ters işaretliydi. O dönemde üretilmiş bir K (ör. eski `gains.h`) yeni firmware'e verilirse
+sarkaç düşer; `gains.h`'yi arayüzden yeniden dışa aktarın. `gain_from_matlab` / `gain_to_matlab` geriye uyumluluk için
+duruyor ve artık K'yı değiştirmez.
 
-```python
-from pendulum_lab.sim.matlab_compat import gain_from_matlab
-K = gain_from_matlab([-50, -45.37, 168.66, 33.25])   # → [-50, -45.37, -168.66, -33.25]
-```
-
-Dönüştürülen K yalnız işaret farkını giderir: Matlab modeli kuvvet girişlidir (motor yok), ESP32 ise motora
-gerilim uygular ve 2 ms örneklemeyle çalışır. Gerçek düzenekte kullanılacak K'yı arayüzün **Model ve LQR Tasarımı**
-sekmesinde, motorlu modelle hesaplayın (aynı Q, R ile bile Matlab'ınkinden farklı çıkar).
+İşaret aynı olsa da Matlab'ın K'sı ESP32 için doğrudan uygun değildir: Matlab modeli kuvvet girişlidir (motor yok),
+ESP32 ise motora gerilim uygular ve 2 ms örneklemeyle çalışır. Gerçek düzenekte kullanılacak K'yı arayüzün
+**Model ve LQR Tasarımı** sekmesinde, motorlu modelle hesaplayın (aynı Q, R ile bile Matlab'ınkinden farklı çıkar).
 
 ## Karşılaştırma
 * `tests/test_matlab_compat.py`: Matlab'ın A, B formülleriyle kurulan modelden çıkan K'nın Matlab sonucuyla,
-  Python kütüphanesinin K'sının da (θ işareti dışında) bununla aynı olduğunu her push'ta denetler.
+  Python kütüphanesinin K'sının da (aynı işaretle) bununla aynı olduğunu her push'ta denetler.
 * Arayüz → **Analiz ve Simülasyon** → **Matlab uyumlu** kutusu: `cart_pendulum_application.m`'deki denemeyi
-  Python'da tekrarlar ve K'yı iki işarette de gösterir. **"Matlab'ın kendi ayarlarıyla"** seçiliyken (varsayılan)
+  Python'da tekrarlar ve K'yı gösterir. **"Matlab'ın kendi ayarlarıyla"** seçiliyken (varsayılan)
   `cart_pendulum_lqr.m`'nin parametreleri ve Q, R'si kullanılır; sonuç Matlab'ınkiyle karşılaştırılabilir.
   Seçili değilken projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır; o zaman çıkan K Matlab'ın K'sı
-  değildir, yalnız Matlab'ın işaret kuralıyla gösterilir.
+  değildir.

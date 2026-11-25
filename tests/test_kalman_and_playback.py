@@ -223,7 +223,7 @@ def test_replay_keeps_initial_velocity_on_first_step():
     p = PendulumParams()
     Ts = 0.002
     K, _, _ = design_lqr(p, [10.0, 1.0, 100.0, 1.0], [[0.1]], Ts=Ts)
-    s0 = [0.0, 0.10, 0.0, 0.60]
+    s0 = [0.0, 0.10, 0.0, -0.60]          # araba sağa, sarkaç sağa düşüyor (θ sola +): ikisi de u'yu büyütür
     ideal = Supervisor(p, K)
     ideal.mode = ideal.mode.BALANCE
     r_ideal = simulate_closed_loop(p, ideal, s0, 0.02, dt=Ts, sensor=None)

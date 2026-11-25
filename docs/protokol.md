@@ -18,7 +18,8 @@ PC portu açarken DTR/RTS'yi düşük tutar, böylece ESP32 resetlenmez.
 ## 2. Ortak kurallar
 
 * **SI birimleri**: metre, radyan, saniye, volt (veya input_mode'a göre N / m/s²).
-* **θ = 0 sarkacın DİK konumudur.** θ > 0 iken sarkaç +x yönüne yatıktır. θ, (−π, π] aralığına sarılmış gönderilir.
+* **θ = 0 sarkacın DİK konumudur, θ = ±π aşağıda asılı.** **θ > 0 iken sarkaç SOLA (−x yönüne) yatıktır** (mekatronik raporu Bölüm 8.1.3; Matlab dosyalarıyla aynı, #50). θ, (−π, π] aralığına sarılmış gönderilir. θ̇ aynı işarettedir: sarkaç sola doğru dönerken pozitif.
+* F > 0 (ve gerilim girişinde u > 0) arabayı sağa (+x) iter.
 * **x = 0 rayın ortasıdır**, sağa doğru pozitif. Homing'den önce x'in anlamı yoktur.
 * Durum vektörü sırası her yerde **[x, ẋ, θ, θ̇]** şeklindedir.
 * Kontrol kanunu: `u = −(K0·(x − x_ref) + K1·ẋ + K2·θ + K3·θ̇)`.
@@ -26,7 +27,7 @@ PC portu açarken DTR/RTS'yi düşük tutar, böylece ESP32 resetlenmez.
 ### Montaj sonrası işaret kontrolü (mekatronik ekibi)
 1. Kartı açın; sarkaç **aşağıda ve hareketsiz** olsun (açılışta açı sıfırı bu konumdan bulunur). Açılıştaki `calib` olayı arayüz bağlanmadan önce gelip kaybolabilir; bu yüzden `ping` yanıtındaki `angle_ok` alanı da sonucu söyler (arayüz `false` ise uyarır; o zaman "Açı Sıfırla (calib)"). Telemetride `th` yaklaşık ±3.14 olmalıdır.
 2. Sarkacı elle dik konuma getirin: `th` ≈ 0 olmalıdır.
-3. Dik konumdan arabanın **sağına** doğru yatırın: `th` **pozitif** olmalıdır. Değilse firmware'de `ANGLE_SIGN = -1` yapın.
+3. Dik konumdan arabanın **soluna** doğru yatırın: `th` **pozitif** olmalıdır. Değilse firmware'de `ANGLE_SIGN = -1` yapın. (#50'den önceki kuralda bu adım "sağına"ydı; eski kurala göre ayarlanmış bir kartta `ANGLE_SIGN` ters çevrilmelidir.)
 4. Arabayı elle sağa itin: `x` artmalıdır. Artmıyorsa `X_SIGN = -1` yapın.
 5. Motor yönü (ham gerilim komutu yoktur): **KALİBRE ET**'e basın, bir eliniz Esc'de. Araba **sola** gitmelidir. Sağa giderse ya da hızlanarak kaçarsa cihaz kendisi durur (`homing_wrong_side` / `homing_runaway`): motor kablolarını ters çevirin (x yönü 4. adımda doğrulandıysa). Homing başarıyla bittikten sonra Sürtünme Ölç ile de görebilirsiniz: önce +x'e (sağa) gider. Uç sensörsüz derlemede (`LIMIT_SWITCHES 0`) KALİBRE ET arabayı hareket ettirmez; motor yönünü o zaman Sürtünme Ölç'ün ilk hareketiyle kontrol edin (Esc hazırda).
 

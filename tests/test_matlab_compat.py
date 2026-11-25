@@ -1,7 +1,8 @@
 """Matlab/Simulink modeli ile Python kütüphanesinin karşılaştırması (issue #10).
 
 Matlab'ın A, B matrisleri burada kütüphaneden BAĞIMSIZ olarak, cart_pendulum_lqr.m'deki
-kapalı formüllerle kurulur. Matlab'da θ, sarkaç SOLA yatınca pozitiftir; projede SAĞA.
+kapalı formüllerle kurulur. #50'den beri iki tarafta da θ, sarkaç SOLA yatınca pozitiftir
+(mekatronik raporu 8.1.3): A, B ve K işaret dönüşümü OLMADAN aynı çıkmalıdır.
 Bkz. pendulum_lab/sim/matlab_compat.py
 """
 
@@ -20,7 +21,7 @@ from pendulum_lab.sim.simulator import simulate_closed_loop
 
 
 def matlab_AB(M, m, l, I, b, g):
-    """cart_pendulum_lqr.m'deki durum uzayı modeli (Matlab'ın θ işaretinde: sola +)."""
+    """cart_pendulum_lqr.m'deki durum uzayı modeli (θ sola +, proje ile aynı)."""
     p = I * (M + m) + M * m * l ** 2
     A = np.array([[0, 1, 0, 0],
                   [0, -(I + m * l ** 2) * b / p, (m ** 2 * g * l ** 2) / p, 0],
@@ -42,45 +43,51 @@ def test_matlab_K_is_reproduced_from_independent_model(p):
     np.testing.assert_allclose(K_m.ravel(), MATLAB_K_REFERENCE, atol=0.01)
 
 
-def test_python_model_equals_matlab_model_up_to_theta_sign(p):
-    """Kütüphanenin A, B'si Matlab'ınkiyle aynı; tek fark θ işareti (A_m = T·A·T, B_m = T·B)."""
+def test_python_model_equals_matlab_model(p):
+    """Kütüphanenin A, B'si Matlab'ınkiyle işaret dönüşümü olmadan aynı (θ sola +, #50)."""
     A, B = linearize(p)
     A_m, B_m = matlab_AB(p.M, p.m, p.l, p.I, p.b, p.g)
-    T = MATLAB_SIGN
-    np.testing.assert_allclose(T @ A @ T, A_m, rtol=1e-12, atol=1e-12)
-    np.testing.assert_allclose(T @ B, B_m, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(A, A_m, rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(B, B_m, rtol=1e-12, atol=1e-12)
 
 
-def test_python_K_matches_matlab_K_with_theta_gains_flipped(p):
-    """Projenin K'sı = Matlab K'sı, θ ve θ̇ kazançlarının işareti ters (issue #1'deki fark)."""
+def test_python_K_matches_matlab_K_with_same_sign(p):
+    """Projenin K'sı Matlab'ın K'sıyla AYNI işarette eşleşir (#50; önceden θ, θ̇ kazançları tersti, #1)."""
     K, _, _ = design_lqr(p, MATLAB_Q, MATLAB_R)
     K = K.ravel()
-    np.testing.assert_allclose(K, [-50.0, -45.37, -168.66, -33.25], atol=0.01)
+    np.testing.assert_allclose(K, [-50.0, -45.37, 168.66, 33.25], atol=0.01)
+    np.testing.assert_allclose(K, MATLAB_K_REFERENCE, atol=0.01)
     np.testing.assert_allclose(gain_to_matlab(K), MATLAB_K_REFERENCE, atol=0.01)
     np.testing.assert_allclose(gain_from_matlab(MATLAB_K_REFERENCE), K, atol=0.01)
 
 
-def test_using_matlab_K_without_conversion_drops_the_pendulum(p):
-    """Riskin kendisi: Matlab K'sı dönüştürülmeden projede kullanılırsa kapalı çevrim kararsız."""
+def test_old_sign_K_drops_the_pendulum(p):
+    """Riskin kendisi artık ters yönde: ESKİ kuralla (θ sağa +) hesaplanmış bir K (ör. eski gains.h) yeni
+    kuralla kullanılırsa kapalı çevrim kararsız. Matlab'ın K'sı ise doğrudan çalışır."""
     A, B = linearize(p)
-    K_raw = np.array(MATLAB_K_REFERENCE).reshape(1, 4)
-    assert np.max(np.linalg.eigvals(A - B @ K_raw).real) > 0
-    K_ok = gain_from_matlab(MATLAB_K_REFERENCE).reshape(1, 4)
+    K_old = (np.array(MATLAB_K_REFERENCE) * [1, 1, -1, -1]).reshape(1, 4)
+    assert np.max(np.linalg.eigvals(A - B @ K_old).real) > 0
+    K_ok = np.array(MATLAB_K_REFERENCE).reshape(1, 4)
     assert np.max(np.linalg.eigvals(A - B @ K_ok).real) < 0
-    r = simulate_matlab_compatible(p, MATLAB_K_REFERENCE, [0, 0, math.radians(5), 0], T=5)
+    r = simulate_matlab_compatible(p, K_old.ravel(), [0, 0, math.radians(5), 0], T=5)
     assert r.stop_reason in ("angle", "rail")
+    r = simulate_matlab_compatible(p, MATLAB_K_REFERENCE, [0, 0, math.radians(5), 0], T=5)
+    assert r.stop_reason == "time"
 
 
-def test_sign_conversions_are_their_own_inverse():
+def test_sign_conversions_are_identity():
+    """İşaret kuralları aynı: dönüşüm fonksiyonları (geriye uyumluluk) değeri değiştirmez."""
+    np.testing.assert_array_equal(MATLAB_SIGN, np.eye(4))
     s = np.array([0.1, -0.2, 0.3, -0.4])
-    np.testing.assert_allclose(state_to_matlab(s), [0.1, -0.2, -0.3, 0.4])
-    np.testing.assert_allclose(state_from_matlab(state_to_matlab(s)), s)
+    np.testing.assert_allclose(state_to_matlab(s), s)
+    np.testing.assert_allclose(state_from_matlab(s), s)
     K = np.array([1.0, 2.0, 3.0, 4.0])
-    np.testing.assert_allclose(gain_from_matlab(gain_to_matlab(K)), K)
+    np.testing.assert_allclose(gain_to_matlab(K), K)
+    np.testing.assert_allclose(gain_from_matlab(K), K)
 
 
 def test_closed_loop_poles_match_in_both_conventions(p):
-    """İki tarafın kendi modeli ve kendi K'sıyla kapalı çevrim kutupları aynı (fiziksel olarak aynı kontrolcü)."""
+    """İki tarafın kendi modeli ve kendi K'sıyla kapalı çevrim kutupları aynı."""
     _, _, cl = design_lqr(p, MATLAB_Q, MATLAB_R)
     A_m, B_m = matlab_AB(p.M, p.m, p.l, p.I, p.b, p.g)
     _, _, cl_m = lqr(A_m, B_m, MATLAB_Q, MATLAB_R)   # Matlab K'sının yuvarlanmamış hali
@@ -150,7 +157,7 @@ def test_matlab_compatible_sim_rejects_bad_K(p):
 
 
 def matlab_nonlinear_accel(p, z, F):
-    """cart_pendulum_application.m / Simulink "Nonlinear Dynamics" fonksiyonu (Matlab işaretinde: θ sola +)."""
+    """cart_pendulum_application.m / Simulink "Nonlinear Dynamics" fonksiyonu (θ sola +, proje ile aynı)."""
     J = p.I + p.m * p.l ** 2
     h = p.m * p.l
     th, om = z[2], z[3]
@@ -159,17 +166,17 @@ def matlab_nonlinear_accel(p, z, F):
     return np.linalg.solve(H, rhs)
 
 
-def test_python_nonlinear_model_equals_matlab_up_to_theta_sign(p):
-    """Doğrusal olmayan model de Matlab'ınkiyle aynı (θ işareti dışında), geniş açılarda da."""
+def test_python_nonlinear_model_equals_matlab(p):
+    """Doğrusal olmayan model de Matlab'ınkiyle işaret dönüşümü olmadan aynı, geniş açılarda da."""
     from pendulum_lab.model.dynamics import accelerations
     rng = np.random.default_rng(0)
     for _ in range(500):
         s = rng.uniform([-0.2, -2, -1.5, -6], [0.2, 2, 1.5, 6])
         F = rng.uniform(-20, 20)
         ddx, ddth = accelerations(p, s, F)
-        a_m = matlab_nonlinear_accel(p, state_to_matlab(s), F)
+        a_m = matlab_nonlinear_accel(p, s, F)
         assert ddx == pytest.approx(a_m[0], abs=1e-9)
-        assert -ddth == pytest.approx(a_m[1], abs=1e-9)
+        assert ddth == pytest.approx(a_m[1], abs=1e-9)
 
 
 def test_matlab_Q_matches_scales_and_force_is_limited(p):

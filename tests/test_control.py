@@ -8,6 +8,7 @@ from pendulum_lab import (PendulumParams, Supervisor, Mode, EnergySwingUp, PID, 
                           simulate_closed_loop, SensorModel)
 from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.model.params import MotorParams
+from pendulum_lab.model.dynamics import wrap_angle
 
 Q = [10, 1, 100, 1]
 R = [[0.1]]
@@ -79,7 +80,8 @@ def test_swing_up_then_catch_with_lqr(p, th0):
     sup.start()
     r = simulate_closed_loop(p, sup, [0, 0, th0, 0], 15.0, sensor=SensorModel())
     assert "SWING_UP" in r.mode and r.mode[-1] == "BALANCE"
-    assert abs(r.s[-1, 2]) < math.radians(1.0)
+    # simülasyonun gerçek açısı sarılmaz: sarkaç hangi yönden kalktığına göre 0 ya da ±2π'de dik durur
+    assert abs(wrap_angle(r.s[-1, 2])) < math.radians(1.0)
     assert np.abs(r.x).max() < p.rail_half - 0.05
 
 
@@ -237,5 +239,5 @@ def test_swing_up_and_balance_with_motor_coulomb_friction(p):
     assert r.mode[-1] == "BALANCE"
     assert r.mode.index("BALANCE") * 0.002 < 6.0          # sürtünmesizde ~3.6 s
     last = r.t > r.t[-1] - 2.0
-    assert np.abs(r.th[last]).max() < math.radians(2.0)
+    assert np.abs(np.arctan2(np.sin(r.th[last]), np.cos(r.th[last]))).max() < math.radians(2.0)
     assert np.abs(r.x).max() < p.rail_half - 0.05

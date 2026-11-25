@@ -1,5 +1,5 @@
 // Otomatik üretildi: pendulum_lab.export  —  elle düzenlemeyin, arayüzden yeniden üretin
-// 2026-11-22 17:09:37
+// 2026-11-25 19:30:31
 // Q = [10.0, 1.0, 100.0, 1.0]   R = [0.1]
 // Parametreler: M=0.5 m=0.2 l=0.3 I=0.0 b=0.1 c=0.0005 giriş=voltage T_f=0.0 B_m=0.0
 #pragma once
@@ -10,7 +10,7 @@
 #define CTRL_PERIOD_MS     2
 #define CTRL_RATE_HZ       500
 // u = -(K0*(x - x_ref) + K1*dx + K2*th + K3*dth)
-static const float LQR_K[4] = {-9.515838f, -27.286601f, -61.490548f, -9.737244f};
+static const float LQR_K[4] = {-9.515838f, -27.286601f, 61.490548f, 9.737244f};
 #define CATCH_RAD          0.261799f
 #define RELEASE_RAD        0.523599f
 #define CATCH_DTH          5.0000f   // LQR'a girişte |θ̇| sınırı [rad/s]
@@ -45,15 +45,15 @@ static const float LQR_K[4] = {-9.515838f, -27.286601f, -61.490548f, -9.737244f}
 // Ayrık kararlı hal Kalman filtresi (dik konum etrafında: s+ = Ad*s + Bd*u, s += L*(y - C*s))
 #define KALMAN_AVAILABLE 1
 static const float KALMAN_AD[4][4] = {
-  {1.00000000e+00f, 1.81395300e-03f, -7.35327737e-06f, 1.26420140e-09f},
-  {0.00000000e+00f, 8.19908828e-01f, -7.11789370e-03f, -1.30681653e-06f},
-  {0.00000000e+00f, 6.20151926e-04f, 1.00008991e+00f, 1.99998383e-03f},
-  {0.00000000e+00f, 6.00300420e-01f, 8.91257836e-02f, 1.00001420e+00f},
+  {1.00000000e+00f, 1.81395300e-03f, 7.35327737e-06f, -1.26420140e-09f},
+  {0.00000000e+00f, 8.19908828e-01f, 7.11789370e-03f, 1.30681653e-06f},
+  {0.00000000e+00f, -6.20151926e-04f, 1.00008991e+00f, 1.99998383e-03f},
+  {0.00000000e+00f, -6.00300420e-01f, 8.91257836e-02f, 1.00001420e+00f},
 };
-static const float KALMAN_BD[4] = {1.60596371e-05f, 1.55455283e-02f, -5.35317151e-05f, -5.18181266e-02f};
+static const float KALMAN_BD[4] = {1.60596371e-05f, 1.55455283e-02f, 5.35317151e-05f, 5.18181266e-02f};
 static const float KALMAN_L[4][2] = {
-  {6.00114924e-01f, 1.00930496e-03f},
-  {1.81326672e+01f, 5.37426724e-01f},
-  {1.52008964e-01f, 2.86539414e-01f},
-  {4.84340427e+01f, 2.30280969e+01f},
+  {6.00114924e-01f, -1.00930496e-03f},
+  {1.81326672e+01f, -5.37426724e-01f},
+  {-1.52008964e-01f, 2.86539414e-01f},
+  {-4.84340427e+01f, 2.30280969e+01f},
 };

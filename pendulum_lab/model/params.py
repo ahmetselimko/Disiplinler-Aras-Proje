@@ -6,7 +6,8 @@ kodun geri kalanı hiç değişmez.
 Konvansiyonlar (tüm proje boyunca aynı):
     durum  s = [x, dx, th, dth]
     x   : araba konumu [m], rayın ortası 0, sağa (+)
-    th  : sarkaç açısı [rad], DİK konum 0, sarkaç +x yönüne yattığında (+)
+    th  : sarkaç açısı [rad], DİK konum 0, sarkaç SOLA (−x yönüne) yattığında (+), aşağıda ±π
+          (mekatronik raporu 8.1.3, #50; Matlab dosyalarıyla aynı)
     u   : giriş — input_mode'a göre kuvvet [N], motor gerilimi [V] veya araba ivmesi [m/s^2]
 """
 

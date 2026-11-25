@@ -1,9 +1,10 @@
 """Enerji bazlı swing-up (Åström & Furuta, 2000).
 
 Sarkaç enerjisi  E = ½ J θ̇² + m g l (cosθ − 1)   (dik-durağan: 0, aşağı-durağan: −2mgl)
-Araba ivmesi a için  dE/dt = −m l a θ̇ cosθ  (sürtünme ihmal)  olduğundan
+θ > 0 sola yatık iken (mekatronik raporu 8.2.2) araba ivmesi a için  dE/dt = m l a θ̇ cosθ
+(sürtünme ihmal) olduğundan
 
-    a = sat( k_E · E · θ̇ · cosθ )
+    a = sat( −k_E · E · θ̇ · cosθ )        (mekatronik raporu 8.2.3 ile aynı yasa)
 
 seçimi dE/dt = −m l k_E E (θ̇cosθ)² verir → E monoton olarak 0'a (dik konum enerjisine) gider.
 Rayın dışına taşmamak için araba merkezleme terimi eklenir: −k_x x − k_v ẋ.
@@ -46,7 +47,7 @@ class EnergySwingUp:
             # ortasına doğru küçük bir dürtme
             a = self.a_kick * (-1.0 if x > 1e-3 else 1.0)
         else:
-            a = self.k_E * E * dth * math.cos(th)
+            a = -self.k_E * E * dth * math.cos(th)
         a = max(-self.a_max, min(self.a_max, a))
         a += -self.k_x * x - self.k_v * dx
         return max(-self.a_max, min(self.a_max, a))

@@ -15,8 +15,14 @@ sistemi modellediğini göstermek ve ileride birinin değişip diğerinin geride
 ## Bulunan farklar
 
 ### 1. θ işareti
-Matlab'da sarkaç **sola** yatınca θ > 0; Python'da, ESP32 firmware'inde ve [`protokol.md`](protokol.md)'de **sağa (+x)**
-yatınca θ > 0. Durum dönüşümü:
+
+> **Güncelleme (#50, Aşama 1):** Bu fark giderildi. Proje de artık mekatronik raporundaki (Bölüm 8.1.3) ve Matlab'daki
+> kuralı kullanıyor: **sarkaç sola yatınca θ > 0**. A, B ve K iki tarafta dönüşümsüz aynıdır; Matlab'ın K'sı
+> `[−50, −45.37, +168.66, +33.25]` doğrudan kullanılabilir. `gain_from_matlab()` / `gain_to_matlab()` geriye uyumluluk
+> için duruyor ve artık birim dönüşümdür. Aşağıdaki bölüm, #10 sırasındaki (eski) durumu anlatır.
+
+#10 sırasında Matlab'da sarkaç **sola** yatınca θ > 0; Python'da, ESP32 firmware'inde ve [`protokol.md`](protokol.md)'de **sağa (+x)**
+yatınca θ > 0 idi. Durum dönüşümü:
 
 $$s_{\text{Matlab}} = T\,s_{\text{proje}}, \qquad T = \operatorname{diag}(1,\ 1,\ -1,\ -1), \qquad T^{-1} = T$$
 
@@ -29,11 +35,13 @@ Yani K'nın θ ve θ̇ kazançlarının işareti terstir:
 | | $k_x$ | $k_{\dot x}$ | $k_\theta$ | $k_{\dot\theta}$ |
 |---|---|---|---|---|
 | Matlab (θ sola +) | −50.00 | −45.37 | **+168.66** | **+33.25** |
-| Proje (θ sağa +), ESP32'ye giden | −50.00 | −45.37 | **−168.66** | **−33.25** |
+| Proje, #50 öncesi (θ sağa +) | −50.00 | −45.37 | **−168.66** | **−33.25** |
 
-**Risk:** Matlab'da hesaplanan K dönüştürülmeden ESP32'ye verilirse kapalı çevrim kararsızdır (en büyük özdeğerin gerçel
+**Risk (#50 öncesi):** Matlab'da hesaplanan K dönüştürülmeden ESP32'ye verilirse kapalı çevrim kararsızdır (en büyük özdeğerin gerçel
 kısmı ≈ +237 s⁻¹). Simülasyonda 5°'den bırakılan sarkaçta araba **0.15 s** içinde ray sınırına çarpıyor.
 Bunu önlemek için `gain_from_matlab()` / `gain_to_matlab()` dönüşüm fonksiyonları eklendi ve bu durum testle belgelendi.
+#50'den sonra risk ters yöndedir: **eski kuralla üretilmiş bir K** (ör. #50 öncesi `gains.h`) yeni firmware'de kullanılırsa
+sarkaç düşer; `tests/test_matlab_compat.py::test_old_sign_K_drops_the_pendulum` bunu denetler.
 
 ### 2. Deneme biçimi
 `cart_pendulum_application.m`'deki deneme, kütüphanenin varsayılan simülasyonundan farklıdır:
@@ -48,7 +56,7 @@ Bunu önlemek için `gain_from_matlab()` / `gain_to_matlab()` dönüşüm fonksi
 | Dış itme | Arabaya ("Apply push") | Sarkaca veya arabaya (seçilebilir) |
 
 `simulate_matlab_compatible()` Matlab'daki denemeyi Python'da birebir tekrarlar. Arayüzde
-**Analiz ve Simülasyon → Matlab uyumlu** seçeneği bunu kullanır ve K'yı iki işaret kuralında da gösterir.
+**Analiz ve Simülasyon → Matlab uyumlu** seçeneği bunu kullanır ve K'yı gösterir (#50'den beri tek işaret kuralı var).
 
 ## Doğrulama sonuçları
 Matlab referans parametreleri: M = 0.5 kg, m = 0.2 kg, l = 0.3 m, I = 0.006 kg·m², b = 0.1 N·s/m, pivot sürtünmesi yok;
@@ -56,8 +64,8 @@ Q = diag(1/0.2², 1/0.5², 1/(10°)², 1) = diag(25, 4, 32.83, 1), R = 1/Fmax² 
 
 | Karşılaştırma | Sonuç |
 |---|---|
-| Doğrusal model (A, B) | θ işareti dışında birebir aynı (fark < 10⁻¹²) |
-| Doğrusal olmayan hareket denklemleri | θ işareti dışında aynı |
+| Doğrusal model (A, B) | Birebir aynı (fark < 10⁻¹²); #50 öncesi θ işareti dışında |
+| Doğrusal olmayan hareket denklemleri | Aynı; #50 öncesi θ işareti dışında |
 | LQR kazancı K | Matlab sonucu bağımsız modelden yeniden üretildi (fark < 0.01) |
 | Kapalı çevrim kutupları | −58.39, −5.65, −2.40 ± 0.99j (iki tarafta aynı) |
 | Sürekli (Matlab) ve 500 Hz ayrık (kütüphane) simülasyon, θ₀ = 8°, x₀ = 5 cm, 4 s, **kuvvet sınırı kapalı** | En büyük fark θ'da 0.08°, x'te 0.6 mm. Matlab tarafında ±10 N sınırı açıkken (kütüphanede sınır yok) fark θ'da 0.73°, x'te 5.5 mm |
@@ -81,8 +89,9 @@ ve mod geçişi gerekir (bkz. [`proje_durumu.md`](proje_durumu.md)).
 `tests/test_matlab_compat.py`'deki 14 test her push'ta GitHub Actions'ta çalışır:
 
 * **Model:** Matlab'ın kapalı formülleriyle kütüphaneden bağımsız kurulan A, B'den Matlab K'sı yeniden üretiliyor;
-  kütüphanenin doğrusal ve doğrusal olmayan modeli θ işareti dışında Matlab'ınkiyle aynı; kutuplar iki tarafta aynı.
-* **İşaret:** Dönüşümler kendi tersi; dönüştürülmemiş Matlab K'sı kararsız, dönüştürülmüş K kararlı.
+  kütüphanenin doğrusal ve doğrusal olmayan modeli Matlab'ınkiyle işaret dönüşümü olmadan aynı; kutuplar iki tarafta aynı.
+* **İşaret (#50):** K Matlab'ınkiyle aynı işarette eşleşiyor; dönüşüm fonksiyonları birim; eski kuraldaki (θ sağa +) K
+  kararsız, Matlab K'sı kararlı.
 * **Deneme:** Matlab uyumlu simülasyon dengeye getiriyor; açı ve ray sınırında duruyor; motor modundan bağımsız
   olarak kuvvet girişiyle çalışıyor; ±10 N sınırı ve Q'nun tam değeri Matlab'la aynı; 500 Hz ayrık simülasyonla aynı
   yörüngeyi veriyor; hatalı K'yı reddediyor.
@@ -94,15 +103,15 @@ python -m pytest tests/test_matlab_compat.py -v
 ```
 
 ## Dikkat: Matlab K'sı ESP32 için yeterli değil
-İşaret dönüşümü yalnız işaret farkını giderir. Matlab modeli kuvvet girişlidir ve motor içermez; ESP32 ise motora
+İşaret kuralı artık aynı, ama Matlab modeli kuvvet girişlidir ve motor içermez; ESP32 ise motora
 gerilim uygular ve 2 ms örneklemeyle çalışır. Aynı Q, R ile bile motorlu modelden çıkan K farklıdır. Proje
-parametreleriyle (Matlab işaret kuralında değil, proje işaretinde):
+parametreleriyle (θ sola +; #50 öncesi θ ve θ̇ kazançları ters işaretliydi):
 
 | | $k_x$ | $k_{\dot x}$ | $k_\theta$ | $k_{\dot\theta}$ |
 |---|---|---|---|---|
-| Matlab K'sı (dönüştürülmüş) | −50.00 | −45.37 | −168.66 | −33.25 |
-| Motorlu model, sürekli zamanlı | −50.00 | −53.06 | −148.25 | −25.76 |
-| Motorlu model, ayrık ($T_s$ = 2 ms) — **ESP32'ye giden budur** | −40.58 | −44.75 | −121.20 | −21.04 |
+| Matlab K'sı | −50.00 | −45.37 | +168.66 | +33.25 |
+| Motorlu model, sürekli zamanlı | −50.00 | −53.06 | +148.25 | +25.76 |
+| Motorlu model, ayrık ($T_s$ = 2 ms) — **ESP32'ye giden budur** | −40.58 | −44.75 | +121.20 | +21.04 |
 
 Motorlu modelde giriş gerilimdir, Matlab'da kuvvettir; aynı R değeri iki modelde farklı bir şeyi cezalandırır.
 Gerçek düzenekte kullanılacak K, arayüzün

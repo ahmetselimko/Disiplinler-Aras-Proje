@@ -166,8 +166,8 @@ def stepper_kos(base, teeth, rail):
     _, dx, th, dth = res.s.T
     a = res.u
     ml = p.m * p.l
-    ddth = (ml * p.g * np.sin(th) - p.c * dth - ml * np.cos(th) * a) / p.J
-    F = (p.M + p.m) * a + ml * np.cos(th) * ddth - ml * np.sin(th) * dth ** 2 + p.b * dx
+    ddth = (ml * p.g * np.sin(th) - p.c * dth + ml * np.cos(th) * a) / p.J      # θ sola + (#50)
+    F = (p.M + p.m) * a - ml * np.cos(th) * ddth + ml * np.sin(th) * dth ** 2 + p.b * dx
     T_req = np.abs(F * r + n["J"] * a / r)
     w = dx / r
     aktif = np.array([md in ("SWING_UP", "BALANCE", "HOMING") for md in res.mode])

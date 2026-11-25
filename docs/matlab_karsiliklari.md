@@ -25,16 +25,17 @@ Gereksinim belgesindeki "Sadece Ters Sarkaç Sisteminde Kullanılacak Matlab fon
 Fonksiyonların tümü `tests/` altında test edilmiştir. `lqr` ve `dlqr`, `python-control` kütüphanesinin sonuçlarıyla karşılaştırılır.
 
 ## Mekatronik ekibinin Matlab modeliyle karşılaştırma
-Mekatronik ekibinin Matlab dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m` ve Simulink modelinin içindeki fonksiyon) bu kütüphaneyle aynı denklemleri kullanır: hem doğrusal model (A, B) hem doğrusal olmayan model, θ işareti dışında birebir aynıdır (`tests/test_matlab_compat.py`). İki fark vardır:
+Mekatronik ekibinin Matlab dosyaları (`cart_pendulum_lqr.m`, `cart_pendulum_application.m` ve Simulink modelinin içindeki fonksiyon) bu kütüphaneyle aynı denklemleri kullanır: hem doğrusal model (A, B) hem doğrusal olmayan model birebir aynıdır (`tests/test_matlab_compat.py`).
 
-1. **θ işareti:** Matlab'da sarkaç sola yatınca θ > 0, burada sağa (+x) yatınca. Bu yüzden K'nın θ ve θ̇ kazançları ters işaretlidir.
-2. **Deneme biçimi:** Matlab denemesi sürekli zamanlı kontrolcü, kuvvet girişi (motor yok) ve ideal sensör kullanır; bu projede ESP32'ye giden kontrolcü 2 ms örneklemeli, gerilim girişlidir ve sensör kuantalaması vardır. Aynı Q, R ile bile projenin motorlu modeli için çıkan K, Matlab'ınkinden farklıdır.
+**θ işareti:** #50'den beri iki tarafta da sarkaç **sola** yatınca θ > 0 (mekatronik raporu 8.1.3). A, B ve K dönüşümsüz aynıdır; Matlab'da hesaplanan K'nın işareti değiştirilmez. (Önceden projede θ sağa pozitifti ve θ, θ̇ kazançları ters işaretliydi.)
 
-Dönüşüm `pendulum_lab/sim/matlab_compat.py`'dedir (`gain_from_matlab`, `gain_to_matlab`); ayrıntı [`matlab/README.md`](../matlab/README.md).
+Kalan fark, **deneme biçimidir:** Matlab denemesi sürekli zamanlı kontrolcü, kuvvet girişi (motor yok) ve ideal sensör kullanır; bu projede ESP32'ye giden kontrolcü 2 ms örneklemeli, gerilim girişlidir ve sensör kuantalaması vardır. Aynı Q, R ile bile projenin motorlu modeli için çıkan K, Matlab'ınkinden farklıdır.
+
+Uyumluluk kodu `pendulum_lab/sim/matlab_compat.py`'dedir; eski dönüşüm fonksiyonları (`gain_from_matlab`, `gain_to_matlab`) geriye uyumluluk için duruyor ve artık değeri değiştirmez. Ayrıntı [`matlab/README.md`](../matlab/README.md).
 
 | Matlab | pendulum_lab | Not |
 |---|---|---|
-| `cart_pendulum_lqr.m` (M=0.5, m=0.2, l=0.3, I=0.006, b=0.1, Q=diag(25,4,32.83,1), R=0.01) | `matlab_reference_params()`, `MATLAB_Q`, `MATLAB_R` | K = [−50, −45.37, ∓168.66, ∓33.25]; `tests/test_matlab_compat.py` denetler |
+| `cart_pendulum_lqr.m` (M=0.5, m=0.2, l=0.3, I=0.006, b=0.1, Q=diag(25,4,32.83,1), R=0.01) | `matlab_reference_params()`, `MATLAB_Q`, `MATLAB_R` | K = [−50, −45.37, 168.66, 33.25] (iki tarafta aynı); `tests/test_matlab_compat.py` denetler |
 | `cart_pendulum_application.m` | `simulate_matlab_compatible(p, K, s0, T)` | Sürekli LQR, kuvvet girişi, RK4 2.5 ms, ±0.2 m / 90°'de durur; dış itme arabaya. Kuvvet sınırı `f_max` (varsayılan ±10 N, Matlab gibi). Arayüzde Analiz → **Matlab uyumlu**: "Matlab'ın kendi ayarlarıyla" seçiliyse Matlab'ın parametreleri, Q, R'si ve ±10 N sınırı; değilse proje parametreleri, Tasarım Q, R'si, sınırsız |
 
 ## Örnek: Matlab betiğinin Python karşılığı

@@ -1,6 +1,10 @@
 """Telemetri oturumunu CSV'ye kaydeder (Excel / Matlab / pandas ile açılabilir).
 
 TelemetryReader.sinks listesine eklenir; satırlar okuyucu thread'inden gelir, dosyaya tamponlu yazılır.
+
+θ işareti: yeni kayıtların başlığında `# theta_pozitif: sol` bulunur (θ > 0 sarkaç sola yatık, #50).
+Bu alanı olmayan eski kayıtlar θ sağa + kuralıyla yazılmıştır; load_recording onları okurken θ, θ̇ ve
+kayıttaki K'ların θ, θ̇ kazançlarını ters çevirir, böylece oynatma ve simülasyonla karşılaştırma bozulmaz.
 """
 
 from __future__ import annotations
@@ -28,12 +32,20 @@ from .model.params import PendulumParams
 from .sim.simulator import SensorModel, SimResult, simulate_closed_loop
 
 
+# Kayıt başlığındaki θ işareti alanı. Değer "sol": θ > 0 sarkaç sola yatık (mekatronik raporu 8.1.3, #50).
+THETA_SIGN_KEY = "theta_pozitif"
+THETA_SIGN_VALUE = "sol"
+# Alanı olmayan (ya da bu değerlerden birini taşıyan) kayıtlar eski kuralla (θ sağa +) yazılmıştır
+OLD_THETA_SIGN_VALUES = ("sag", "sağ")
+
+
 class Recorder:
     def __init__(self, path: str | Path, meta: dict | None = None):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._f = open(self.path, "x", newline="", encoding="utf-8")   # "x": varsa üzerine yazma
-        for k, v in (meta or {}).items():
+        meta = {THETA_SIGN_KEY: THETA_SIGN_VALUE, **{k: v for k, v in (meta or {}).items() if k != THETA_SIGN_KEY}}
+        for k, v in meta.items():
             encoded = v if isinstance(v, str) and '\n' not in v and '\r' not in v else json.dumps(v, ensure_ascii=False, allow_nan=False)
             self._f.write(f"# {k}: {encoded}\n")
         self._w = csv.writer(self._f)
@@ -189,6 +201,9 @@ def load_recording(path: str | Path) -> RecordedSession:
 
     arr = np.array([r[:6] for r in rows], dtype=float)
     modes = [r[6] for r in rows]
+    if _convert_old_theta_sign(meta, events, p.name):
+        arr[:, 3] *= -1.0                     # th
+        arr[:, 4] *= -1.0                     # dth
     return RecordedSession(
         path=p,
         meta=meta,
@@ -201,6 +216,42 @@ def load_recording(path: str | Path) -> RecordedSession:
         u=arr[:, 5],
         mode=modes,
     )
+
+
+def _flip_gain(K):
+    """Eski kuralda (θ sağa +) yazılmış K'yı yeni kurala çevirir: θ ve θ̇ kazançlarının işareti ters."""
+    if isinstance(K, (list, tuple)) and len(K) == 4 and all(isinstance(v, (int, float)) for v in K):
+        return [K[0], K[1], -K[2], -K[3]]
+    return K
+
+
+def _convert_old_theta_sign(meta: dict, events: list[dict], name: str = "") -> bool:
+    """Kayıt eski θ kuralındaysa (başlıkta theta_pozitif yok) başlıktaki ve olaylardaki K'ları yerinde çevirir,
+    meta'yı yeni kurala işaretler ve True döndürür; telemetrinin θ, θ̇ sütunlarını çağıran çevirir."""
+    sign = meta.get(THETA_SIGN_KEY)
+    if sign == THETA_SIGN_VALUE:
+        return False
+    if sign is not None and sign not in OLD_THETA_SIGN_VALUES:
+        raise ValueError(f"{name}: tanınmayan {THETA_SIGN_KEY} değeri {sign!r} (beklenen {THETA_SIGN_VALUE!r})")
+    if "K" in meta:
+        meta["K"] = _flip_gain(meta["K"])
+    ack = meta.get("device_acknowledged_settings")
+    if isinstance(ack, dict) and "K" in ack:
+        ack["K"] = _flip_gain(ack["K"])
+    for ev in events:
+        fields = ev.get("fields")
+        if ev.get("kind") == "command_sent" and isinstance(fields, dict) and "K" in fields:
+            fields["K"] = _flip_gain(fields["K"])
+        settings = ev.get("settings")
+        if ev.get("kind") == "pc_design_snapshot" and isinstance(settings, dict):
+            if "K" in settings:
+                settings["K"] = _flip_gain(settings["K"])
+            sack = settings.get("device_acknowledged_settings")
+            if isinstance(sack, dict) and "K" in sack:
+                sack["K"] = _flip_gain(sack["K"])
+    meta[THETA_SIGN_KEY] = THETA_SIGN_VALUE
+    meta["theta_isareti_donusturuldu"] = True     # arayüz bilgi olarak gösterebilir
+    return True
 
 
 def _extract_replay_config(meta: dict, fallback_state=None):

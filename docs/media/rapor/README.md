@@ -1,10 +1,10 @@
 # Rapor şekilleri
 
-`tools/rapor_sekilleri.py` ile 23.11.2026 tarihinde üretildi. **Elle düzenlemeyin;** parametreler değişince script'i yeniden çalıştırın.
+`tools/rapor_sekilleri.py` ile 25.11.2026 tarihinde üretildi. **Elle düzenlemeyin;** parametreler değişince script'i yeniden çalıştırın.
 
 * Parametreler: `config/params.json` (M = 0.5 kg, m = 0.2 kg, l = 0.3 m, ray ±0.4 m, giriş: motor gerilimi, |u| ≤ 12 V)
 * Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up (hedef enerji oranı 1)
-* K = [-9.52, -27.29, -61.49, -9.74]
+* K = [-9.52, -27.29, 61.49, 9.74]
 * Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 48 CPR × 10 redüktör = 480 sayım/tur, 0.125 mm/sayım); dik bölgede Kalman (firmware gibi)
 
 > ⚠ **Parametreler yer tutucu değerlerdir** (`config/params.json`, ölçüm değil). Gerçek ölçüler girilince şekiller yeniden üretilmelidir; sayılar değişecektir.

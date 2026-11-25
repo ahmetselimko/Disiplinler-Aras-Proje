@@ -1,6 +1,7 @@
 """Dik konum (θ = 0) etrafında doğrusallaştırma — Matlab `jacobian` karşılığı.
 
-sinθ ≈ θ, cosθ ≈ 1, θ̇² ≈ 0 varsayımıyla  ṡ = A s + B u.
+sinθ ≈ θ, cosθ ≈ 1, θ̇² ≈ 0 varsayımıyla  ṡ = A s + B u. θ > 0 sola yatık (dynamics.py);
+kuvvet girişinde B'nin θ̈ satırı pozitiftir (mekatronik raporu 5.4: B2 = 1.8182, B4 = 4.5455).
 Analitik sonuç, sayısal jacobian ile testte karşılaştırılır.
 Coulomb sürtünmesi (F_c) doğrusal değildir ve ihmal edilir; motor mili viskoz sürtünmesi b_cart'ta dahildir.
 """
@@ -22,7 +23,7 @@ def linearize(p: PendulumParams) -> tuple[np.ndarray, np.ndarray]:
                       [0, 0, 0, 0],
                       [0, 0, 0, 1],
                       [0, 0, ml * g / J, -p.c / J]], dtype=float)
-        B = np.array([[0], [1], [0], [-ml / J]], dtype=float)
+        B = np.array([[0], [1], [0], [ml / J]], dtype=float)
         return A, B
 
     if p.input_mode == "voltage":
@@ -33,11 +34,11 @@ def linearize(p: PendulumParams) -> tuple[np.ndarray, np.ndarray]:
     D = (p.M_eff + p.m) * J - ml ** 2
     A = np.array([
         [0, 1, 0, 0],
-        [0, -J * b_eff / D, -ml ** 2 * g / D, ml * p.c / D],
+        [0, -J * b_eff / D, ml ** 2 * g / D, -ml * p.c / D],
         [0, 0, 0, 1],
-        [0, ml * b_eff / D, (p.M_eff + p.m) * ml * g / D, -(p.M_eff + p.m) * p.c / D],
+        [0, -ml * b_eff / D, (p.M_eff + p.m) * ml * g / D, -(p.M_eff + p.m) * p.c / D],
     ], dtype=float)
-    B = gain * np.array([[0], [J / D], [0], [-ml / D]], dtype=float)
+    B = gain * np.array([[0], [J / D], [0], [ml / D]], dtype=float)
     return A, B
 
 
