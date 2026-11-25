@@ -4,6 +4,7 @@ ESP32 → PC
   telemetri : {"n":123,"t":1.2500,"x":0.1200,"dx":0.0,"th":0.0500,"dth":0.0,"u":1.30,"mode":"BALANCE"}
               (PDF'teki ilk taslak {"t","theta","x"} de kabul edilir; eksik alanlar 0 sayılır)
   olay      : {"evt":"limit","side":"L"}  {"evt":"homed"}  {"evt":"fault","reason":"rail"}  {"evt":"boot"}
+              END_SENSORS 2: {"evt":"limit","side":"L","stage":"opt"|"hard"}  {"evt":"sensor_mismatch","side":"L"}
   yanıt     : {"ack":"set_gain","ok":true}  /  {"ack":"start","ok":false,"msg":"önce home"}
 PC → ESP32
   {"cmd":"set_gain","K":[k1,k2,k3,k4]}   {"cmd":"start"}  {"cmd":"stop"}  {"cmd":"estop"}
@@ -34,6 +35,25 @@ COMMANDS = ("ping", "hb", "start", "stop", "estop", "home", "calib", "set_gain",
 THETA_CONVENTION = "sol"
 HB_PERIOD_S = 0.25
 LINK_TIMEOUT_S = 1.0
+
+# Arayüzde olay günlüğüne eklenen kısa açıklamalar (docs/protokol.md §3.2 ile aynı anlam)
+FAULT_REASON_TEXT = {
+    "limit": "uç sensörüne gelindi (END_SENSORS 2'de iç kademe optik)",
+    "hard_limit": "dış kademe mikro switch'e çarpıldı: optik kaçırılmış ya da arızalı olabilir; arabayı elle "
+                  "uçtan uzaklaştırıp sensörleri kontrol edin",
+    "rail": "yazılımsal ray sınırı",
+    "homing_overrun": "homing sırasında mikro switch'e gelindi: optik (homing referansı) görmedi; kablo ve "
+                      "hizayı kontrol edin",
+    "homing_wrong_side": "homing yanlış uca gitti: motor ya da enkoder yönü ters",
+    "homing_runaway": "homing'de araba hızlanarak kaçtı: motor ya da enkoder yönü ters",
+    "homing_switch": "homing referans sensörü hep etkin okunuyor (kopuk kablo / takılı sensör)",
+    "homing_timeout": "homing süre sınırını aştı",
+    "homing_travel": "homing'de beklenenden uzun yol gidildi",
+}
+EVENT_TEXT = {
+    "sensor_mismatch": "UYARI: mikro switch basıldı ama aynı taraftaki optik görmüyor: optik arızalı ya da "
+                       "kaymış olabilir; denemeden önce kontrol edin",
+}
 # yalnız sanal ESP32'de geçerli komutlar (firmware'de yok): dürt, fiziği dondur/sürdür, başlangıç durumuna dön
 SIM_ONLY_COMMANDS = ("kick", "pause", "reset")
 # sanal ESP32'de dürtme: yatay kuvvet F [N], dur [s] boyunca; at = "pole" (sarkacın ağırlık merkezine,

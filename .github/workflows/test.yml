@@ -33,6 +33,7 @@ jobs:
       matrix:
         core: ["3.3.12", "2.0.17"]
         board: ["esp32", "esp32s3"]
+        end_sensors: [1, 2]   # uç sensörü: 1 tek sensör, 2 optik + mikro switch (#50 Aşama 4)
     env:
       ESP32_URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     steps:
@@ -48,4 +49,7 @@ jobs:
           arduino-cli core install "esp32:esp32@${{ matrix.core }}" --additional-urls "$ESP32_URL"
           arduino-cli lib install ArduinoJson@7.4.3
       - name: Firmware'i derle
-        run: arduino-cli compile --fqbn esp32:esp32:${{ matrix.board }} --warnings all firmware/esp32_pendulum
+        run: >
+          arduino-cli compile --fqbn esp32:esp32:${{ matrix.board }} --warnings all
+          --build-property "compiler.cpp.extra_flags=-DEND_SENSORS=${{ matrix.end_sensors }}"
+          firmware/esp32_pendulum

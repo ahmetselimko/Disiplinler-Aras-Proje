@@ -309,7 +309,10 @@ class LiveTab(QtWidgets.QWidget):
                 self.b_rec.setChecked(False)
                 return
             extra = " ".join(f"{k}={v}" for k, v in msg.data.items())
-            self.append_log(f"● olay: {msg.name} {extra}".rstrip())
+            note = P.EVENT_TEXT.get(msg.name, "")
+            if msg.name == "fault":
+                note = P.FAULT_REASON_TEXT.get(str(msg.data.get("reason")), "")
+            self.append_log(f"● olay: {msg.name} {extra}".rstrip() + (f" — {note}" if note else ""))
 
     # ------------------------------------------------------------ güncelleme (60 FPS)
     def refresh(self, reader):
