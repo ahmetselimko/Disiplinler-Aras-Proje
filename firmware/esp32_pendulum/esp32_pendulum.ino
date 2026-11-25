@@ -31,9 +31,9 @@
 #error "gains.h eski θ kuralıyla (sağa +) üretilmiş: LQR_K ve KALMAN_* ters işaretli, sarkaç düşer. Arayüzden yeniden dışa aktarın (#50)."
 #endif
 #ifndef P_FC
-#define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
+#define P_FC 0.0f   // elle yazılmış/eksik gains.h için: Coulomb telafisi kapalı (#50 öncesi gains.h zaten derlenmez)
 #endif
-// eski gains.h: geçiş sınırları ve hedef enerji oranı için supervisor.py varsayılanları
+// elle yazılmış/eksik gains.h için supervisor.py varsayılanları (#50 öncesi dışa aktarılan gains.h yukarıda #error verir)
 #ifndef CATCH_DTH
 #define CATCH_DTH 5.0f     // LQR'a girişte |θ̇| sınırı [rad/s]
 #endif
@@ -87,7 +87,7 @@ static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi 
 #ifndef USE_KALMAN
 #define USE_KALMAN 1                                   // 0: dik bölgede de yalnız 25 Hz türev filtresi (Kalman kapalı)
 #endif
-#if USE_KALMAN && !defined(KALMAN_AVAILABLE)          // eski gains.h: KALMAN_* matrisleri yok → filtresiz derle
+#if USE_KALMAN && !defined(KALMAN_AVAILABLE)          // KALMAN_* matrisleri olmayan (elle yazılmış) gains.h → filtresiz derle
 #warning "gains.h Kalman matrislerini icermiyor: Kalman KAPALI derleniyor. Arayuzden gains.h'yi yeniden uretin."
 #undef USE_KALMAN
 #define USE_KALMAN 0
@@ -210,7 +210,7 @@ struct KalmanEst {            // ayrık kararlı hal Kalman filtresi (filters.Ka
   void reset() { active = false; s[0] = s[1] = s[2] = s[3] = 0; }
   void update(float xm, float dx_lp, float thm, float dth_lp, float u_prev, bool enable, float &dx, float &dth) {
     if (!enable) { active = false; dx = dx_lp; dth = dth_lp; return; }
-#if !USE_KALMAN                                        // KALMAN_* sabitlerine hiç başvurma (eski gains.h derlensin)
+#if !USE_KALMAN                                        // KALMAN_* sabitlerine hiç başvurma (Kalman'sız gains.h derlensin)
     (void)xm; (void)thm; (void)u_prev; dx = dx_lp; dth = dth_lp;
 #else
     if (!active) {

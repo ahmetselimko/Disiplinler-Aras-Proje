@@ -264,6 +264,12 @@ class LiveTab(QtWidgets.QWidget):
                 self.b_rec.setChecked(False)
                 st.log.emit("Kayıt için önce bağlanın.")
                 return
+            if not st.device_info_seen:        # θ kuralı bilinmeden başlığa yanlış işaret yazılmasın (#50)
+                self.b_rec.setChecked(False)
+                st.send("ping")
+                st.log.emit("Kayıt başlatılmadı: cihaz bilgisi (ping yanıtı) henüz gelmedi; birkaç saniye sonra "
+                            "tekrar deneyin.")
+                return
             real = st.real_device              # kaynak dosya adında ve başlıkta: kayıtlar karışmasın
             path = Recorder.default_path(st.base_dir / "kayitlar", prefix="gercek" if real else "sim")
             source = f"gerçek kart ({st.reader.transport.name})" if real else "simülasyon (sanal ESP32)"

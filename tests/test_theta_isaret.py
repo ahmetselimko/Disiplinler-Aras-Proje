@@ -90,8 +90,8 @@ def _make_old_csv(new_path, old_path):
     from pendulum_lab.recorder import THETA_SIGN_KEY, _flip_gain
     out = []
     for line in new_path.read_text(encoding="utf-8").splitlines():
-        if line.startswith(f"# {THETA_SIGN_KEY}:"):
-            continue
+        if line.startswith(f"# {THETA_SIGN_KEY}:") or line.startswith("# cihaz_theta_pozitif:"):
+            continue                                       # eski arayüz bu alanları yazmazdı
         if line.startswith("# event: "):
             ev = json.loads(line[len("# event: "):])
             if isinstance(ev.get("fields"), dict) and "K" in ev["fields"]:
@@ -123,12 +123,13 @@ def test_new_recording_header_marks_theta_sign(tmp_path):
     rec.close()
     text = (tmp_path / "a.csv").read_text(encoding="utf-8")
     assert text.splitlines()[0] == "# theta_pozitif: sol" and text.count("theta_pozitif") == 1
-    # eski firmware'e bağlıyken arayüz "sag" verir: başlık bunu taşır, okuyan çevirir
-    rec = Recorder(tmp_path / "b.csv", meta={"kaynak": "test", "theta_pozitif": "sag"})
+    # PC'nin yazdığı alanlar her zaman bu arayüzün kuralında: çağıran başka değer verse de "sol"
+    rec = Recorder(tmp_path / "b.csv", meta={"kaynak": "test", "theta_pozitif": "sag", "cihaz_theta_pozitif": "sag"})
     rec.close()
-    assert (tmp_path / "b.csv").read_text(encoding="utf-8").splitlines()[0] == "# theta_pozitif: sag"
+    lines = (tmp_path / "b.csv").read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "# theta_pozitif: sol" and "# cihaz_theta_pozitif: sag" in lines
     with pytest.raises(ValueError):
-        Recorder(tmp_path / "c.csv", meta={"theta_pozitif": "yukari"})
+        Recorder(tmp_path / "c.csv", meta={"cihaz_theta_pozitif": "yukari"})
     assert not (tmp_path / "c.csv").exists()
 
 
@@ -140,7 +141,7 @@ def test_old_recording_is_converted_on_load(tmp_path):
     new_path, old_path = tmp_path / "yeni.csv", tmp_path / "eski.csv"
     _record_via_reader(new_path, st, before_start=[("set_gain", {"K": st.K.tolist()})], run_s=4.0)
     _make_old_csv(new_path, old_path)
-    assert "theta_pozitif" not in old_path.read_text(encoding="utf-8")
+    assert "theta_pozitif" not in old_path.read_text(encoding="utf-8").split("# event:")[0]
     new, old = load_recording(new_path), load_recording(old_path)
     assert "theta_isareti_donusturuldu" not in new.meta and old.meta["theta_isareti_donusturuldu"]
     assert old.meta["theta_pozitif"] == "sol"
@@ -239,4 +240,63 @@ def test_device_reports_theta_convention_and_old_firmware_gets_no_gain():
         assert ("set_gain" in st.reader.sent) == gain_sent, info
         assert "set_param" in st.reader.sent                       # swing-up anahtarı her durumda gider
         assert any("θ kuralı" in m for m in logs) == (not gain_sent)
-        assert st.get_metadata()["theta_pozitif"] == ("sol" if gain_sent else "sag")   # kayıt başlığı
+        assert st.get_metadata()["cihaz_theta_pozitif"] == ("sol" if gain_sent else "sag")   # kayıt başlığı
+    st.set_reader(_Reader())
+    assert st.get_metadata()["cihaz_theta_pozitif"] is None            # bilgi yok: kayıt başlatılmaz (live_tab)
+    st.push_to_device()
+    assert "ping" in st.reader.sent                                    # bilgi yeniden istendi
+
+
+def test_new_gui_old_firmware_recording_flips_only_telemetry(tmp_path):
+    """Yeni arayüz eski (θ sağa +) firmware'e bağlıyken: başlıkta cihaz_theta_pozitif: sag. Okurken yalnız θ, θ̇
+    sütunları çevrilir; PC'nin yazdığı K'lar (yeni kuralda) olduğu gibi kalır."""
+    from gui.state import AppState
+    from pendulum_lab.recorder import _settings_at_row, compare_recording_with_simulation, load_recording
+    from test_kalman_and_playback import ROOT, _record_via_reader
+    st = AppState(ROOT / "config" / "params.json")
+    new_path, dev_path = tmp_path / "yeni.csv", tmp_path / "eski_cihaz.csv"
+    _record_via_reader(new_path, st, run_s=3.0)
+    out = []
+    for line in new_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("# cihaz_theta_pozitif:"):
+            line = "# cihaz_theta_pozitif: sag"
+        elif not line.startswith("#") and line and line[0] in "-0123456789":
+            c = line.split(",")
+            c[3], c[4] = (f"{-float(v)!r}" for v in (c[3], c[4]))
+            line = ",".join(c)
+        out.append(line)
+    dev_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    new, dev = load_recording(new_path), load_recording(dev_path)
+    assert dev.meta["cihaz_theta_donusturuldu"] and "theta_isareti_donusturuldu" not in dev.meta
+    np.testing.assert_allclose(dev.th, new.th, atol=1e-5)
+    np.testing.assert_allclose(dev.dth, new.dth, atol=1e-4)
+    np.testing.assert_allclose(dev.meta["K"], st.K, atol=1e-9)            # PC'nin K'sına dokunulmadı
+    c_new = compare_recording_with_simulation(new, fallback_state=st)
+    c_dev = compare_recording_with_simulation(dev, fallback_state=st)
+    np.testing.assert_allclose(c_dev.K, c_new.K, atol=1e-9)
+    assert c_dev.rmse_th_deg == pytest.approx(c_new.rmse_th_deg, abs=1e-3)
+    meta, _ = _settings_at_row(dev, len(dev.t) - 1)
+    assert meta["theta_pozitif"] == "sol"                                 # anlık görüntüler θ alanını ezmez
+
+
+def test_recording_waits_for_device_info(tmp_path, monkeypatch):
+    """Cihaz bilgisi (θ kuralı) gelmeden kayıt başlatılmaz; ping yeniden istenir."""
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt5 import QtWidgets
+    from gui import live_tab
+    from gui.state import AppState
+    from test_kalman_and_playback import ROOT
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(["test"])
+    st = AppState(ROOT / "config" / "params.json")
+    st.base_dir = tmp_path
+    sent = []
+    from types import SimpleNamespace
+    st.set_reader(SimpleNamespace(transport=SimpleNamespace(name="sim"), sinks=[], applied_settings={},
+                                  send=lambda cmd, **f: sent.append(cmd)))
+    tab = live_tab.LiveTab(st)
+    tab.b_rec.setChecked(True)
+    tab.toggle_record(True)
+    assert st.recorder is None and not tab.b_rec.isChecked() and "ping" in sent
+    tab.close()
+    assert app is not None

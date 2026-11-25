@@ -356,6 +356,7 @@ def test_record_start_failure_is_reported_not_raised(qapp, monkeypatch):
     from gui import live_tab
     st = _state()
     st.set_reader(SimpleNamespace(transport=SimpleNamespace(name="sim"), sinks=[], applied_settings={}))
+    st.device_info_seen, st.device_theta = True, "sol"            # cihaz bilgisi geldi (#50: yoksa kayıt yok)
     tab = live_tab.LiveTab(st)
 
     class _FailingRecorder:                                         # kayıt klasörüne yazılamıyor

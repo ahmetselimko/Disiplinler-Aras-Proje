@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **288 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **290 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler henüz **yer tutucu**. Donanım BOM v3'e (13.11.2026) göre güncellendi: kart ESP32-S3-DevKitC-1 N16R8, kasnak HTD3M 20 diş; motor JGB37-520 (mekatronik ara raporunda son seçim); datasheet'i gelmediği için motor değerleri hâlâ eski 37D yer tutucusu. Gerçek değerler gelince yalnızca bir dosya (`config/params.json`) değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle birebir aynı (testle doğrulanıyor).
 * **θ işareti (#50 Aşama 1, 25.11.2026):** bütün projede mekatronik raporundaki (8.1.3) ve Matlab'daki kural geçerli: θ = 0 dik, **θ > 0 sarkaç sola yatık**, x ve F sağa pozitif. Fiziksel davranış değişmedi (eski kodla alınmış referans senaryolarla doğrulandı: `tests/test_theta_isaret.py`); K'nın θ, θ̇ kazançlarının işareti döndü, ör. K = [−9.52, −27.29, +61.49, +9.74]. Eski kurala göre üretilmiş `gains.h` kullanılmamalı; firmware `ref-1.2` boot/ping'de `"theta":"sol"` bildirir, bildirmeyen (eski) cihaza arayüz K göndermez. Eski CSV kayıtları (başlıkta `theta_pozitif` yok) okunurken otomatik çevrilir; başlıksız CSV eski kuralda sayılır.
@@ -214,6 +214,15 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | θ engeli cihaz bilgisi gelene kadar kapalıydı: ping yanıtı gelmeden ya da `fw` alanı olmayan bir boot/ping'den sonra K gidiyordu (protokol.md ile çelişki) | K yalnız cihaz `"theta":"sol"` bildirdikten sonra gider; bilgi henüz yoksa ayrı uyarı. `{"Ts": …}` ile çağıran eski testler cihaz bilgisini tam verecek şekilde güncellendi |
 | Küçük | Eski firmware'e bağlıyken alınan kayıt `theta_pozitif: sol` diye işaretleniyordu (oynatma ayna görüntüsü olurdu); uyarı grafiklerin ters olduğunu söylemiyordu | Kayıt başlığına `theta_pozitif: sag` yazılır (okurken çevrilir); uyarı metni genişletildi |
 | Belge | Kılavuzda otomatik yükleme koşulu ve sorun giderme satırları, firmware README'de `ref-1.2` / `theta` alanı / eski `gains.h` notu yoktu | Eklendi |
+
+**#50 Aşama 1, üçüncü tur (25.11.2026):** ikinci turun düzeltmeleri doğrulandı; sanal ESP32 ile pencere baştan sona sürüldü (bağlan → K bilgi gelmeden reddediliyor → boot/ping → K otomatik gidiyor ve onaylanıyor; reset ve yeniden bağlanma; `theta` göndermeyen cihazda K gitmiyor). Kart için tehlikeli bulgu yok. Düzeltilenler:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Küçük | Eski firmware'e bağlıyken alınan kayıtta (`theta_pozitif: sag`) okuma, PC'nin yeni kuralla yazdığı K'ları da çeviriyordu; karşılaştırma kararsız K ile koşuyordu | PC alanları her zaman `theta_pozitif: sol`; cihazın kuralı ayrı alanda (`cihaz_theta_pozitif`), `sag` ise yalnız θ, θ̇ sütunları çevrilir. Test eklendi |
+| Küçük | Kayıt oynatmadaki ayar anlık görüntüleri `theta_pozitif`'i etkin meta'ya geri yazıyordu (bugün zararsız) | θ alanları birleştirmede atlanır |
+| Küçük | Ping yanıtı kaybolursa cihaz bilgisi hiç gelmiyor, K hiç gitmiyordu (güvenli ama kullanılamaz) | Bilgi yokken gönderim denemesi ping'i yeniden ister, mesaj "olmazsa yeniden bağlanın" der |
+| Küçük | Cihaz bilgisi gelmeden başlatılan kayıt yanlış θ kuralıyla işaretlenebilirdi | Bilgi gelmeden kayıt başlatılmaz (ping yeniden istenir) |
+| Belge | Firmware'deki "eski gains.h" yedek yorumları ve `katki_14_15.md` artık yanıltıcıydı (#50 öncesi `gains.h` `#error` verir); recorder açıklamaları yeni durumu anlatmıyordu | Güncellendi |
 
 Sanal cihazda gözlenen, hata olmayan bir etki: motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyor. Gerçek redüktörlü motorda bu kayma olmaz.
 

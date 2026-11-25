@@ -2,10 +2,14 @@
 
 TelemetryReader.sinks listesine eklenir; satırlar okuyucu thread'inden gelir, dosyaya tamponlu yazılır.
 
-θ işareti: yeni kayıtların başlığında `# theta_pozitif: sol` bulunur (θ > 0 sarkaç sola yatık, #50).
-Bu alanı olmayan eski kayıtlar θ sağa + kuralıyla yazılmış sayılır (başlıksız, elle üretilmiş bir CSV de);
-load_recording onları okurken θ, θ̇, kayıttaki K'ların θ, θ̇ kazançlarını ve θ taşıyan komut alanlarını
-(eski biçim kick `dth`, reset `th0_deg`) ters çevirir; oynatma ve simülasyonla karşılaştırma bozulmaz.
+θ işareti (#50: θ > 0 sarkaç sola yatık):
+* `# theta_pozitif: sol`: kayıt yeni arayüzle yazıldı; PC'nin yazdığı alanlar (K'lar, ayarlar, komutlar) yeni kuralda.
+  Bu alanı olmayan eski kayıtlar (başlıksız, elle üretilmiş bir CSV de) bütünüyle θ sağa + kuralında sayılır;
+  load_recording θ, θ̇ sütunlarını, K'ların θ, θ̇ kazançlarını ve θ taşıyan komut alanlarını (eski biçim kick
+  `dth`, reset `th0_deg`) ters çevirir.
+* `# cihaz_theta_pozitif: sag`: yeni arayüz θ'yı eski kuralla gönderen (θ sağa +) bir firmware'e bağlıydı. Yalnız
+  cihazdan gelen θ, θ̇ sütunları çevrilir; PC'nin yazdığı K'lara dokunulmaz.
+Böylece oynatma ve simülasyonla karşılaştırma her durumda yeni kuralla yapılır.
 """
 
 from __future__ import annotations
@@ -38,6 +42,8 @@ THETA_SIGN_KEY = "theta_pozitif"
 THETA_SIGN_VALUE = "sol"
 # Alanı olmayan (ya da bu değerlerden birini taşıyan) kayıtlar eski kuralla (θ sağa +) yazılmıştır
 OLD_THETA_SIGN_VALUES = ("sag", "sağ")
+# Yeni arayüzün kaydında cihazın (telemetrinin) θ kuralı; "sag": eski firmware, yalnız θ, θ̇ sütunları çevrilir
+DEVICE_THETA_KEY = "cihaz_theta_pozitif"
 
 
 class Recorder:
@@ -45,11 +51,11 @@ class Recorder:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         meta = dict(meta or {})
-        # telemetrinin θ kuralı: varsayılan yeni kural; eski (θ sağa +) firmware'e bağlıyken arayüz "sag" verir
-        sign = meta.pop(THETA_SIGN_KEY, THETA_SIGN_VALUE)
-        if sign != THETA_SIGN_VALUE and sign not in OLD_THETA_SIGN_VALUES:
-            raise ValueError(f"tanınmayan {THETA_SIGN_KEY} değeri {sign!r}")
-        meta = {THETA_SIGN_KEY: sign, **meta}
+        meta.pop(THETA_SIGN_KEY, None)            # PC'nin yazdığı her şey bu arayüzün kuralında
+        dev = meta.get(DEVICE_THETA_KEY)          # cihaz telemetrisinin kuralı (eski firmware: "sag")
+        if dev is not None and dev != THETA_SIGN_VALUE and dev not in OLD_THETA_SIGN_VALUES:
+            raise ValueError(f"tanınmayan {DEVICE_THETA_KEY} değeri {dev!r}")
+        meta = {THETA_SIGN_KEY: THETA_SIGN_VALUE, **meta}
         self._f = open(self.path, "x", newline="", encoding="utf-8")   # "x": varsa üzerine yazma
         for k, v in meta.items():
             encoded = v if isinstance(v, str) and '\n' not in v and '\r' not in v else json.dumps(v, ensure_ascii=False, allow_nan=False)
@@ -207,7 +213,11 @@ def load_recording(path: str | Path) -> RecordedSession:
 
     arr = np.array([r[:6] for r in rows], dtype=float)
     modes = [r[6] for r in rows]
-    if _convert_old_theta_sign(meta, events, p.name):
+    flip = _convert_old_theta_sign(meta, events, p.name)
+    if meta.get(DEVICE_THETA_KEY) in OLD_THETA_SIGN_VALUES:   # yeni arayüz, eski firmware: yalnız telemetri
+        flip = True
+        meta["cihaz_theta_donusturuldu"] = True
+    if flip:
         arr[:, 3] *= -1.0                     # th
         arr[:, 4] *= -1.0                     # dth
     return RecordedSession(
@@ -232,8 +242,9 @@ def _flip_gain(K):
 
 
 def _convert_old_theta_sign(meta: dict, events: list[dict], name: str = "") -> bool:
-    """Kayıt eski θ kuralındaysa (başlıkta theta_pozitif yok) başlıktaki ve olaylardaki K'ları yerinde çevirir,
-    meta'yı yeni kurala işaretler ve True döndürür; telemetrinin θ, θ̇ sütunlarını çağıran çevirir."""
+    """Kayıt bütünüyle eski θ kuralındaysa (başlıkta theta_pozitif yok ya da "sag") başlıktaki ve olaylardaki
+    K'ları ve θ taşıyan komut alanlarını yerinde çevirir, meta'yı yeni kurala işaretler ve True döndürür;
+    telemetrinin θ, θ̇ sütunlarını çağıran çevirir. (cihaz_theta_pozitif ayrı ele alınır: load_recording.)"""
     sign = meta.get(THETA_SIGN_KEY)
     if sign == THETA_SIGN_VALUE:
         return False
@@ -376,7 +387,8 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
         elif kind == "pc_design_snapshot" and before:
             snap = ev.get("settings")
             if isinstance(snap, dict):
-                meta.update({k: v for k, v in snap.items() if k != "device_acknowledged_settings"})
+                meta.update({k: v for k, v in snap.items()
+                             if k not in ("device_acknowledged_settings", THETA_SIGN_KEY, DEVICE_THETA_KEY)})
     meta["device_acknowledged_settings"] = ack
     return meta, sorted(later)
 

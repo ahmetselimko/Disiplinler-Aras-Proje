@@ -58,5 +58,5 @@ Bu belge #14 ve #15 görevleri kapsamında yapılan değişiklikleri, deneysel �
 - **Kayıt sırasında onaylanan ayarlar:** karşılaştırma yalnız CSV başlığını değil, BAŞLAT anına kadarki `command_sent` + `Ack` olaylarını (ve `pc_design_snapshot`) da işliyor; deneme sırasında değişen ayarlar sekmede uyarı olarak gösteriliyor.
 - **Tam kayıt modu:** simülasyon kaydın başında değil, kayıttaki BAŞLAT anında, o anki durumla başlıyor ve zaman ekseninde bu ana kaydırılıyor. Metrikler her iki modda da yalnız aktif denemede hesaplanıyor (önceden tam modda RMSE(θ) 127°'ye çıkıyordu).
 - **Oynatma hızı:** kare, geçen gerçek süre × hız ile CSV zaman damgalarından bulunuyor (örnek aralıkları 4/6 ms düzensiz olduğundan sabit satır adımı 0.25x ile 0.5x'i aynı hızda oynatıyordu).
-- **Firmware:** `gains.h` `KALMAN_AVAILABLE` tanımlıyor; eski bir `gains.h` ile Kalman kodu derleme dışı kalıyor ve derleme uyarısı veriliyor.
+- **Firmware:** `gains.h` `KALMAN_AVAILABLE` tanımlıyor; Kalman matrisleri olmayan bir `gains.h` ile Kalman kodu derleme dışı kalıyor ve derleme uyarısı veriliyor. (#50'den beri #50 öncesi dışa aktarılmış her `gains.h` `THETA_POSITIVE_LEFT` eksik olduğu için `#error` ile durur; bu yedek yalnız elle yazılmış bir `gains.h` için geçerli.)
 - Her bulgu için düzeltme öncesi kodda düşen bir regresyon testi eklendi (`tests/test_kalman_and_playback.py`).

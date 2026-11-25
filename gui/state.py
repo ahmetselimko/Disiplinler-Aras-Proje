@@ -108,7 +108,7 @@ class AppState(QtCore.QObject):
             self.log.emit(f"UYARI: cihaz θ kuralını bildirmedi ya da farklı bildirdi (theta={self.device_theta!r}); "
                           f"bu arayüz θ'yı '{P.THETA_CONVENTION}' (sola yatınca pozitif, #50) sayar. Eski firmware "
                           "olabilir: K GÖNDERİLMEZ (θ kazançları ters çalışır, sarkaç düşer); θ grafikleri ve "
-                          "animasyon ters işaretlidir, kayıtlar eski kural (sağa +) olarak işaretlenir. "
+                          "animasyon ters işaretlidir; kayıtlara cihaz_theta_pozitif: sag yazılır (oynatmada çevrilir). "
                           "Firmware'i güncelleyin.")
         if data.get("angle_ok") is False:      # açılıştaki calib olayı bağlanmadan önce gelip kaybolmuş olabilir
             self.log.emit("UYARI: cihazın açı kalibrasyonu BAŞARISIZ — sarkacı aşağıda hareketsiz tutup "
@@ -148,8 +148,10 @@ class AppState(QtCore.QObject):
             return False
         if self.theta_mismatch:
             if not self.device_info_seen:
+                self.send("ping")                # yanıt kaybolmuş olabilir: cihaz bilgisini yeniden iste
                 self.log.emit("K gönderilmedi: cihaz bilgisi (ping yanıtı) henüz gelmedi; θ kuralı doğrulanamadı. "
-                              "Biraz bekleyip tekrar deneyin.")
+                              "Cihaz bilgisi yeniden istendi; birkaç saniye sonra tekrar deneyin (gelmezse yeniden "
+                              "bağlanın).")
             else:
                 self.log.emit("K gönderilmedi: cihazın θ kuralı bu arayüzünkiyle aynı değil (eski firmware?). "
                               "Firmware'i güncelleyip yeniden bağlanın.")
@@ -199,8 +201,10 @@ class AppState(QtCore.QObject):
         su = self.swingup
         return {
             "schema_version": 1,
-            # eski (θ sağa +) firmware'e bağlıyken telemetri eski kuraldadır: load_recording okurken çevirir
-            "theta_pozitif": "sag" if (self.device_info_seen and self.device_theta != P.THETA_CONVENTION) else "sol",
+            # cihazın θ kuralı: eski (θ sağa +) firmware'e bağlıyken telemetri eski kuraldadır, load_recording
+            # yalnız θ, θ̇ sütunlarını çevirir. Bilgi gelmeden kayıt başlatılmaz (live_tab.toggle_record).
+            "cihaz_theta_pozitif": (self.device_theta if self.device_theta == P.THETA_CONVENTION else "sag")
+                                   if self.device_info_seen else None,
             "settings_scope": "PC tasarım anlık görüntüsü; gönderilen komutlar ve cihaz ACK/olayları event satırlarında",
             "device_Ts": self.device_Ts,
             "device_acknowledged_settings": dict(getattr(self.reader, "applied_settings", {})),
