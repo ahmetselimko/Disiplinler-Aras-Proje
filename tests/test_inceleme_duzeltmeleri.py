@@ -698,7 +698,8 @@ def test_ping_reports_angle_calibration_and_gui_warns():
     dev.feed(P.encode_command("ping"))
     dev.step()
     assert any(b'"angle_ok":true' in o for o in out)
-    assert 'angle_ok\\":false' in INO and "!s.calib_done" in INO      # kalibrasyon bitmeden alan yok
+    # kalibrasyon bitmeden alan yok; bittiyse angle_ok doğru dala göre true/false
+    assert '!s.calib_done ? "" : s.angle_ok ? ",\\"angle_ok\\":true" : ",\\"angle_ok\\":false"' in INO
     st = _state()
     logs = []
     st.log.connect(logs.append)

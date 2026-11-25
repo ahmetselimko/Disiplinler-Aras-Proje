@@ -28,7 +28,7 @@ PC portu açarken DTR/RTS'yi düşük tutar, böylece ESP32 resetlenmez.
 2. Sarkacı elle dik konuma getirin: `th` ≈ 0 olmalıdır.
 3. Dik konumdan arabanın **sağına** doğru yatırın: `th` **pozitif** olmalıdır. Değilse firmware'de `ANGLE_SIGN = -1` yapın.
 4. Arabayı elle sağa itin: `x` artmalıdır. Artmıyorsa `X_SIGN = -1` yapın.
-5. Motor yönü (ham gerilim komutu yoktur): **KALİBRE ET**'e basın, bir eliniz Esc'de. Araba **sola** gitmelidir. Sağa giderse ya da hızlanarak kaçarsa cihaz kendisi durur (`homing_wrong_side` / `homing_runaway`): motor kablolarını ters çevirin (x yönü 4. adımda doğrulandıysa). İsterseniz Sürtünme Ölç ile de kontrol edin: önce +x'e (sağa) gider.
+5. Motor yönü (ham gerilim komutu yoktur): **KALİBRE ET**'e basın, bir eliniz Esc'de. Araba **sola** gitmelidir. Sağa giderse ya da hızlanarak kaçarsa cihaz kendisi durur (`homing_wrong_side` / `homing_runaway`): motor kablolarını ters çevirin (x yönü 4. adımda doğrulandıysa). Homing başarıyla bittikten sonra Sürtünme Ölç ile de görebilirsiniz: önce +x'e (sağa) gider. Uç sensörsüz derlemede (`LIMIT_SWITCHES 0`) KALİBRE ET arabayı hareket ettirmez; motor yönünü o zaman Sürtünme Ölç'ün ilk hareketiyle kontrol edin (Esc hazırda).
 
 ## 3. ESP32 → PC mesajları
 
@@ -65,7 +65,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 
 | Komut | Örnek | Etki |
 |---|---|---|
-| `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.1","homed":false,"angle_ok":true}`. PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
+| `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.1","homed":false,"angle_ok":true}`. `angle_ok` açılış kalibrasyonu bitene kadar (~1.1 s) **gönderilmez** (alanın yokluğu "başarısız" demek değildir; sonuç `calib` olayıyla gelir). PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
 | `hb` | `{"cmd":"hb"}` | **Bağlantı bekçisi, yanıtsız.** PC bağlıyken 0.25 s'de bir gönderir (`protocol.py::HB_PERIOD_S`); arayüzde okuyucu thread'inden gider, uzun bir hesap arayüzü dondursa da kesilmez. Cihaz HOMING, SWING_UP, WAIT, BALANCE veya FRICTION modundayken **1 s** (`LINK_TIMEOUT_S`, firmware `LINK_TIMEOUT_MS`) boyunca hiç komut satırı almazsa motoru keser: FAULT `link`. IDLE/FAULT'ta denetlenmez. Herhangi bir komut satırı da sayacı sıfırlar |
 | `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Yeni homing başlarken önceki kalibrasyon geçersiz sayılır (homing yarıda `stop` edilirse `start` reddedilir). Araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları. **Switch'siz derlenmiş firmware'de (`LIMIT_SWITCHES 0`):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir; `limit` olayı ve `limit`/`homing_*` hataları oluşmaz |
 | `calib` | `{"cmd":"calib"}` | Yalnız IDLE modunda. Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (açılıştaki kalibrasyon başarısız olduysa) |
