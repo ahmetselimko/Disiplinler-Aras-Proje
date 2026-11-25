@@ -360,8 +360,8 @@ class DesignTab(QtWidgets.QWidget):
             except Exception as e:
                 QtWidgets.QMessageBox.warning(self, "Yüklenemedi", str(e))
                 return
-            if self.calculate():
-                self.state.clear_params_fallback()
+            self.state.clear_params_fallback()       # gerçek bir parametre dosyası okundu
+            self.calculate()
 
     def save(self):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Parametreleri kaydet", str(self.state.params_path),
@@ -374,5 +374,5 @@ class DesignTab(QtWidgets.QWidget):
             except OSError as e:
                 QtWidgets.QMessageBox.warning(self, "Kaydedilemedi", str(e))
                 return
-            self.state.clear_params_fallback()
+            # kaydetmek bayrağı KALDIRMAZ: genel varsayılanlar kaydedilmiş olabilir (yalnız Yükle kaldırır)
             self.state.log.emit(f"Parametreler kaydedildi: {path}")

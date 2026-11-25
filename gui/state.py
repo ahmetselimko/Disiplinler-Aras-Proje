@@ -30,7 +30,7 @@ class AppState(QtCore.QObject):
         self.startup_warning = ""
         # params.json okunamazsa genel yer tutucu varsayılanlarla açılır (motor/kasnak projeninkinden farklı:
         # 10:1, 12.7 mm). Bu durumda K gönderilmez ve gains.h dışa aktarılmaz (firmware'deki 44 CPR'la x yanlış
-        # ölçeklenirdi); bir parametre dosyası yüklenince ya da kaydedilince kalkar (clear_params_fallback).
+        # ölçeklenirdi); bir parametre dosyası Yüklenince kalkar (clear_params_fallback), kaydetmek kaldırmaz.
         self.params_fallback = False
         try:
             if self.params_path.exists():
@@ -204,7 +204,7 @@ class AppState(QtCore.QObject):
         return True
 
     def clear_params_fallback(self):
-        """Bir parametre dosyası yüklendi ya da kaydedildi: K gönderimi ve dışa aktarma yeniden serbest."""
+        """Bir parametre dosyası yüklendi: K gönderimi ve dışa aktarma yeniden serbest (kaydetmek kaldırmaz)."""
         self.params_fallback = False
 
     def send_swingup(self) -> bool:

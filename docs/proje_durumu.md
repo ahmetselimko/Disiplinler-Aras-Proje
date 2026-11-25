@@ -232,9 +232,11 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Önem | Konu | Düzeltme |
 |---|---|---|
 | Küçük | `E_ratio`'suz eski kayıtlar oynatmada yeni varsayılanla (1.05) koşuyordu | Başlıkta `E_ratio` yoksa 1.0 (eski varsayılan); test |
-| Küçük | `params.py` varsayılanları artık `params.json`'dan farklı (10:1, 12.7 mm); `params.json` okunamazsa arayüz bunlarla açılıyor ve dışa aktarılan `gains.h` 44 CPR'lı firmware'de x'i 2.5 kat yanlış ölçeklerdi | Dosya okunamaz/yoksa K gönderilmez, `gains.h` dışa aktarılmaz; bir parametre dosyası yüklenince ya da kaydedilince kalkar. Docstring düzeltildi |
+| Küçük | `params.py` varsayılanları artık `params.json`'dan farklı (10:1, 12.7 mm); `params.json` okunamazsa arayüz bunlarla açılıyor ve dışa aktarılan `gains.h` 44 CPR'lı firmware'de x'i 2.5 kat yanlış ölçeklerdi | Dosya okunamaz/yoksa K gönderilmez, `gains.h` dışa aktarılmaz; bir parametre dosyası yüklenince kalkar. Docstring düzeltildi |
 | Küçük | Hassasiyet aracı yakalama/bırakma açılarını ortak sabitten almıyordu | `CATCH_DEG` / `RELEASE_DEG` |
 | Belge | Rapor şekillerinde elle yazılı "`l` KRİTİK" cümlesi yeni hassasiyet sonucuyla çelişiyordu; `mekatronik_on_degerlendirme.md` §3–4'te eski sayılar ve kaynak; §6 ve motor yorumlarında "T_f = 0"; firmware README'de telafinin nasıl gittiği | Cümle kaldırıldı, şekiller yeniden üretildi; belgeler güncellendi; ilk açılış kontrol listesine "Sürtünme Ölç" adımı |
+
+**#50 Aşama 2, ikinci tur (26.11.2026):** birinci turun düzeltmeleri doğrulandı; değerler PDF'le yeniden karşılaştırıldı, `gains.h` birebir. **Yeni kod hatası yok.** Kalan küçük kenarlar düzeltildi: parametre dosyası okunamadığında "Kaydet" koruma bayrağını kaldırıyordu (genel varsayılanlar `params.json`'a yazılıp K gidebilirdi) → artık yalnız Yükle kaldırır; firmware README'de eski CPR hatasının yönü (x ~1.74 kat büyük okunurdu).
 
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
