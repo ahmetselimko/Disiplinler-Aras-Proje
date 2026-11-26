@@ -4,9 +4,14 @@
 - homing: sol limit switch'e yavaşça gider, sıfırı ayarlar, rayın ortasına döner (süre sınırlı;
   yanlış taraftaki switch'e çarparsa FAULT)
 - fiziksel ray sonları (limit switch olayı + FAULT)
-- limit_switches=False: switch'siz donanım (firmware LIMIT_SWITCHES 0). "home" aracı hareket ettirmez;
-  araba durağansa bulunduğu nokta x = 0 olur ("elle ortalama"). Ray uçları yalnız mekanik durdurucudur
-  (olay/FAULT yok); güvenliği yazılımsal ray sınırı sağlar
+- end_sensors (firmware END_SENSORS ile aynı, #50 Aşama 4):
+  0: uç sensörü yok. "home" aracı hareket ettirmez; araba durağansa bulunduğu nokta x = 0 olur ("elle
+     ortalama"). Ray uçları yalnız mekanik durdurucudur (olay/FAULT yok); güvenliği yazılımsal ray sınırı sağlar
+  1: her uçta tek sensör (ray sonunda): homing referansı ve "limit" FAULT'u
+  2: her uçta iki kademe: içte optik (OPT_FROM_END kadar içeride; homing referansı, çalışırken "limit"
+     FAULT'u), dışta mikro switch (ray sonunda; çalışırken "hard_limit", homing'de "homing_overrun"; basılıyken
+     start/home/friction her modda reddedilir; aynı taraftaki optik görmüyorsa "sensor_mismatch" olayı)
+  limit_switches=False eski adla end_sensors=0 demektir
 - protokoldeki tüm komutlar, firmware ile AYNI kabul/ret kurallarıyla; ek olarak yalnız
   simülasyonda "kick" (sarkacı dürt), "pause" (fiziği dondur/sürdür) ve "reset" (başlangıç durumuna dön)
 - "friction": sürtünme ölçümü (control/friction.py). Ölçülen telafi (set_param fc_volt) yalnız
@@ -48,15 +53,24 @@ HOME_SAT_S = 0.30        # homing'de gerilim bu süreden uzun doyumda kalırsa �
 HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
 HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı [m/s] (firmware ile aynı)
 HOME_SW_CLEAR = 0.05     # sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa sensör takılı → FAULT (firmware ile aynı)
+HOME_BACKOFF = 0.01      # END_SENSORS 2: homing optik etkinken başlarsa optik bırakıldıktan sonra bu kadar daha sağa (firmware ile aynı)
+OPT_FROM_END = 0.03      # END_SENSORS 2: optik sensör, mikro switch'ten (ray sonundan) bu kadar içeride [m] (firmware ile aynı)
 FW_NAME = "mock-1.2"     # 1.2: θ sola + (#50); firmware gibi boot/ping'de "theta":"sol"
 
 
 class MockDevice:
     def __init__(self, params: PendulumParams | None = None, Ts: float = 0.002, telemetry_hz: int = 200,
                  seed: int | None = None, realtime: bool = True, x0: float | None = None,
-                 limit_switches: bool = True, link_timeout: float | None = None, enc_sign: float = 1.0):
-        self.limit_switches = limit_switches
-        self.stuck_switch: str | None = None   # test: "L"/"R" sensörü hep basılı okur (kopuk kablo, NC/TCST2103)
+                 limit_switches: bool = True, link_timeout: float | None = None, enc_sign: float = 1.0,
+                 end_sensors: int | None = None):
+        self.end_sensors = (1 if limit_switches else 0) if end_sensors is None else int(end_sensors)
+        if self.end_sensors not in (0, 1, 2):
+            raise ValueError("end_sensors 0, 1 ya da 2 olmalı")
+        self.limit_switches = self.end_sensors > 0
+        # test: "L"/"R" homing referans sensörü (1: switch, 2: optik) hep etkin okur (kopuk kablo, NC/TCST2103)
+        self.stuck_switch: str | None = None
+        self.stuck_hard: str | None = None      # test (end_sensors 2): "L"/"R" mikro switch hep basılı
+        self._sens_prev = {}                    # sensör seviyelerinin önceki adımı (olaylar yalnız kenarda)
         # enc_sign = −1: enkoder ters bağlanmış gibi (firmware'de X_SIGN yanlış) — kablolama hatası testleri için
         self.enc_sign = enc_sign
         self._home_sat = 0.0
@@ -98,7 +112,6 @@ class MockDevice:
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._running = False
-        self._at_limit = False
         self.paused = False                       # yalnız simülasyon: fizik ve kontrol donuk
         self._last_tel: tuple | None = None       # duraklatmada tekrar gönderilen son ölçüm (x, ẋ, θ, θ̇, u)
         self._friction: FR.FrictionTest | None = None
@@ -187,6 +200,10 @@ class MockDevice:
             for key, val in a.items():       # hepsi geçerli → hepsini uygula
                 self._apply_param(key, float(val))
             return P.encode_ack("set_param")
+        hard = self._hard_side()
+        if hard and cmd in ("start", "home", "friction"):   # mikro switch basılı: her modda reddedilir
+            side = "sol" if hard == "L" else "sağ"
+            return P.encode_ack(cmd, False, f"{side} mikro switch basılı: arabayı elle uçtan uzaklaştırın")
         if cmd == "home":
             if mode not in (Mode.IDLE, Mode.FAULT):
                 return P.encode_ack("home", False, "önce stop")
@@ -200,7 +217,12 @@ class MockDevice:
             self.homed = False
             self._home_sat = 0.0
             sup.mode, self._home_phase, self._home_t0 = Mode.HOMING, 1, self.k * self.Ts
-            self._home_r0, self._home_i = self._switch("R"), 0.0
+            self._home_r0, self._home_i = self._ref("R"), 0.0
+            self._home_x0 = self.enc_sign * self.s[0]          # enkoder okuması (firmware home_x0)
+            self._home_rel = None
+            if self.end_sensors == 2 and self._ref("L"):
+                # optik zaten etkin: araba optik ile uç arasında; sıfır kaymasın diye önce optikten çekil (faz 3)
+                self._home_phase = 3
             return P.encode_ack("home")
         if cmd == "calib":
             if mode != Mode.IDLE:
@@ -316,27 +338,66 @@ class MockDevice:
             sup.p.motor.T_f = val * m.alpha * m.r_pulley / m.gear
 
     # ------------------------------------------------------------ 500 Hz döngü
-    def _switch(self, side: str) -> bool:
+    def _at(self, side: str, from_end: float) -> bool:
+        """Araba (gerçek konum) o uçta, ray sonundan from_end kadar içerideki noktayı geçti mi."""
+        lim = self.p.rail_half - from_end
+        return self.s[0] <= -lim + 1e-9 if side == "L" else self.s[0] >= lim - 1e-9
+
+    def _ref(self, side: str) -> bool:
+        """Homing referansı ve çalışırken "limit" FAULT'unu veren sensör: 1'de switch, 2'de optik."""
+        if self.end_sensors == 0:
+            return False
         if self.stuck_switch == side:
             return True
-        lim = self.p.rail_half
-        return self.s[0] <= -lim + 1e-9 if side == "L" else self.s[0] >= lim - 1e-9
+        return self._at(side, OPT_FROM_END if self.end_sensors == 2 else 0.0)
+
+    def _hard(self, side: str) -> bool:
+        """END_SENSORS 2: dış kademe mikro switch (ray sonunda)."""
+        if self.end_sensors != 2:
+            return False
+        return self.stuck_hard == side or self._at(side, 0.0)
+
+    def _hard_side(self) -> str | None:
+        return "L" if self._hard("L") else "R" if self._hard("R") else None
+
+    _switch = _ref                              # eski ad (testler)
 
     def _homing_input(self, s_hat) -> float:
         p = self.p
         if self.k * self.Ts - self._home_t0 > HOME_TIMEOUT:
             self._fault("homing_timeout")
             return 0.0
-        if not self._switch("R"):
+        if self._hard_side():                 # optik kaçırıldı ya da çalışmıyor: araba ray sonunda
+            self._fault("homing_overrun")
+            return 0.0
+        if not self._ref("R"):
             self._home_r0 = False
         elif not self._home_r0 or self.k * self.Ts - self._home_t0 > 1.0:
             # yanlış taraf (motor/enkoder yönü ters). Başta sağ switch basılıysa (ör. sağ limit hatasından
             # sonra) 1 s içinde sola çekilip bırakması beklenir.
             self._fault("homing_wrong_side")
             return 0.0
-        if self._home_phase == 1:
-            if self._switch("L"):             # switch SEVİYESİ (zaten basılıysa da çalışır)
-                self.x_offset = self.enc_sign * self.s[0] + p.rail_half   # ölçülen konum artık −rail_half
+        if self._home_phase == 3:             # optikten geri çekil (yalnız END_SENSORS 2)
+            # firmware ile aynı else-if sırası; geçiş adımlarında firmware motoru bir adım sürmez (u = 0)
+            x_enc = self.enc_sign * self.s[0]
+            if self._ref("L"):
+                if x_enc - self._home_x0 > HOME_SW_CLEAR:
+                    self._fault("homing_switch")          # optik bırakmıyor: takılı / kopuk
+                    return 0.0
+                if self._home_rel is not None:
+                    self._home_rel = None                 # optik yeniden etkin: baştan say
+                    return 0.0
+            elif self._home_rel is None:
+                self._home_rel = x_enc
+                return 0.0
+            elif x_enc - self._home_rel >= HOME_BACKOFF:
+                self._home_phase, self._home_i = 1, 0.0
+                return 0.0
+            v_des = HOME_SPEED
+        elif self._home_phase == 1:
+            if self._ref("L"):                # switch SEVİYESİ (zaten basılıysa da çalışır)
+                # referans sensörün konumu: 1'de −rail_half, 2'de optik (OPT_FROM_END kadar içeride)
+                self.x_offset = self.enc_sign * self.s[0] + p.rail_half - self._ref_from_end()
                 self._home_phase, self._home_i = 2, 0.0
                 self.vx.prev = None
                 self.kf.reset()
@@ -345,7 +406,7 @@ class MockDevice:
                 return 0.0
             v_des = -HOME_SPEED
         else:                                 # ortaya dön
-            if self._switch("L") and s_hat[0] > -p.rail_half + HOME_SW_CLEAR:
+            if self._ref("L") and s_hat[0] > -p.rail_half + self._ref_from_end() + HOME_SW_CLEAR:
                 self._fault("homing_switch")    # sol sensör hep "basılı": sıfır yanlış olurdu
                 return 0.0
             v_des = max(-0.15, min(0.15, -2.0 * s_hat[0]))
@@ -369,6 +430,9 @@ class MockDevice:
             self._fault("homing_runaway")
             return 0.0
         return max(-p.u_max, min(p.u_max, u))
+
+    def _ref_from_end(self) -> float:
+        return OPT_FROM_END if self.end_sensors == 2 else 0.0
 
     def step(self):
         self._process_commands()
@@ -400,6 +464,7 @@ class MockDevice:
             s_hat = [xm, dx_lp, thm, dth_lp]
 
         self._s_hat = s_hat
+        self._end_sensors()                    # firmware: sensörler ve limit FAULT'u mod makinesinden önce
         if sup.mode == Mode.HOMING:
             u = self._homing_input(s_hat)
         elif sup.mode == Mode.FRICTION:
@@ -463,19 +528,35 @@ class MockDevice:
             self.n += 1
 
     def _rail_end_stops(self):
-        """Fiziksel ray sonu: araba durur, limit switch basılır (olay yalnız ilk temasta)."""
+        """Fiziksel ray sonu (mekanik durdurucu)."""
         lim = self.p.rail_half
-        if abs(self.s[0]) < lim:
-            self._at_limit = False
+        if abs(self.s[0]) >= lim:
+            self.s[0] = math.copysign(lim, self.s[0])
+            self.s[1] = 0.0
+
+    def _end_sensors(self):
+        """Uç sensörleri, firmware'deki sırayla: adımın başında okunur (mod makinesinden ÖNCE); olaylar yalnız
+        etkinleşme kenarında; çalışma modunda FAULT (mikro switch önce)."""
+        if self.end_sensors == 0:                 # sensör yok: yalnız mekanik durdurucu
             return
-        side = "L" if self.s[0] < 0 else "R"
-        self.s[0] = math.copysign(lim, self.s[0])
-        self.s[1] = 0.0
-        if self._at_limit or not self.limit_switches:   # switch yoksa yalnız mekanik durdurucu
-            return
-        self._at_limit = True
-        self._emit(P.encode_event("limit", side=side))
-        if self.sup.mode not in (Mode.IDLE, Mode.HOMING, Mode.FAULT):
+        run = self.sup.mode in (Mode.SWING_UP, Mode.WAIT, Mode.BALANCE, Mode.FRICTION)
+        for side in ("L", "R"):
+            ref = self._at(side, self._ref_from_end())      # takılı sensör (stuck_*) olay üretmez, homing'i etkiler
+            hard = self._hard(side) and self.stuck_hard != side
+            if ref and not self._sens_prev.get(("ref", side)):
+                if self.end_sensors == 2:
+                    self._emit(P.encode_event("limit", side=side, stage="opt"))
+                else:
+                    self._emit(P.encode_event("limit", side=side))
+            if hard and not self._sens_prev.get(("hard", side)):
+                self._emit(P.encode_event("limit", side=side, stage="hard"))
+                if not self._ref(side):                         # dış kademe basılı, iç kademe görmüyor
+                    self._emit(P.encode_event("sensor_mismatch", side=side))
+            self._sens_prev[("ref", side)], self._sens_prev[("hard", side)] = ref, hard
+        # FAULT: mikro switch önce (dış kademe), sonra referans sensör; homing kendi denetler
+        if self.end_sensors == 2 and self._hard_side() and self.sup.mode not in (Mode.IDLE, Mode.HOMING, Mode.FAULT):
+            self._fault("hard_limit")
+        elif run and (self._ref("L") or self._ref("R")):
             self._fault("limit")
 
     @property

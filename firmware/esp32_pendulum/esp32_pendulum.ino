@@ -59,15 +59,45 @@
 // ============================================================ PİNLER
 // Pin numaraları karta göre board_pins.h'de (ESP32-S3-DevKitC-1 N16R8 ya da klasik ESP32; derleme hedefinden seçilir).
 #include "board_pins.h"
-// Limit switch'ler takılı mı? 1 (şu anki donanım, 17.11.2026): switch'le otomatik homing ve switch korumaları.
-// 0: switch yok. Homing yerine "elle ortalama": araba elle ray ortasına konur, KALİBRE ET (home) o noktayı
-// x = 0 yapar; ray güvenliğini yalnız enkoderle yazılımsal sınır (SOFT_MARGIN) sağlar. Switch takılı değilken
-// 1 bırakılırsa NC ayarındaki boş pinler "basılı" okunur ve kart hemen limit hatasına düşer.
-#ifndef LIMIT_SWITCHES
-#define LIMIT_SWITCHES 1
+// Uç sensörleri (#50 Aşama 4; mekatronik raporu 8.4 iki kademe öneriyor). END_SENSORS:
+//   0: sensör yok. Homing yerine "elle ortalama": araba elle ray ortasına konur, KALİBRE ET (home) o noktayı
+//      x = 0 yapar; ray güvenliğini yalnız enkoderle yazılımsal sınır (SOFT_MARGIN) sağlar.
+//   1: her uçta tek sensör (PIN_LIM_L/R; limit switch ya da TCST2103): homing referansı + "limit" FAULT'u.
+//   2: her uçta iki kademe. İç kademe optik (PIN_OPT_L/R, TCST2103; mikro switch'ten OPT_FROM_END_M içeride):
+//      homing referansı, çalışırken "limit" FAULT'u. Dış kademe mikro switch (PIN_LIM_L/R, ray sonunda):
+//      çalışırken "hard_limit", homing'de "homing_overrun"; basılıyken start/home/friction her modda
+//      reddedilir; aynı taraftaki optik görmüyorsa "sensor_mismatch" olayı (optik arızalı ya da kaymış).
+// Takılı olmayan bir sensör 1/2 bırakılırsa NC/TCST2103 ayarındaki boş pin "etkin" okunur, kart hemen hataya düşer.
+#ifdef LIMIT_SWITCHES                                  // eski ad (#50 öncesi): END_SENSORS = LIMIT_SWITCHES
+#ifndef END_SENSORS
+#define END_SENSORS LIMIT_SWITCHES
 #endif
-// Uç sensörü (PIN_LIM_L/R, LIMIT_SWITCHES 1): limit switch (DC163-3) ya da yarık optik sensör (TCST2103).
+#warning "LIMIT_SWITCHES eski ad: END_SENSORS kullanın (0: yok, 1: tek sensör, 2: optik + mikro switch)"
+#endif
+#ifndef END_SENSORS
+#define END_SENSORS 1
+#endif
+#if END_SENSORS < 0 || END_SENSORS > 2
+#error "END_SENSORS 0, 1 ya da 2 olmalı"
+#endif
+// Uç sensörü (PIN_LIM_L/R; END_SENSORS 1'de tek sensör, 2'de mikro switch): limit switch (DC163-3) ya da TCST2103.
 static const int LIM_PRESSED = HIGH;                  //   NC switch + INPUT_PULLUP → basılı/kopuk kablo = HIGH (güvenli)
+// Optik (PIN_OPT_L/R, END_SENSORS 2): TCST2103, pull-up'lı fototransistör çıkışı → yarığa bayrak girince ışık
+// kesilir, çıkış HIGH; kopuk kablo da HIGH okunur (güvenli tarafta).
+static const int OPT_ACTIVE = HIGH;
+static const float OPT_FROM_END_M = 0.03f;            // optik, mikro switch'ten (ray sonundan) bu kadar içeride [m] (mock_device.OPT_FROM_END)
+static const float HOME_BACKOFF_M = 0.01f;             // homing optik etkinken başlarsa: optik bırakıldıktan sonra bu kadar daha sağa (mock_device.HOME_BACKOFF)
+#if END_SENSORS == 2                                   // homing referansı ve "limit" sensörü: iç kademe optik
+#define PIN_REF_L PIN_OPT_L
+#define PIN_REF_R PIN_OPT_R
+static const int REF_ACTIVE = OPT_ACTIVE;
+static const float REF_FROM_END_M = OPT_FROM_END_M;
+#else                                                  // tek sensör (ray sonunda)
+#define PIN_REF_L PIN_LIM_L
+#define PIN_REF_R PIN_LIM_R
+static const int REF_ACTIVE = LIM_PRESSED;
+static const float REF_FROM_END_M = 0.0f;
+#endif
                                                       //   TCST2103 (pull-up'lı çıkış): yarığa bayrak girince = HIGH,
                                                       //     kopuk kablo da HIGH (güvenli) → ayar değişmez
                                                       //   NO switch kullanılırsa LOW yapın (kopuk kablo fark edilmez!)
@@ -109,7 +139,7 @@ static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba h
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 // bağlantı bekçisi: hareketli modda PC'den bu süre satır gelmezse FAULT "link" (protocol.py LINK_TIMEOUT_S ile aynı)
 static const uint32_t LINK_TIMEOUT_MS = 1000;
-static const int   LIM_DEBOUNCE = 3;                  // uç sensörü bu kadar art arda okumada basılıysa basılı (6 ms)
+static const int   LIM_DEBOUNCE = 3;                  // uç sensörü bu kadar art arda okumada basılıysa basılı, bu kadar art arda boşsa bırakılmış (6 ms)
 static const float CALIB_MAX_SPREAD = 0.02f;          // kalibrasyonda izin verilen sapma [rad] (~1.1°)
 
 // sürtünme ölçümü — pendulum_lab/control/friction.py ile AYNI (test denetler)
@@ -172,6 +202,8 @@ struct Shared {
   uint32_t last_rx_ms;                               // son komut satırının geldiği an (bağlantı bekçisi)
   // olaylar (kontrol üretir, iletişim gönderir)
   bool ev_homed, ev_fault, ev_limitL, ev_limitR, ev_calib, ev_friction;
+  bool ev_hardL, ev_hardR, ev_mismatchL, ev_mismatchR;   // END_SENSORS 2: mikro switch ve tutarsızlık olayları
+  bool hardL, hardR;                                 // mikro switch şu an basılı mı (komut reddi için, her adımda)
   bool fr_ok; const char *fr_reason; float fr_v_pos, fr_v_neg, fr_v_c, fr_slope;   // sürtünme ölçümü sonucu
   const char *fault_reason;
 };
@@ -397,6 +429,17 @@ static Mode raiseFault(Mode m, const char *reason) {
   return FAULT;
 }
 
+// İki yönlü parazit filtresi: durum ancak LIM_DEBOUNCE art arda aynı okumayla değişir (etkinleşme ve bırakma).
+struct DebouncedInput {
+  bool state = false; int cnt = 0;
+  void seed(bool s) { state = s; cnt = 0; }
+  bool update(bool raw) {
+    if (raw == state) cnt = 0;
+    else if (++cnt >= LIM_DEBOUNCE) { state = raw; cnt = 0; }
+    return state;
+  }
+};
+
 void ctrlTask(void *) {
   const float dt = CTRL_PERIOD_MS / 1000.0f;
   const TickType_t period = pdMS_TO_TICKS(CTRL_PERIOD_MS);
@@ -405,16 +448,48 @@ void ctrlTask(void *) {
   Mode mode = IDLE; bool homed = false; int home_phase = 0;
   float x_offset = 0, home_t0 = 0, home_x0 = 0, home_i = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
+  float home_rel = NAN;                                // faz 3 (END_SENSORS 2): sol optiğin bırakıldığı enkoder konumu
   float home_sat = 0;                                  // homing'de gerilimin doyumda kaldığı süre [s]
   FrictionTest fr;
-  bool limL_prev = false, limR_prev = false;
-  int limL_cnt = 0, limR_cnt = 0;                      // uç sensörü parazit filtresi (LIM_DEBOUNCE)
+  bool limL_prev = false, limR_prev = false, hardL_prev = false, hardR_prev = false;
+  // uç sensörü parazit filtresi: hem etkinleşme hem bırakma LIM_DEBOUNCE art arda okuma ister (DebouncedInput)
+  DebouncedInput fL, fR;
+#if END_SENSORS == 2
+  DebouncedInput fHL, fHR;
+#endif
   int sensor_fails = 0; uint16_t raw = 0;
 
   // açılış kalibrasyonu: sarkaç aşağıda ve hareketsiz olmalı → o konum θ = π
   vTaskDelay(pdMS_TO_TICKS(1000));
   float raw_hang = 0;
   bool angle_ok = calibrateAngle(raw_hang);
+  // uç sensörü filtrelerini gerçek durumla başlat (sıfırdan başlasa ilk 3 adım "boş" sayılır: homing faz 3'ü
+  // atlar, mikro switch basılıyken komut reddi gecikir). LIM_DEBOUNCE okumadan biri etkinse etkin: güvenli taraf.
+#if END_SENSORS
+  { bool aL = false, aR = false;
+#if END_SENSORS == 2
+    bool hL = false, hR = false;
+#endif
+    for (int i = 0; i < LIM_DEBOUNCE; i++) {
+      aL |= digitalRead(PIN_REF_L) == REF_ACTIVE; aR |= digitalRead(PIN_REF_R) == REF_ACTIVE;
+#if END_SENSORS == 2
+      hL |= digitalRead(PIN_LIM_L) == LIM_PRESSED; hR |= digitalRead(PIN_LIM_R) == LIM_PRESSED;
+#endif
+      delayMicroseconds(200);
+    }
+    // *_prev da başlatılır (homing faz 3 kararı ilk adımda doğru olsun); açılışta etkin sensörün olayları
+    // (limit, sensor_mismatch) burada bir kez gönderilir; olay kümesi sanal ESP32 ile aynı, sıra farklı: kart bunları calib'den ÖNCE, sanal ESP32 calib'den sonra yollar (arayüz yalnız log yazar)
+    fL.seed(aL); fR.seed(aR); limL_prev = aL; limR_prev = aR;
+    if (aL) SET_SHARED(ev_limitL, true);
+    if (aR) SET_SHARED(ev_limitR, true);
+#if END_SENSORS == 2
+    fHL.seed(hL); fHR.seed(hR); hardL_prev = hL; hardR_prev = hR;
+    if (hL) { SET_SHARED(ev_hardL, true); if (!aL) SET_SHARED(ev_mismatchL, true); }
+    if (hR) { SET_SHARED(ev_hardR, true); if (!aR) SET_SHARED(ev_mismatchR, true); }
+    portENTER_CRITICAL(&mux); S.hardL = hL; S.hardR = hR; portEXIT_CRITICAL(&mux);
+#endif
+  }
+#endif
   portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.calib_done = true; S.ev_calib = true; portEXIT_CRITICAL(&mux);
 
   TickType_t last = xTaskGetTickCount();
@@ -430,11 +505,16 @@ void ctrlTask(void *) {
     // sıra önemli: estop EN SON işlenir ve her şeyi ezer
     if (p.req_start && mode == IDLE && homed && angle_ok) mode = p.swingup_on ? SWING_UP : WAIT;
     if (p.req_home && (mode == IDLE || mode == FAULT)) {
-#if LIMIT_SWITCHES
+#if END_SENSORS
       mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT; home_i = 0;
       homed = false; SET_SHARED(homed, false);           // eski sıfır geçersiz: homing yarıda kalırsa start reddedilir
       home_sat = 0;
-      home_r0 = digitalRead(PIN_LIM_R) == LIM_PRESSED;
+      home_r0 = limR_prev;                               // referans sensörün filtrelenmiş durumu (1'de switch, 2'de optik)
+#if END_SENSORS == 2
+      // optik zaten etkinse araba optik ile uç arasında, sıfır 3 cm'ye kadar kayardı: önce sağa çekilip optiği
+      // bırak (HOME_BACKOFF_M daha), sonra kenara yeniden yaklaş (faz 3)
+      if (limL_prev) { home_phase = 3; home_rel = NAN; }   // filtrelenmiş durum: tek boş okuma atlatmaz
+#endif
 #else
       // elle ortalama: araba elle ortaya konmuş ve durağan (iletişim görevi denetledi) → bu nokta x = 0
       int32_t c0; portENTER_CRITICAL(&mux); c0 = enc_count; portEXIT_CRITICAL(&mux);
@@ -464,22 +544,34 @@ void ctrlTask(void *) {
     float dx = vx.update(x, dt), dth = vth.update(th, dt);
     bool kf_en = USE_KALMAN && homed && (mode == SWING_UP || mode == WAIT || mode == BALANCE) && (fabsf(th) < p.release_rad);
     kf.update(x, dx, th, dth, u_prev, kf_en, dx, dth);
-#if LIMIT_SWITCHES
-    limL_cnt = digitalRead(PIN_LIM_L) == LIM_PRESSED ? min(limL_cnt + 1, LIM_DEBOUNCE) : 0;
-    limR_cnt = digitalRead(PIN_LIM_R) == LIM_PRESSED ? min(limR_cnt + 1, LIM_DEBOUNCE) : 0;
-    bool limL = limL_cnt >= LIM_DEBOUNCE, limR = limR_cnt >= LIM_DEBOUNCE;   // tek parazitli okuma tetiklemez
+    // limL/limR: REFERANS sensör (1'de switch, 2'de optik): homing ve çalışırken "limit".
+    // hardL/hardR: yalnız END_SENSORS 2'de dış kademe mikro switch.
+#if END_SENSORS
+    bool limL = fL.update(digitalRead(PIN_REF_L) == REF_ACTIVE);   // tek parazitli okuma ne tetikler ne bırakır
+    bool limR = fR.update(digitalRead(PIN_REF_R) == REF_ACTIVE);
 #else
     const bool limL = false, limR = false;               // switch yok: takılı olmayan pin "basılı" okunurdu
 #endif
+#if END_SENSORS == 2
+    bool hardL = fHL.update(digitalRead(PIN_LIM_L) == LIM_PRESSED);
+    bool hardR = fHR.update(digitalRead(PIN_LIM_R) == LIM_PRESSED);
+#else
+    const bool hardL = false, hardR = false;
+#endif
     if (limL && !limL_prev) SET_SHARED(ev_limitL, true);
     if (limR && !limR_prev) SET_SHARED(ev_limitR, true);
-    if (!limR) home_r0 = false;                          // sağ switch bırakıldı; artık basılması yön hatasıdır
-    limL_prev = limL; limR_prev = limR;
+    if (hardL && !hardL_prev) { SET_SHARED(ev_hardL, true); if (!limL) SET_SHARED(ev_mismatchL, true); }
+    if (hardR && !hardR_prev) { SET_SHARED(ev_hardR, true); if (!limR) SET_SHARED(ev_mismatchR, true); }
+    if (!limR) home_r0 = false;                          // sağ referans bırakıldı; artık basılması yön hatasıdır
+    limL_prev = limL; limR_prev = limR; hardL_prev = hardL; hardR_prev = hardR;
+    portENTER_CRITICAL(&mux); S.hardL = hardL; S.hardR = hardR; portEXIT_CRITICAL(&mux);
 
     // ---------- mod makinesi (supervisor.Supervisor.update + mock_device homing ile aynı)
     float u = 0;
     if (mode == HOMING) {
       if (k * dt - home_t0 > HOME_TIMEOUT_S)                   mode = raiseFault(mode, "homing_timeout");
+      // END_SENSORS 2: dış kademe basıldı → optik kaçırıldı ya da çalışmıyor, araba ray sonunda
+      else if (hardL || hardR)                                 mode = raiseFault(mode, "homing_overrun");
       // sağ switch: yeni basıldıysa ya da başta basılıydı ama 1 s sola gidince hâlâ bırakmadıysa → yön ters
       else if (limR && (!home_r0 || k * dt - home_t0 > 1.0f))  mode = raiseFault(mode, "homing_wrong_side");
       else if (fabsf(x_enc - home_x0) > 2 * RAIL_HALF_M + 0.1f) mode = raiseFault(mode, "homing_travel");
@@ -488,11 +580,17 @@ void ctrlTask(void *) {
       else if ((k * dt - home_t0 > 0.2f && fabsf(dx) > HOME_RUNAWAY_V) || home_sat > HOME_SAT_S)
         mode = raiseFault(mode, "homing_runaway");   // ilk 0.2 s hız kestirimi oturuyor
       // sol sensör hep "basılı" okunuyor (kopuk kablo, NO/NC karışıklığı): sıfır yanlış olurdu
-      else if (home_phase == 2 && limL && x > -RAIL_HALF_M + HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
+      else if (home_phase == 2 && limL && x > -RAIL_HALF_M + REF_FROM_END_M + HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
+      // faz 3: optikten geri çekilirken HOME_SW_CLEAR_M gidildiği hâlde optik bırakmıyor → takılı/kopuk
+      else if (home_phase == 3 && limL && x_enc - home_x0 > HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
+      else if (home_phase == 3 && limL && !isnan(home_rel)) home_rel = NAN;            // optik yeniden etkin: baştan say
+      else if (home_phase == 3 && !limL && isnan(home_rel)) home_rel = x_enc;
+      else if (home_phase == 3 && !limL && x_enc - home_rel >= HOME_BACKOFF_M) { home_phase = 1; home_i = 0; }
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
-        x_offset = x_enc + RAIL_HALF_M; x = -RAIL_HALF_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
+        // referans sensörün konumu: 1'de −RAIL_HALF_M, 2'de optik (OPT_FROM_END_M içeride)
+        x_offset = x_enc + RAIL_HALF_M - REF_FROM_END_M; x = -RAIL_HALF_M + REF_FROM_END_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
       } else {
-        float v_des = home_phase == 1 ? -HOME_SPEED : clampf(-2.0f * x, -0.15f, 0.15f);
+        float v_des = home_phase == 1 ? -HOME_SPEED : home_phase == 3 ? HOME_SPEED : clampf(-2.0f * x, -0.15f, 0.15f);
         if (home_phase == 2 && fabsf(x) < 0.002f && fabsf(dx) < 0.02f) {
           mode = IDLE; home_phase = 0; homed = true;
           portENTER_CRITICAL(&mux); S.ev_homed = true; S.homed = true; portEXIT_CRITICAL(&mux);
@@ -504,7 +602,8 @@ void ctrlTask(void *) {
         }
       }
     } else if (mode == FRICTION) {
-      if (limL || limR)                              mode = raiseFault(mode, "limit");
+      if (hardL || hardR)                            mode = raiseFault(mode, "hard_limit");
+      else if (limL || limR)                         mode = raiseFault(mode, "limit");
       else if (fabsf(x) > RAIL_HALF_M - SOFT_MARGIN) mode = raiseFault(mode, "rail");
       else if (fr.step(x, th, dt, p.u_max, u)) {
         mode = IDLE;
@@ -515,7 +614,8 @@ void ctrlTask(void *) {
       }
     } else if (mode == SWING_UP || mode == BALANCE || mode == WAIT) {
       float ath = fabsf(th);
-      if (limL || limR)                              mode = raiseFault(mode, "limit");
+      if (hardL || hardR)                            mode = raiseFault(mode, "hard_limit");
+      else if (limL || limR)                         mode = raiseFault(mode, "limit");
       else if (fabsf(x) > RAIL_HALF_M - SOFT_MARGIN) mode = raiseFault(mode, "rail");
       else {
         if (mode == BALANCE && ath > p.release_rad) mode = p.swingup_on ? SWING_UP : WAIT;
@@ -615,6 +715,15 @@ static void handleCommand(const char *line) {
   if (deserializeJson(d, line)) { sendAck("?", false, "json"); return; }
   const char *cmd = d["cmd"] | "";
   Shared s; portENTER_CRITICAL(&mux); s = S; portEXIT_CRITICAL(&mux);
+  bool moves = !strcmp(cmd, "start") || !strcmp(cmd, "home") || !strcmp(cmd, "friction");
+  // açılış kalibrasyonu (~1.1 s) bitmeden kontrol döngüsü çalışmıyor, uç sensörleri henüz okunmadı
+  if (moves && !s.calib_done) { sendAck(cmd, false, "açılış kalibrasyonu sürüyor: biraz bekleyin"); return; }
+  // END_SENSORS 2: mikro switch basılıyken hareket başlatan komutlar her modda reddedilir (mock_device ile aynı)
+  if ((s.hardL || s.hardR) && (!strcmp(cmd, "start") || !strcmp(cmd, "home") || !strcmp(cmd, "friction"))) {
+    sendAck(cmd, false, s.hardL ? "sol mikro switch basılı: arabayı elle uçtan uzaklaştırın"
+                                : "sağ mikro switch basılı: arabayı elle uçtan uzaklaştırın");
+    return;
+  }
 
   if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
@@ -657,7 +766,7 @@ static void handleCommand(const char *line) {
   }
   if (!strcmp(cmd, "home")) {
     if (s.mode != IDLE && s.mode != FAULT) { sendAck("home", false, "önce stop"); return; }
-#if !LIMIT_SWITCHES
+#if !END_SENSORS
     if (fabsf(s.ldx) > HOME_STILL_DX) { sendAck("home", false, "araba hareket ediyor: elle ortaya koyup durunca tekrar deneyin"); return; }
 #endif
     SET_SHARED(req_home, true); sendAck("home", true); return;
@@ -689,9 +798,19 @@ void commTask(void *) {
     Shared s;
     portENTER_CRITICAL(&mux);
     s = S; S.ev_homed = S.ev_fault = S.ev_limitL = S.ev_limitR = S.ev_calib = S.ev_friction = false;
+    S.ev_hardL = S.ev_hardR = S.ev_mismatchL = S.ev_mismatchR = false;
     portEXIT_CRITICAL(&mux);
+#if END_SENSORS == 2
+    if (s.ev_limitL) Serial.print("{\"evt\":\"limit\",\"side\":\"L\",\"stage\":\"opt\"}\n");
+    if (s.ev_limitR) Serial.print("{\"evt\":\"limit\",\"side\":\"R\",\"stage\":\"opt\"}\n");
+    if (s.ev_hardL)  Serial.print("{\"evt\":\"limit\",\"side\":\"L\",\"stage\":\"hard\"}\n");
+    if (s.ev_hardR)  Serial.print("{\"evt\":\"limit\",\"side\":\"R\",\"stage\":\"hard\"}\n");
+    if (s.ev_mismatchL) Serial.print("{\"evt\":\"sensor_mismatch\",\"side\":\"L\"}\n");
+    if (s.ev_mismatchR) Serial.print("{\"evt\":\"sensor_mismatch\",\"side\":\"R\"}\n");
+#else
     if (s.ev_limitL) Serial.print("{\"evt\":\"limit\",\"side\":\"L\"}\n");
     if (s.ev_limitR) Serial.print("{\"evt\":\"limit\",\"side\":\"R\"}\n");
+#endif
     if (s.ev_homed)  Serial.print("{\"evt\":\"homed\"}\n");
     if (s.ev_calib)  Serial.printf("{\"evt\":\"calib\",\"ok\":%s}\n", s.angle_ok ? "true" : "false");
     if (s.ev_fault)  Serial.printf("{\"evt\":\"fault\",\"reason\":\"%s\"}\n", s.fault_reason ? s.fault_reason : "?");
@@ -718,8 +837,11 @@ void setup() {
   Wire.begin(PIN_SDA, PIN_SCL, 400000);
   Wire.setTimeOut(2);                                   // ms — takılan I2C döngüyü bekletmesin
   pinMode(PIN_ENC_A, INPUT); pinMode(PIN_ENC_B, INPUT);
-#if LIMIT_SWITCHES
+#if END_SENSORS
   pinMode(PIN_LIM_L, INPUT_PULLUP); pinMode(PIN_LIM_R, INPUT_PULLUP);
+#endif
+#if END_SENSORS == 2
+  pinMode(PIN_OPT_L, INPUT_PULLUP); pinMode(PIN_OPT_R, INPUT_PULLUP);   // TCST2103 çıkışı (harici pull-up önerilir)
 #endif
 #if ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcAttach(PIN_RPWM, PWM_FREQ, PWM_BITS); ledcAttach(PIN_LPWM, PWM_FREQ, PWM_BITS);

@@ -53,7 +53,7 @@ Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kar
 1. Firmware karta yüklenmeli (derleme CI'da doğrulanıyor).
 2. Kablolama `firmware/esp32_pendulum/board_pins.h`'deki pinlere göre yapılmalı. Donanım (BOM v3, 13.11.2026): ESP32-S3-DevKitC-1 N16R8, BTS7960 sürücü, AS5600 açı sensörü, HTD3M 20 dişli kasnak (`config/params.json`'da r = 9.55 mm). **Motor JGB37-520 19:1** (mekatronik raporu, son seçim); motor değerleri raporun Tablo 16'sından türetildi, enkoder 44 CPR (836 sayım / çıkış turu, 0.072 mm/sayım); datasheet ve motorla doğrulanacak.
 3. `config/params.json` gerçek ölçülerle doldurulmalı, K yeniden hesaplanıp karta gönderilmeli.
-4. Limit switch'ler takılacak (firmware varsayılanı `LIMIT_SWITCHES 1`; switch tipi ve pinleri teyit edilmeli). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
+4. Uç sensörleri takılacak (firmware varsayılanı `END_SENSORS 1`: her uçta tek sensör; mekatroniğin önerdiği optik + mikro switch düzeni için `END_SENSORS 2`, bağlantı firmware README'de). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
 5. [İlk açılış kontrol listesi](firmware/esp32_pendulum/README.md#i̇lk-açılış-kontrol-listesi) sırayla uygulanmalı: işaret kontrolü → homing → yalnız LQR → swing-up.
 
 Simülasyondaki kazançlar gerçek sistemde büyük olasılıkla yeniden ayarlanacaktır.

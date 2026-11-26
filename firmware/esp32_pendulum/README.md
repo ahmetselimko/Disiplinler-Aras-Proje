@@ -44,21 +44,39 @@ Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTO
 | I2C SDA / SCL (AS5600, ileride MPU6050) | 8 / 9 (400 kHz) | 21 / 22 |
 | Enkoder A / B (harici 10k pull-up, **3.3 V'a**) | 4 / 5 | 32 / 33 |
 | BTS7960 RPWM / LPWM / EN | 6 / 7 / 15 | 25 / 26 / 27 |
-| Uç sensörü sol / sağ (INPUT_PULLUP) | 16 / 17 | 18 / 19 |
+| Uç sensörü sol / sağ (INPUT_PULLUP; `END_SENSORS 2`'de dış kademe mikro switch) | 16 / 17 | 18 / 19 |
+| İç kademe optik sol / sağ (yalnız `END_SENSORS 2`; TCST2103, INPUT_PULLUP + harici pull-up) | 10 / 11 | 13 / 14 |
 
 **Enkoder gerilimi:** ESP32 / ESP32-S3 pinleri 5 V'a dayanıklı değildir. Motor enkoderi 5 V ile besleniyorsa çıkışları 5 V'a çekilmemeli: pull-up'lar 3.3 V'a bağlanmalı (açık kollektör çıkışta) ya da seviye dönüştürücü / gerilim bölücü kullanılmalı. Hall enkoder 3.3 V ile çalışabiliyorsa en basiti 3.3 V'tan beslemektir (datasheet'e bakın).
 
 **S3 N16R8'de neden eski pinler olmuyor:** 22–25 S3'te yok; 26–32 SPI flash'a, 33–37 8 MB oktal PSRAM'e bağlı. Ayrıca 0/3/45/46 (açılış), 19/20 (yerel USB), 43/44 (`Serial`), 38/48 (RGB LED) kullanılmadı. `board_pins.h` S3 pinlerini derleme anında denetler; yasak bir pin seçilirse derleme durur.
 
-**Uç sensörü** (`LIMIT_SWITCHES 1`, varsayılan): BOM'da iki seçenek var, ikisi de aynı pinlere ve aynı ayarla bağlanır:
+**Uç sensörü düzeni** (`.ino` başında `END_SENSORS`; derleme bayrağıyla da verilebilir: `-DEND_SENSORS=2`):
+
+| `END_SENSORS` | Düzen | Homing referansı | Çalışırken | Not |
+|---|---|---|---|---|
+| 0 | Sensör yok | Elle ortalama | Yalnız yazılımsal ray sınırı (`rail`) | Aşağıdaki bölüm |
+| **1 (varsayılan)** | Her uçta tek sensör (16/17), ray sonunda | O sensör (x = −rail_half) | `limit` | |
+| 2 | İçte **optik** (10/11), dışta **mikro switch** (16/17); optik, switch'ten `OPT_FROM_END_M` = 3 cm içeride (mekatronik raporu 8.4) | Optik (x = −rail_half + 0.03) | Optik → `limit`, mikro switch → `hard_limit` | Homing'de mikro switch → `homing_overrun`. Mikro switch basılıyken `start`/`home`/`friction` her modda reddedilir. Mikro switch basılıp aynı taraftaki optik görmüyorsa `sensor_mismatch` olayı (optik arızalı/kaymış) |
+
+`END_SENSORS 2` bağlantı şeması (her uç için; 3.3 V mantık):
+```
+   3.3V ──[R 100Ω]──► TCST2103 LED (A→K) ──► GND          optik: iç kademe (raydan 3 cm içeride)
+   3.3V ──[4.7–10kΩ]──┬── TCST2103 kollektör ── emiter ── GND
+                      └──────────────────────► PIN_OPT_L (10) / PIN_OPT_R (11)   (yarık kapalı → HIGH)
+   PIN_LIM_L (16) / PIN_LIM_R (17) ──► mikro switch NC ── GND   dış kademe (ray sonunda); basılı/kopuk → HIGH
+```
+Arabadaki bayrak önce optiğin yarığına girer, araba durmazsa 3 cm sonra mikro switch'e basar. **Bayrak şartı:** bayrak, optik konumundan mekanik uca kadar (≥ 3 cm + aşma payı) yarığı kesintisiz kapatacak uzunlukta olmalı; araba optik ile uç arasındayken optik hep "etkin" okunmalı. **Üst sınır:** araba optik bölgesinin en derininden (mekanik uçtan) sağa **5 cm** (`HOME_SW_CLEAR_M`) gittiğinde optik bırakmış olmalı; yani optiğin tetiklendiği nokta ile mekanik uç arası (3 cm + aşma payı) **5 cm'den kısa** olmalı. Uzunsa uçta başlatılan her homing yanlış `homing_switch` verir (faz 3 geri çekilme). Ölçüyü mekatronikle teyit edin. Kısa bayrakta mikro switch'e her çarpışta yanlış `sensor_mismatch` gelir ve uçta verilen `home` yanlış hata verebilir. Optik konumu yazılımsal ray sınırıyla (`SOFT_MARGIN` = 3 cm) aynı yerde: firmware'de optik 3 okumalık (6 ms) parazit filtresinden geçtiği için ~0.1 m/s'nin üstündeki hızlarda FAULT sebebi önce `rail` görünebilir (sanal ESP32'de filtre yok, orada `limit`); iki durumda da motor aynı adımda kesilir. İki sensör de kopuk kabloda "etkin" okunur (güvenli tarafta). Gerçek montaj mesafesi farklıysa `OPT_FROM_END_M` (firmware) ve `OPT_FROM_END` (`mock_device.py`) birlikte değiştirilir (test eşliği denetler).
+
+`END_SENSORS 1`'de sensör tipi: BOM'da iki seçenek var, ikisi de aynı pinlere ve aynı ayarla bağlanır:
 * **Limit switch (DC163-3):** **NC (normalde kapalı) bağlantı önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez.
 * **Yarık optik sensör (TCST2103):** IR LED'e akım sınırlama direnci (3.3 V'ta ~100 Ω, 5 V'ta ~220 Ω → ~15–20 mA), fototransistör çıkışına 3.3 V'a **harici 4.7–10 kΩ pull-up**. Arabadaki bayrak yarığa girince çıkış HIGH olur; kablo koparsa da HIGH → `LIM_PRESSED = HIGH` değişmez. Ortam ışığından etkilenmemesi için yarık kapalı tarafa bakmalı.
 
-### Limit switch'siz çalışma (`LIMIT_SWITCHES 0`, isteğe bağlı)
-Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takılmamışken kartı denemek gerekirse `0` yapılır; yoksa NC ayarındaki boş pinler "basılı" okunur ve kart hemen `limit` hatasına düşer. Bu modda:
+### Uç sensörsüz çalışma (`END_SENSORS 0`, isteğe bağlı)
+Varsayılan `END_SENSORS 1`. Sensörler henüz takılmamışken kartı denemek gerekirse `0` yapılır (eski ad `LIMIT_SWITCHES 0` da çalışır, derleme uyarısıyla); yoksa NC ayarındaki boş pinler "basılı" okunur ve kart hemen `limit` hatasına düşer. Bu modda:
 * **KALİBRE ET = elle ortalama:** araba elle ray ortasına konur, durağanken `home` gönderilir; enkoderin o anki okuması x = 0 olur. Motor hareket etmez. Araba hareket ediyorsa (> 0.01 m/s) reddedilir.
 * Ray güvenliğini **yalnız enkoder** sağlar: |x| > rail_half − 3 cm → FAULT `rail`. Araba ortaya yanlış konursa sınırlar o kadar kayar; enkoder sayım kaçırırsa araba uca çarpabilir. **Ray uçlarına mekanik durdurucu/tampon konmalıdır.**
-* Switch'ler takılınca `.ino`'nun başındaki ayar yeniden `1` yapılır; otomatik homing ve switch korumaları geri gelir.
+* Sensörler takılınca `.ino`'nun başındaki ayar yeniden `1` (ya da iki kademe için `2`) yapılır; otomatik homing ve sensör korumaları geri gelir.
 
 **Donanımsal acil stop** (motor beslemesini kesen mantar buton) yazılımdan bağımsız olarak eklenmelidir; yazılımdaki `estop` ve limit switch'ler bunun yerine geçmez (switch'ler yalnız kart çalışırken motoru durdurur). Mekatronik şimdilik buton koymayı planlamıyor (16.11.2026); en azından motor beslemesi elle kolayca kesilebilmeli.
 
@@ -66,14 +84,18 @@ Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takıl
 | Durum | Davranış |
 |---|---|
 | Hareketli modda (HOMING/SWING_UP/WAIT/BALANCE/FRICTION) 1 s boyunca PC'den satır gelmedi (USB koptu, arayüz çöktü) | FAULT `link`, motor kesilir. Arayüz bağlıyken 0.25 s'de bir `{"cmd":"hb"}` gönderir (`LINK_TIMEOUT_MS`, protokol.md §4) |
-| Uç sensöründe tek bir parazitli okuma | Dikkate alınmaz: art arda `LIM_DEBOUNCE` = 3 okuma (6 ms) basılıysa basılı sayılır |
+| Uç sensöründe tek bir parazitli okuma | Dikkate alınmaz: art arda `LIM_DEBOUNCE` = 3 okuma (6 ms) basılıysa basılı, 3 okuma boşsa bırakılmış sayılır (iki yönlü filtre; tek boş okuma homing'in geri çekilme fazını şaşırtmaz) |
 | Yeni `home` başladı | Önceki kalibrasyon geçersiz; homing yarıda `stop` edilirse `start` reddedilir |
 | Homing'de sağ switch'e basıldı | FAULT `homing_wrong_side` (motor veya enkoder yönü ters; ya da sağ sensör kablosu kopuk/sürekli basılı) |
 | Homing'de sola dayandıktan 5 cm sonra sol sensör hâlâ basılı | FAULT `homing_switch` (sol sensör kablosu kopuk ya da takılı; sıfır yanlış olurdu) |
 | Homing'de \|ẋ\| > 0.30 m/s ya da gerilim 0.3 s'den uzun doyumda | FAULT `homing_runaway` (hız döngüsü kontrolden çıktı; ek güvenlik) |
 | Homing 20 s'yi aştı / rayın 2 katından fazla yol gidildi | FAULT `homing_timeout` / `homing_travel` |
-| Homing başlarken sol switch zaten basılı | Hemen sıfırlanır (switch seviyesine bakılır) |
-| Yalnız `LIMIT_SWITCHES 0`: `home` gelirken araba hareket ediyor | `home` reddedilir; araba durunca tekrar |
+| Homing başlarken sol switch zaten basılı | `END_SENSORS 1`: hemen sıfırlanır (switch ray sonunda, seviyesine bakılır). `END_SENSORS 2`: sol optik zaten etkinse araba optik ile uç arasında, sıfır 3 cm'ye kadar kayardı: araba önce sağa çekilip optiği bırakır, `HOME_BACKOFF_M` (1 cm) daha gider, sonra kenara yeniden yaklaşıp sıfırı kenardan alır. Geri çekilirken 5 cm'de optik bırakmazsa `homing_switch` |
+| `END_SENSORS 2`: çalışırken optik / mikro switch | FAULT `limit` / `hard_limit` (mikro switch önceliklidir) |
+| `END_SENSORS 2`: homing'de mikro switch | FAULT `homing_overrun` (optik görmedi) |
+| `END_SENSORS 2`: mikro switch basılı | `start`, `home`, `friction` her modda reddedilir; arabayı elle uçtan uzaklaştırın |
+| `END_SENSORS 2`: mikro switch basıldı, aynı taraftaki optik görmüyor | `sensor_mismatch` olayı (arayüzde uyarı) |
+| Yalnız `END_SENSORS 0`: `home` gelirken araba hareket ediyor | `home` reddedilir; araba durunca tekrar |
 | AS5600 art arda 3 kez okunamadı | FAULT `sensor`; I2C zaman aşımı 2 ms (döngü takılmaz) |
 | Açılış kalibrasyonu: mıknatıs yok/zayıf ya da sarkaç hareket ediyor | `calib ok:false`, `start` reddedilir; sarkaç durunca `calib` komutu |
 | Aynı anda estop ve start/home | estop kazanır |
