@@ -83,7 +83,7 @@ Sarkaç aşağıda başlıyor, 30 s. Enkoder 44 CPR × 19 (Aşama 2). "Dike en f
 3. **Hedef enerji oranı 1.05 civarına çekilmeli** (Aşama 2'de yapıldı). 1.05 ve 1.10, +20 g ve +50 g'de telafi açık
    da kapalı da kalkıyor (1.10'da bazı hücrelerde sarkaç bir kez düşüp yeniden yakalanıyor ve araba 0.35 m'ye kadar
    gidiyor); 1.05 daha az ray kullanıyor. Mekatroniğin değeri (bizde 1.01) yalnız +50 g ve telafi açıkken yetiyor.
-   Ayrıntılı sağlamlık taraması: `docs/swingup_karar_calismasi.md` (Aşama 3).
+   Ayrıntılı sağlamlık taraması: [`swingup_karar_calismasi.md`](swingup_karar_calismasi.md).
 4. **Sürtünme telafisi önemli.** 3 N sürtünme, enerji pompalamanın küçük itmelerini yutuyor. İlk donanım denemesinden
    önce sürtünme ölçümü (arayüzdeki "Sürtünme ölç") yapılıp telafi açılmalı. (Aşama 2'den beri `params.json`'da T_f tasarım
    değerinde, yani arayüz bağlanınca fc_volt ≈ 1.33 V gönderir; sürtünme ölçülünce güncellenmeli.)
