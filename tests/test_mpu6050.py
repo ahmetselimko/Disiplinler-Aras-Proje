@@ -200,7 +200,7 @@ def test_calib_with_failed_gyro_and_boot_bias():
     dev.feed(P.encode_command("calib"))
     dev.step()
     names = [m.name for m in _msgs(out) if isinstance(m, P.Event)]
-    assert names == ["gyro", "calib"] and not dev.mpu_ok
+    assert names == ["calib", "gyro"] and not dev.mpu_ok           # firmware commTask sırası: önce calib, sonra gyro
     assert "vTaskDelay(pdMS_TO_TICKS(50));                     // uykudan çıkış" in FW   # uykudan çıkışı bekle
     assert FW.count("else if (angle_ok) gyro_bias = b;") == 1 and "if (mpu_ok && angle_ok) gyro_bias = b;" in FW
 

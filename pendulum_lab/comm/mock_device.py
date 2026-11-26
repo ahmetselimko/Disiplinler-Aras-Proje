@@ -199,14 +199,16 @@ class MockDevice:
                     self._emit(reply)
                 if self._calib_evt:                # firmware gibi: önce ACK, sonra calib olayı
                     self._calib_evt = False
-                    if self.mpu_ok and self.gyro_fail:  # firmware: bias okunamadı → jiroskop kapanır
+                    gyro_failed = self.mpu_ok and self.gyro_fail   # firmware: bias okunamadı → jiroskop kapanır
+                    if gyro_failed:
                         self.mpu_ok = False
-                        self._emit(P.encode_event("gyro", ok=False))
                     if self.mpu_ok:                    # firmware: calib jiroskop sıfırını da ölçer
                         self._gyro_bias = self._measure_gyro_bias()
                         self._emit(P.encode_event("calib", ok=True, gyro_bias=round(self._gyro_bias, 5)))
                     else:
                         self._emit(P.encode_event("calib", ok=True))
+                    if gyro_failed:                    # firmware sırası: önce calib, sonra gyro olayı
+                        self._emit(P.encode_event("gyro", ok=False))
             except (P.ProtocolError, ValueError, TypeError, KeyError) as e:
                 # bozuk alanlı komut (ör. "F": null) cihazı öldürmesin; firmware de "?" ile reddeder
                 self._emit(P.encode_ack("?", False, str(e)))
