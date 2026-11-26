@@ -202,3 +202,23 @@ def test_calib_with_failed_gyro_and_boot_bias():
     names = [m.name for m in _msgs(out) if isinstance(m, P.Event)]
     assert names == ["gyro", "calib"] and not dev.mpu_ok
     assert "vTaskDelay(pdMS_TO_TICKS(50)); mpu_ok = calibrateGyro" in FW   # uykudan çıkışı bekle
+
+
+def test_gyro_mix_resent_even_when_k_blocked(tmp_path):
+    """İnceleme (Aşama 5, 2. tur): γ, K engellerinden (yer tutucu parametreler, gerçek kart) bağımsız yeniden gider."""
+    from gui.state import AppState
+    st = AppState(ROOT / "config" / "params.json")
+    sent = []
+
+    class R:
+        transport = object()                                  # SimTransport değil: gerçek kart
+        def send(self, cmd, **f):
+            sent.append((cmd, f))
+    st.reader = R()
+    assert st.real_device and st.placeholder_on_real_device   # bugünkü params.json yer tutucu
+    st.gyro_mix = 0.8
+    st.on_device_info({"fw": "ref-1.2", "theta": "sol", "Ts": 0.002}, boot=True)
+    assert ("set_param", {"gyro_mix": 0.8}) in sent
+    sent.clear(); st.gyro_mix = 0.0
+    st.on_device_info({"fw": "ref-1.2", "theta": "sol", "Ts": 0.002}, boot=True)
+    assert all("gyro_mix" not in f for _, f in sent)          # varsayılan 0: gereksiz alan gönderilmez
