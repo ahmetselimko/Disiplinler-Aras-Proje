@@ -91,9 +91,11 @@ Toplantı notları ve tahtadaki plana göre:
 
 ### Swing-up karar çalışması (#50 Aşama 3, 25.11.2026)
  `python tools/swingup_karar.py` → [`swingup_karar_calismasi.md`](swingup_karar_calismasi.md). Uç kütlesi (yok / +20 g / +50 g) × geçiş kuralı (bizim 15°/30° ya da mekatroniğin 10°/25° + θ̇, x, ẋ şartları) × E_ratio (1.00–1.10) × ray (±0.40 / 0.60 / 0.80 m) × sürtünme telafisi; her durum 3 gürültü tohumu ve m, l ±%5 ile (900 koşu, tasarım değerleri). Tablolardan çıkanlar:
-* Her rayda ve telafi açık/kapalı sağlam: **+20 g veya +50 g, bizim kural, E_ratio 1.05** (+50 g'de 1.02 de; +20 g'de 1.10 da, ama araba 0.36 m'ye gidiyor). Uç kütlesiz sarkaç yalnız bizim kural, telafi açık ve E_ratio 1.10'da sağlam.
-* **Mekatroniğin geçiş kuralı** sağlam olduğu tek durum +50 g, E_ratio 1.02 (telafi açık) ve 1.05 (telafi kapalı). E_ratio 1.05–1.10'da sarkaç dike geliyor ama yakalama şartı tutmuyor (tablolardaki sebep: \|θ̇\| ≥ 1.5 rad/s); E_ratio ≤ 1.02'de çoğu durumda iki kural da kalkmıyor.
-* **Ray uzunluğu** 60 grubun yalnız 1'inde sonucu değiştirdi: mevcut swing-up kazançlarıyla ±0.40 m yetiyor.
+* "Kalktı" = sonda dengede **ve** LQR yakaladıktan sonra hiç bırakmadı (`rapor_sekilleri.classify`); LQR'ın bırakıp swing-up'ın yeniden kaldırdığı koşular kalkmış sayılmadı (26.11 incelemesi).
+* Her rayda ve telafi açık/kapalı sağlam yalnız **+50 g, bizim kural, E_ratio 1.02 ya da 1.05** (araba en fazla 0.26 / 0.19 m).
+* Yalnız sürtünme telafisi açıkken her rayda sağlam: uç kütlesiz – bizim – 1.10; **+20 g – bizim – 1.05**; +50 g – bizim – 1.01; +50 g – mekatronik – 1.02. +20 g telafi kapalıyken hiçbir durumda sağlam değil: **ilk denemeden önce sürtünme ölçülüp telafi açılmalı.**
+* **Mekatroniğin geçiş kuralı** yalnız +50 g'de sağlam (E_ratio 1.02 telafi açık, 1.05 telafi kapalı); uç kütlesiz ve +20 g'de hiçbir durumda sağlam değil.
+* **Ray uzunluğu** 60 grubun hiçbirinde sonucu değiştirmedi; kalkan koşularda araba en fazla 0.34 m gitti: mevcut swing-up kazançlarıyla ±0.40 m yetiyor.
 * Varsayılanlar (eşikler #11, `rail_half`) değiştirilmedi; karar iki ekibin.
 
 ## 4. Bağımsız kod incelemesi
@@ -247,6 +249,8 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 **#50 Aşama 2, ikinci tur (26.11.2026):** birinci turun düzeltmeleri doğrulandı; değerler PDF'le yeniden karşılaştırıldı, `gains.h` birebir. **Yeni kod hatası yok.** Kalan küçük kenarlar düzeltildi: parametre dosyası okunamadığında "Kaydet" koruma bayrağını kaldırıyordu (genel varsayılanlar `params.json`'a yazılıp K gidebilirdi) → artık yalnız Yükle kaldırır; firmware README'de eski CPR hatasının yönü (x ~1.74 kat büyük okunurdu).
 
 **#50 Aşama 3 (swing-up karar çalışması), birinci tur (26.11.2026):** denetçi kuralların Supervisor'a (Kalman bölgesinin release açısı dahil), ray yarı boyunun hem fiziğe hem kontrolcüye uygulandığını, telafi kapalının doğru modellendiğini ve 900 koşunun tam çarpım olduğunu doğruladı; JSON'dan rapor birebir yeniden üretildi, 4 koşu tek tek tekrarlandı. **Yeni kod hatası yok.** Düzeltilenler (Küçük/Belge): "bizim" kural elle yazılıydı → ortak sabitlerden; "dike geldi" sebebi artık hangi şartın tutmadığını yazıyor (hepsi \|θ̇\|); "kalkan koşularda en büyük max \|x\|" yalnız kalkan koşulardan; nominal koşunun da gürültülü olduğu (ön değerlendirmeyle birebir karşılaştırılamaz) notu; proje_durumu özetindeki iki cümle tablolara göre düzeltildi, alt başlık ve belge tablosu satırı; süre tek değer (~6 dk). Tarama yeniden koşuldu; sağlamlık sonuçları değişmedi.
+
+**#50 Aşama 1–5 ortak inceleme (26.11.2026, ahmetselimko):** Aşama 1'in θ işaret testi kuantalı sensörde 1 ulp'lik farkın kaydırdığı bir adım yüzünden Windows'ta düşüyordu (eski kod aynı makinede referansla 6e-9 m içinde) → adım kaydıktan sonrası gevşek tolerans. Aşama 2: protokoldeki `set_gain` örneği ve `katki_10.md` K tablosu eski parametrelerleydi. **Aşama 3: karar aracı LQR'ın bırakıp swing-up'ın yeniden kaldırdığı koşuları "kalktı" sayıyordu → `classify` ile yeniden üretildi; "+50 g ve +20 g'de 1.10 sağlam" gibi sonuçlar düştü, özet yukarıda güncellendi.**
 
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
