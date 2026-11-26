@@ -432,6 +432,7 @@ static Mode raiseFault(Mode m, const char *reason) {
 // İki yönlü parazit filtresi: durum ancak LIM_DEBOUNCE art arda aynı okumayla değişir (etkinleşme ve bırakma).
 struct DebouncedInput {
   bool state = false; int cnt = 0;
+  void seed(bool s) { state = s; cnt = 0; }
   bool update(bool raw) {
     if (raw == state) cnt = 0;
     else if (++cnt >= LIM_DEBOUNCE) { state = raw; cnt = 0; }
@@ -462,6 +463,27 @@ void ctrlTask(void *) {
   vTaskDelay(pdMS_TO_TICKS(1000));
   float raw_hang = 0;
   bool angle_ok = calibrateAngle(raw_hang);
+  // uç sensörü filtrelerini gerçek durumla başlat (sıfırdan başlasa ilk 3 adım "boş" sayılır: homing faz 3'ü
+  // atlar, mikro switch basılıyken komut reddi gecikir). LIM_DEBOUNCE okumadan biri etkinse etkin: güvenli taraf.
+#if END_SENSORS
+  { bool aL = false, aR = false;
+#if END_SENSORS == 2
+    bool hL = false, hR = false;
+#endif
+    for (int i = 0; i < LIM_DEBOUNCE; i++) {
+      aL |= digitalRead(PIN_REF_L) == REF_ACTIVE; aR |= digitalRead(PIN_REF_R) == REF_ACTIVE;
+#if END_SENSORS == 2
+      hL |= digitalRead(PIN_LIM_L) == LIM_PRESSED; hR |= digitalRead(PIN_LIM_R) == LIM_PRESSED;
+#endif
+      delayMicroseconds(200);
+    }
+    fL.seed(aL); fR.seed(aR); limL_prev = aL; limR_prev = aR;
+#if END_SENSORS == 2
+    fHL.seed(hL); fHR.seed(hR); hardL_prev = hL; hardR_prev = hR;
+    portENTER_CRITICAL(&mux); S.hardL = hL; S.hardR = hR; portEXIT_CRITICAL(&mux);
+#endif
+  }
+#endif
   portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.calib_done = true; S.ev_calib = true; portEXIT_CRITICAL(&mux);
 
   TickType_t last = xTaskGetTickCount();
@@ -687,6 +709,9 @@ static void handleCommand(const char *line) {
   if (deserializeJson(d, line)) { sendAck("?", false, "json"); return; }
   const char *cmd = d["cmd"] | "";
   Shared s; portENTER_CRITICAL(&mux); s = S; portEXIT_CRITICAL(&mux);
+  bool moves = !strcmp(cmd, "start") || !strcmp(cmd, "home") || !strcmp(cmd, "friction");
+  // açılış kalibrasyonu (~1.1 s) bitmeden kontrol döngüsü çalışmıyor, uç sensörleri henüz okunmadı
+  if (moves && !s.calib_done) { sendAck(cmd, false, "açılış kalibrasyonu sürüyor: biraz bekleyin"); return; }
   // END_SENSORS 2: mikro switch basılıyken hareket başlatan komutlar her modda reddedilir (mock_device ile aynı)
   if ((s.hardL || s.hardR) && (!strcmp(cmd, "start") || !strcmp(cmd, "home") || !strcmp(cmd, "friction"))) {
     sendAck(cmd, false, s.hardL ? "sol mikro switch basılı: arabayı elle uçtan uzaklaştırın"

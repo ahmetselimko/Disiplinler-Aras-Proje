@@ -128,7 +128,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 ```
 
 Yakalama şartı (`Supervisor.can_catch`): |θ| < catch_deg, |θ̇| < catch_dth, |x| < catch_x ve |ẋ| < catch_dx.
-FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir. `END_SENSORS 2`'de mikro switch basılıyken `home` de reddedilir: önce araba elle uçtan uzaklaştırılır.
+FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir. `END_SENSORS 2`'de mikro switch basılıyken `home` de reddedilir: önce araba elle uçtan uzaklaştırılır. Gerçek kartta açılış kalibrasyonu (~1.1 s, `calib` olayı gelene kadar) sürerken `start`, `home` ve `friction` reddedilir ("açılış kalibrasyonu sürüyor"); sanal ESP32'de bu bekleme yoktur.
 
 ## 6. Homing'i kim başlatır?
 Güç gelince ESP32 IDLE modunda bekler. Homing yalnızca PC'den gelen `home` komutuyla ("KALİBRE ET" butonu) başlar. `start` komutu homing yapılmadan reddedilir. Araba açılışta kendiliğinden hareket etmez.

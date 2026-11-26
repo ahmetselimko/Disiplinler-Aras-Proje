@@ -264,6 +264,11 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Sanal ESP32 geçiş adımlarında motoru sürüyordu, firmware sürmüyor (u = 0) | Sanal ESP32 geçiş adımında 0 döndürüyor |
 | Belge | protokol.md `home` açıklaması END_SENSORS 2'deki geri çekilmeyi, `homing_switch` açıklaması geri çekilirken optiğin bırakmamasını anlatmıyordu | Güncellendi |
 
+**#50 Aşama 4, üçüncü tur (26.11.2026):** Önişlemci (END_SENSORS 0/1/2), CI bayrağının gerçekten derleyiciye gittiği (platform.txt), pinler, iki yönlü filtre, faz 3 sırası, motorun her FAULT'ta kesilmesi ve firmware ↔ sanal ESP32 ↔ belge tutarlılığı doğrulandı. Düzeltilen:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Küçük | Açılış kalibrasyonu (~1.1 s) sürerken `home` kabul ediliyordu; döngünün ilk adımında filtreler sıfırdan başladığı için faz 3 atlanıyor (araba optik ile uç arasındaysa sıfır yine kayıyordu), mikro switch basılıyken de `home` reddedilmiyordu | Kalibrasyon bitmeden `start`/`home`/`friction` reddediliyor; filtreler döngüden önce gerçek sensör durumuyla başlatılıyor (3 okumadan biri etkinse etkin) |
+
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
 ---
