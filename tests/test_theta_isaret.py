@@ -22,6 +22,11 @@ STRICT = dict(x=1e-6, dx=1e-5, th=1e-4, dth=1e-3, u=1e-3)
 # kalkışta LOOSE_AFTER'dan sonrası gevşek toleransla karşılaştırılır.
 LOOSE = dict(x=5e-3, dx=0.06, th=5e-3, dth=0.25, u=2.5)
 LOOSE_AFTER = {"asagidan_kalkis": 7.5}
+# Kuantalı sensör: iki koşu arasındaki 1 ulp'lik fark (ör. Kalman expm'in son bitleri; işletim sistemine göre değişir)
+# ölçülen x ya da θ'yı bir kuantalama adımı kaydırabilir ve u'yu birden değiştirir. Windows'ta dik_arti5/eksi5'te
+# 2.9 s'de gözlendi (Linux'ta yok); eski kod aynı makinede referansla 6e-9 m içinde. Bu yüzden gerçek durum farkı
+# yarım adımı aştığı andan sonrası gevşek toleransla karşılaştırılır; o ana kadar sıkı ve en az MIN_STRICT_S boyunca.
+MIN_STRICT_S = 1.0
 
 
 def _wrap(a):
@@ -35,6 +40,10 @@ def _check(x_new, x_ref, dx_new, dx_ref, th_new, th_ref, dth_new, dth_ref, u_new
            "th": np.abs(_wrap(a(th_new) + a(th_ref))),              # θ_yeni = −θ_eski
            "dth": np.abs(a(dth_new) + a(dth_ref)), "u": np.abs(a(u_new) - a(u_ref))}
     loose = np.zeros(len(err["x"]), bool) if t_loose is None else a(t) >= t_loose
+    flip = np.flatnonzero((err["x"] > 0.5 * S.X_RES) | (err["th"] > 0.5 * S.TH_RES))
+    if len(flip) and t is not None:
+        assert a(t)[flip[0]] >= MIN_STRICT_S, ("kuantalama adımı çok erken kaydı", a(t)[flip[0]])
+        loose[flip[0]:] = True
     for k, e in err.items():
         assert e[~loose].max(initial=0) <= STRICT[k], (k, "sıkı", e[~loose].max())
         assert e[loose].max(initial=0) <= LOOSE[k], (k, "gevşek", e[loose].max())
