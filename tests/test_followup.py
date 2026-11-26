@@ -92,7 +92,7 @@ def test_placeholder_params_not_pushed_to_real_device_without_force():
         name = "COM3 @ 921600"
     st = _state_on(Serial(), placeholder=True)
     assert st.placeholder_on_real_device
-    st.on_device_info({"Ts": 0.002})
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"})
     assert st.reader.sent == ["set_param"]                        # K gitmez; yalnız güvenlik için swing-up anahtarı
     assert st.push_to_device() is False and "set_gain" not in st.reader.sent
     assert st.push_to_device(force=True) and "set_gain" in st.reader.sent   # kullanıcı onaylarsa gider
@@ -105,11 +105,11 @@ def test_measured_params_and_simulator_push_automatically():
     class Serial:
         name = "COM3 @ 921600"
     real = _state_on(Serial(), placeholder=False)
-    real.on_device_info({"Ts": 0.002})
+    real.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"})
     assert "set_gain" in real.reader.sent
     sim = _state_on(SimTransport(MockDevice(realtime=False)), placeholder=True)
     assert not sim.real_device and not sim.placeholder_on_real_device
-    sim.on_device_info({"Ts": 0.002})
+    sim.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"})
     assert "set_gain" in sim.reader.sent                          # sanal ESP32'de davranış değişmedi
 
 

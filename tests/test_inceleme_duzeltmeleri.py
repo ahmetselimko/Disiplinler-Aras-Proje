@@ -132,23 +132,23 @@ def _state(placeholder=False):
 def test_reconnect_within_one_second_still_pushes_settings():
     st = _state()
     st.set_reader(_Reader())
-    st.on_device_info({"Ts": 0.002})
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"})
     first = len(st.reader.sent)
     assert first > 0
     st.set_reader(None)
     st.set_reader(_Reader())                                       # hemen yeniden bağlan
-    st.on_device_info({"Ts": 0.002})
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"})
     assert len(st.reader.sent) == first
 
 
 def test_boot_always_pushes_but_ping_after_boot_does_not_repeat():
     st = _state()
     st.set_reader(_Reader())
-    st.on_device_info({"Ts": 0.002}, boot=True)
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"}, boot=True)
     n = len(st.reader.sent)
-    st.on_device_info({"Ts": 0.002})                               # bağlanırken gelen ping yanıtı
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"})                               # bağlanırken gelen ping yanıtı
     assert len(st.reader.sent) == n
-    st.on_device_info({"Ts": 0.002}, boot=True)                    # kart hemen yeniden başladı
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"}, boot=True)                    # kart hemen yeniden başladı
     assert len(st.reader.sent) == 2 * n
 
 
@@ -157,6 +157,7 @@ def test_push_continues_after_one_rejected_field():
     st.p.u_max = 50.0                                              # protokol: 0–48 → yerelde reddedilir
     st.x_ref = 0.1
     st.set_reader(_Reader())
+    st.device_info_seen, st.device_theta = True, "sol"            # cihaz θ kuralını bildirdi (#50)
     assert st.push_to_device() is False
     sent_keys = {k for _, f in st.reader.sent for k in f}
     assert "x_ref" in sent_keys and "fc_volt" in sent_keys and "u_max" not in sent_keys
@@ -355,6 +356,7 @@ def test_record_start_failure_is_reported_not_raised(qapp, monkeypatch):
     from gui import live_tab
     st = _state()
     st.set_reader(SimpleNamespace(transport=SimpleNamespace(name="sim"), sinks=[], applied_settings={}))
+    st.device_info_seen, st.device_theta = True, "sol"            # cihaz bilgisi geldi (#50: yoksa kayıt yok)
     tab = live_tab.LiveTab(st)
 
     class _FailingRecorder:                                         # kayıt klasörüne yazılamıyor
@@ -475,8 +477,8 @@ def test_swingup_flag_reaches_real_board_with_placeholder_params():
     st = _state(placeholder=True)
     st.swingup_enabled = False
     st.set_reader(_Reader(SimpleNamespace(name="COM3")))
-    st.on_device_info({"Ts": 0.002}, boot=True)
-    st.on_device_info({"Ts": 0.002}, boot=True)                  # kart resetlendi
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"}, boot=True)
+    st.on_device_info({"Ts": 0.002, "fw": "test", "theta": "sol"}, boot=True)                  # kart resetlendi
     assert st.reader.sent == [("set_param", {"swingup": 0})] * 2
 
 
@@ -703,7 +705,7 @@ def test_ping_reports_angle_calibration_and_gui_warns():
     st = _state()
     logs = []
     st.log.connect(logs.append)
-    st.on_device_info({"Ts": 0.002, "fw": "x", "angle_ok": False})
+    st.on_device_info({"Ts": 0.002, "fw": "x", "theta": "sol", "angle_ok": False})
     assert any("açı kalibrasyonu BAŞARISIZ" in m for m in logs)
 
 

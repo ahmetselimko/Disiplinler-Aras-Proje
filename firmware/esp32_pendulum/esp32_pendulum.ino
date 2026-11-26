@@ -27,10 +27,13 @@
 #if !defined(CTRL_PERIOD_MS) || !defined(MOTOR_V_MAX) || !defined(MOTOR_GEAR) || !defined(PULLEY_R_M)
 #error "gains.h eski: CTRL_PERIOD_MS / MOTOR_V_MAX / MOTOR_GEAR / PULLEY_R_M yok. Arayüzden yeniden dışa aktarın."
 #endif
-#ifndef P_FC
-#define P_FC 0.0f   // eski gains.h: Coulomb sürtünme telafisi kapalı (arayüzden yeniden dışa aktarın)
+#ifndef THETA_POSITIVE_LEFT
+#error "gains.h eski θ kuralıyla (sağa +) üretilmiş: LQR_K ve KALMAN_* ters işaretli, sarkaç düşer. Arayüzden yeniden dışa aktarın (#50)."
 #endif
-// eski gains.h: geçiş sınırları ve hedef enerji oranı için supervisor.py varsayılanları
+#ifndef P_FC
+#define P_FC 0.0f   // elle yazılmış/eksik gains.h için: Coulomb telafisi kapalı (#50 öncesi gains.h zaten derlenmez)
+#endif
+// elle yazılmış/eksik gains.h için supervisor.py varsayılanları (#50 öncesi dışa aktarılan gains.h yukarıda #error verir)
 #ifndef CATCH_DTH
 #define CATCH_DTH 5.0f     // LQR'a girişte |θ̇| sınırı [rad/s]
 #endif
@@ -70,9 +73,9 @@ static const int LIM_PRESSED = HIGH;                  //   NC switch + INPUT_PUL
                                                       //   NO switch kullanılırsa LOW yapın (kopuk kablo fark edilmez!)
 
 // ============================================================ DONANIM SABİTLERİ
-static const char *FW_NAME = "ref-1.1";
+static const char *FW_NAME = "ref-1.2";                // 1.2: θ sola + (#50); boot/ping "theta":"sol" bildirir
 static const uint8_t AS5600_ADDR = 0x36;
-static const float ANGLE_SIGN = +1.0f;                // sarkaç +x yönüne yatınca θ artmıyorsa -1 yapın
+static const float ANGLE_SIGN = +1.0f;                // θ > 0: sarkaç SOLA yatık (mekatronik raporu 8.1.3, #50). Sola yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
 static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder, 4x sayım. YER TUTUCU: motor teyit bekliyor (BOM v3: JGB37-520 ya da FIT0186); kesinleşince düzenleyin
 // redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
@@ -84,7 +87,7 @@ static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi 
 #ifndef USE_KALMAN
 #define USE_KALMAN 1                                   // 0: dik bölgede de yalnız 25 Hz türev filtresi (Kalman kapalı)
 #endif
-#if USE_KALMAN && !defined(KALMAN_AVAILABLE)          // eski gains.h: KALMAN_* matrisleri yok → filtresiz derle
+#if USE_KALMAN && !defined(KALMAN_AVAILABLE)          // KALMAN_* matrisleri olmayan (elle yazılmış) gains.h → filtresiz derle
 #warning "gains.h Kalman matrislerini icermiyor: Kalman KAPALI derleniyor. Arayuzden gains.h'yi yeniden uretin."
 #undef USE_KALMAN
 #define USE_KALMAN 0
@@ -207,7 +210,7 @@ struct KalmanEst {            // ayrık kararlı hal Kalman filtresi (filters.Ka
   void reset() { active = false; s[0] = s[1] = s[2] = s[3] = 0; }
   void update(float xm, float dx_lp, float thm, float dth_lp, float u_prev, bool enable, float &dx, float &dth) {
     if (!enable) { active = false; dx = dx_lp; dth = dth_lp; return; }
-#if !USE_KALMAN                                        // KALMAN_* sabitlerine hiç başvurma (eski gains.h derlensin)
+#if !USE_KALMAN                                        // KALMAN_* sabitlerine hiç başvurma (Kalman'sız gains.h derlensin)
     (void)xm; (void)thm; (void)u_prev; dx = dx_lp; dth = dth_lp;
 #else
     if (!active) {
@@ -287,8 +290,8 @@ static const float FC_V_COMP = 0.01f;   // [m/s] altında araba duruyor sayılı
 static float fc_N = P_FC;
 static float accelToVolt(float dx, float th, float dth, float a, bool coulomb) {
   float s = sinf(th), c = cosf(th), ml = P_M_POLE * P_L;
-  float ddth = (ml * P_G * s - P_C * dth - ml * c * a) / P_J;
-  float F = (P_M_CART + P_M_POLE) * a + ml * c * ddth - ml * s * dth * dth + P_B * dx;
+  float ddth = (ml * P_G * s - P_C * dth + ml * c * a) / P_J;            // θ sola +: J·θ̈ = mgl·sinθ + ml·cosθ·ẍ − c·θ̇
+  float F = (P_M_CART + P_M_POLE) * a - ml * c * ddth + ml * s * dth * dth + P_B * dx;
   // Coulomb sürtünme telafisi (dynamics.coulomb_compensation): hareket yönünde, duruyorsa istenen ivme yönünde.
   // Yalnız swing-up'ta; homing'de kapalı (coulomb = false)
   if (coulomb) {
@@ -298,7 +301,7 @@ static float accelToVolt(float dx, float th, float dth, float a, bool coulomb) {
   return (F + MOTOR_BETA * dx) / MOTOR_ALPHA;
 }
 
-// Enerji bazlı swing-up (swingup.EnergySwingUp ile aynı)
+// Enerji bazlı swing-up (swingup.EnergySwingUp ile aynı). θ sola + iken dE/dt = m·l·a·θ̇·cosθ → a = −k_E·Ẽ·θ̇·cosθ
 static float swingUpAccel(const Shared &p, float x, float dx, float th, float dth) {
   float E = 0.5f * P_J * dth * dth + P_M_POLE * P_G * P_L * (cosf(th) - 1.0f);
   float E_target = (p.su_eratio - 1.0f) * 2 * P_M_POLE * P_G * P_L;   // EnergySwingUp.target_energy
@@ -306,7 +309,7 @@ static float swingUpAccel(const Shared &p, float x, float dx, float th, float dt
   if (fabsf(dth) < 0.05f && fabsf(wrapAngle(th)) > 2.8f && E < -0.99f * 2 * P_M_POLE * P_G * P_L)
     a = p.su_akick * (x > 1e-3f ? -1.0f : 1.0f);
   else
-    a = p.su_kE * (E - E_target) * dth * cosf(th);
+    a = -p.su_kE * (E - E_target) * dth * cosf(th);
   a = clampf(a, -p.su_amax, p.su_amax);
   a += -p.su_kx * x - p.su_kv * dx;
   return clampf(a, -p.su_amax, p.su_amax);
@@ -617,7 +620,7 @@ static void handleCommand(const char *line) {
   if (!strcmp(cmd, "ping")) {
     char extra[112];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
     // açılış kalibrasyonu (~1.1 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
-    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
+    snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"theta\":\"sol\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
              FW_NAME, s.homed ? "true" : "false",
              !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");
     sendAck("ping", true, "pong", extra); return;
@@ -738,7 +741,7 @@ void setup() {
   S.mode = IDLE;
 
   Serial.print("\n");   // ROM'un 115200 baud açılış mesajı 921600'de çöp görünür: boot satırına yapışmasın
-  Serial.printf("{\"evt\":\"boot\",\"fw\":\"%s\",\"Ts\":%.4f}\n", FW_NAME, CTRL_PERIOD_MS / 1000.0f);
+  Serial.printf("{\"evt\":\"boot\",\"fw\":\"%s\",\"theta\":\"sol\",\"Ts\":%.4f}\n", FW_NAME, CTRL_PERIOD_MS / 1000.0f);
   xTaskCreatePinnedToCore(ctrlTask, "ctrl", 4096, nullptr, configMAX_PRIORITIES - 1, nullptr, 1);
   xTaskCreatePinnedToCore(commTask, "comm", 6144, nullptr, 2, nullptr, 0);
 }

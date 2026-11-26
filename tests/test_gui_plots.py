@@ -104,7 +104,7 @@ def test_simulation_matlab_compatible_mode(qapp):
     assert r is not None and r.stop_reason in ("time", "rail", "angle")
     assert np.diff(r.t) == pytest.approx(0.0025)
     text = page.info.text()
-    assert "Matlab uyumlu deneme" in text and "K (Matlab işaretinde, θ sola +)" in text
+    assert "Matlab uyumlu deneme" in text and "K (θ sola +, Matlab ile aynı işaret)" in text
     assert page.slider.maximum() == len(r.t) - 1
     page.matlab_cb.setChecked(False)
     assert page.swing_cb.isEnabled()
@@ -142,7 +142,7 @@ def test_matlab_mode_reproduces_matlab_K_with_matlab_settings(qapp):
     page.th0.setValue(10.0)
     page.T.setValue(0.5)
     page.run()
-    line = next(s for s in page.info.text().splitlines() if s.startswith("K (Matlab"))
+    line = next(s for s in page.info.text().splitlines() if s.startswith("K (θ sola +"))
     K_shown = [float(v) for v in line.split("[")[1].rstrip("]").split(",")]
     assert K_shown == pytest.approx(MATLAB_K_REFERENCE, abs=0.01)
     assert page.result.s[0][2] == pytest.approx(math.radians(10.0))
@@ -150,7 +150,7 @@ def test_matlab_mode_reproduces_matlab_K_with_matlab_settings(qapp):
     page.run()
     text = page.info.text()
     assert "Matlab'ın K'sı DEĞİL" in text
-    line = next(s for s in text.splitlines() if s.startswith("K (Matlab"))
+    line = next(s for s in text.splitlines() if s.startswith("K (θ sola +"))
     K_proj = [float(v) for v in line.split("[")[1].rstrip("]").split(",")]
     assert K_proj != pytest.approx(MATLAB_K_REFERENCE, abs=0.5)
     page.close()

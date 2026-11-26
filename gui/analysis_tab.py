@@ -15,7 +15,7 @@ from pendulum_lab.control.lqr import design_lqr
 from pendulum_lab.control.supervisor import MODE_CODES, Mode, Supervisor
 from pendulum_lab.sim.matlab_compat import (MATLAB_DT, MATLAB_F_MAX, MATLAB_Q, MATLAB_R, MATLAB_RAIL_LIMIT,
                                             force_model,
-                                            gain_to_matlab, matlab_reference_params,
+                                            matlab_reference_params,
                                             simulate_matlab_compatible)
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop
 
@@ -49,12 +49,12 @@ class SimulationPage(QtWidgets.QWidget):
         form_w.setMaximumWidth(330)
         f = QtWidgets.QFormLayout(form_w)
         self.th0 = spin(180.0, -180, 180, 1, 1, "°")
-        self.th0.setToolTip("0 = dik, 180 = aşağıda asılı")
+        self.th0.setToolTip("0 = dik, + = sola yatık, 180 = aşağıda asılı")
         self.x0 = spin(0.0, -0.3, 0.3, 3, 0.01, "m")
         self.dx0 = spin(0.0, -2.0, 2.0, 3, 0.05, "m/s")
         self.dx0.setToolTip("Arabanın başlangıç hızı ẋ₀")
         self.dth0 = spin(0.0, -1000.0, 1000.0, 1, 10.0, "°/s")
-        self.dth0.setToolTip("Sarkacın başlangıç açısal hızı θ̇₀")
+        self.dth0.setToolTip("Sarkacın başlangıç açısal hızı θ̇₀ (+ = sola doğru)")
         self.T = spin(15.0, 0.5, 120, 1, 1, "s")
         self.real_cb = QtWidgets.QCheckBox("Gerçekçi sensör (AS5600 12-bit, enkoder, türevle hız)")
         self.real_cb.setChecked(True)
@@ -92,8 +92,8 @@ class SimulationPage(QtWidgets.QWidget):
             f"b={p_ref.b:g}; Q=diag(25, 4, 32.83, 1), R={MATLAB_R:g}, kuvvet sınırı ±{MATLAB_F_MAX:g} N). "
             "Sonuç Matlab'ın sonucuyla karşılaştırılabilir.\n"
             "Kapalı: projenin parametreleri ve Tasarım sekmesindeki Q, R; K kuvvet girişli model için yeniden "
-            "hesaplanır, kuvvet sınırı yoktur.\nBu durumda K Matlab'ınkiyle aynı değildir (yalnız Matlab'ın işaret "
-            "kuralıyla gösterilir).")
+            "hesaplanır, kuvvet sınırı yoktur.\nBu durumda K Matlab'ınkiyle aynı değildir (θ işaret kuralı "
+            "aynıdır: sola +).")
         self.run_btn = QtWidgets.QPushButton("▶ Simüle Et")
         self.run_btn.setStyleSheet("QPushButton{font-weight:bold;padding:6px}")
         f.addRow(self.matlab_cb)
@@ -208,12 +208,10 @@ class SimulationPage(QtWidgets.QWidget):
         r = simulate_matlab_compatible(real, K, s0, self.T.value(), x_ref=x_ref, f_max=f_max,
                                        disturbance=dist)       # arabaya (Matlab'daki "Apply push")
         self._xref = x_ref                                     # simülasyon başarılıysa (eski sonuçla karışmasın)
-        Km = gain_to_matlab(K)
         reason = {"time": "süre doldu", "rail": f"|x| ≥ {MATLAB_RAIL_LIMIT:g} m", "angle": "|θ| ≥ 90°"}[r.stop_reason]
         head = [f"Matlab uyumlu deneme — bitiş: {reason} (t = {r.t[-1]:.2f} s)",
                 f"Ayarlar: {source}",
-                "K (proje işaretinde, θ sağa +) = [" + ", ".join(f"{v:.2f}" for v in K) + "]",
-                "K (Matlab işaretinde, θ sola +) = [" + ", ".join(f"{v:.2f}" for v in Km) + "]",
+                "K (θ sola +, Matlab ile aynı işaret) = [" + ", ".join(f"{v:.2f}" for v in K) + "]",
                 "Giriş kuvvettir [N], " + (f"±{f_max:g} N ile sınırlı." if f_max else "sınır yoktur.")]
         return r, head, real, f_max
 
@@ -354,7 +352,9 @@ class RootLocusPage(QtWidgets.QWidget):
         lay = QtWidgets.QVBoxLayout(self)
         top = QtWidgets.QHBoxLayout()
         self.neg_cb = QtWidgets.QCheckBox("Negatif kazanç (k < 0)")
-        self.neg_cb.setChecked(True)
+        # u = −k·θ: θ sola + iken (#50) sola yatan sarkacı yakalamak için araba sola (u < 0) gitmeli → k > 0
+        # sarkacı düzelten yöndür; varsayılan bu. Eski kuralda (θ sağa +) bu yön k < 0'dı.
+        self.neg_cb.setChecked(False)
         self.btn = QtWidgets.QPushButton("Çiz")
         top.addWidget(QtWidgets.QLabel("1 + k·G(s) = 0,  G(s) = θ(s)/u(s)  — yalnız θ'ya oransal geri besleme"))
         top.addWidget(self.neg_cb)

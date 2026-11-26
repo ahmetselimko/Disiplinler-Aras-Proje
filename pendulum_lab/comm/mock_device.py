@@ -48,7 +48,7 @@ HOME_SAT_S = 0.30        # homing'de gerilim bu süreden uzun doyumda kalırsa �
 HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
 HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı [m/s] (firmware ile aynı)
 HOME_SW_CLEAR = 0.05     # sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa sensör takılı → FAULT (firmware ile aynı)
-FW_NAME = "mock-1.1"
+FW_NAME = "mock-1.2"     # 1.2: θ sola + (#50); firmware gibi boot/ping'de "theta":"sol"
 
 
 class MockDevice:
@@ -107,7 +107,7 @@ class MockDevice:
     # ------------------------------------------------------------ yaşam döngüsü
     def start(self):
         self._running = True
-        self._emit(P.encode_event("boot", fw=FW_NAME, Ts=self.Ts))
+        self._emit(P.encode_event("boot", fw=FW_NAME, theta=P.THETA_CONVENTION, Ts=self.Ts))
         self._emit(P.encode_event("calib", ok=True))   # firmware: açılış kalibrasyonunun sonucu (protokol §3.2)
         if self.realtime:
             self._thread = threading.Thread(target=self._run, name="MockDevice", daemon=True)
@@ -175,7 +175,8 @@ class MockDevice:
             return b""
         if cmd == "ping":
             # angle_ok: sanal sensör her zaman kalibre (firmware'de açılış/calib sonucunu söyler)
-            return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, homed=self.homed, angle_ok=True)
+            return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, theta=P.THETA_CONVENTION,
+                                homed=self.homed, angle_ok=True)
         if cmd == "set_gain":  # çalışırken de kabul edilir (firmware kritik bölgede değiştirir)
             sup.set_gain(a.get("K", []))
             return P.encode_ack("set_gain")

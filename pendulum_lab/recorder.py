@@ -1,6 +1,15 @@
 """Telemetri oturumunu CSV'ye kaydeder (Excel / Matlab / pandas ile açılabilir).
 
 TelemetryReader.sinks listesine eklenir; satırlar okuyucu thread'inden gelir, dosyaya tamponlu yazılır.
+
+θ işareti (#50: θ > 0 sarkaç sola yatık):
+* `# theta_pozitif: sol`: kayıt yeni arayüzle yazıldı; PC'nin yazdığı alanlar (K'lar, ayarlar, komutlar) yeni kuralda.
+  Bu alanı olmayan eski kayıtlar (başlıksız, elle üretilmiş bir CSV de) bütünüyle θ sağa + kuralında sayılır;
+  load_recording θ, θ̇ sütunlarını, K'ların θ, θ̇ kazançlarını ve θ taşıyan komut alanlarını (eski biçim kick
+  `dth`, reset `th0_deg`) ters çevirir.
+* `# cihaz_theta_pozitif: sag`: yeni arayüz θ'yı eski kuralla gönderen (θ sağa +) bir firmware'e bağlıydı. Yalnız
+  cihazdan gelen θ, θ̇ sütunları çevrilir; PC'nin yazdığı K'lara dokunulmaz.
+Böylece oynatma ve simülasyonla karşılaştırma her durumda yeni kuralla yapılır.
 """
 
 from __future__ import annotations
@@ -28,12 +37,27 @@ from .model.params import PendulumParams
 from .sim.simulator import SensorModel, SimResult, simulate_closed_loop
 
 
+# Kayıt başlığındaki θ işareti alanı. Değer "sol": θ > 0 sarkaç sola yatık (mekatronik raporu 8.1.3, #50).
+THETA_SIGN_KEY = "theta_pozitif"
+THETA_SIGN_VALUE = "sol"
+# Alanı olmayan (ya da bu değerlerden birini taşıyan) kayıtlar eski kuralla (θ sağa +) yazılmıştır
+OLD_THETA_SIGN_VALUES = ("sag", "sağ")
+# Yeni arayüzün kaydında cihazın (telemetrinin) θ kuralı; "sag": eski firmware, yalnız θ, θ̇ sütunları çevrilir
+DEVICE_THETA_KEY = "cihaz_theta_pozitif"
+
+
 class Recorder:
     def __init__(self, path: str | Path, meta: dict | None = None):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        meta = dict(meta or {})
+        meta.pop(THETA_SIGN_KEY, None)            # PC'nin yazdığı her şey bu arayüzün kuralında
+        dev = meta.get(DEVICE_THETA_KEY)          # cihaz telemetrisinin kuralı (eski firmware: "sag")
+        if dev is not None and dev != THETA_SIGN_VALUE and dev not in OLD_THETA_SIGN_VALUES:
+            raise ValueError(f"tanınmayan {DEVICE_THETA_KEY} değeri {dev!r}")
+        meta = {THETA_SIGN_KEY: THETA_SIGN_VALUE, **meta}
         self._f = open(self.path, "x", newline="", encoding="utf-8")   # "x": varsa üzerine yazma
-        for k, v in (meta or {}).items():
+        for k, v in meta.items():
             encoded = v if isinstance(v, str) and '\n' not in v and '\r' not in v else json.dumps(v, ensure_ascii=False, allow_nan=False)
             self._f.write(f"# {k}: {encoded}\n")
         self._w = csv.writer(self._f)
@@ -189,6 +213,17 @@ def load_recording(path: str | Path) -> RecordedSession:
 
     arr = np.array([r[:6] for r in rows], dtype=float)
     modes = [r[6] for r in rows]
+    flip = _convert_old_theta_sign(meta, events, p.name)
+    dev = meta.get(DEVICE_THETA_KEY)
+    if dev is not None and dev != THETA_SIGN_VALUE and dev not in OLD_THETA_SIGN_VALUES:
+        raise ValueError(f"{p.name}: tanınmayan {DEVICE_THETA_KEY} değeri {dev!r} (beklenen "
+                         f"{THETA_SIGN_VALUE!r} ya da {OLD_THETA_SIGN_VALUES[0]!r})")
+    if dev in OLD_THETA_SIGN_VALUES:                          # yeni arayüz, eski firmware: yalnız telemetri
+        flip = True
+        meta["cihaz_theta_donusturuldu"] = True
+    if flip:
+        arr[:, 3] *= -1.0                     # th
+        arr[:, 4] *= -1.0                     # dth
     return RecordedSession(
         path=p,
         meta=meta,
@@ -201,6 +236,47 @@ def load_recording(path: str | Path) -> RecordedSession:
         u=arr[:, 5],
         mode=modes,
     )
+
+
+def _flip_gain(K):
+    """Eski kuralda (θ sağa +) yazılmış K'yı yeni kurala çevirir: θ ve θ̇ kazançlarının işareti ters."""
+    if isinstance(K, (list, tuple)) and len(K) == 4 and all(isinstance(v, (int, float)) for v in K):
+        return [K[0], K[1], -K[2], -K[3]]
+    return K
+
+
+def _convert_old_theta_sign(meta: dict, events: list[dict], name: str = "") -> bool:
+    """Kayıt bütünüyle eski θ kuralındaysa (başlıkta theta_pozitif yok ya da "sag") başlıktaki ve olaylardaki
+    K'ları ve θ taşıyan komut alanlarını yerinde çevirir, meta'yı yeni kurala işaretler ve True döndürür;
+    telemetrinin θ, θ̇ sütunlarını çağıran çevirir. (cihaz_theta_pozitif ayrı ele alınır: load_recording.)"""
+    sign = meta.get(THETA_SIGN_KEY)
+    if sign == THETA_SIGN_VALUE:
+        return False
+    if sign is not None and sign not in OLD_THETA_SIGN_VALUES:
+        raise ValueError(f"{name}: tanınmayan {THETA_SIGN_KEY} değeri {sign!r} (beklenen {THETA_SIGN_VALUE!r})")
+    if "K" in meta:
+        meta["K"] = _flip_gain(meta["K"])
+    ack = meta.get("device_acknowledged_settings")
+    if isinstance(ack, dict) and "K" in ack:
+        ack["K"] = _flip_gain(ack["K"])
+    for ev in events:
+        fields = ev.get("fields")
+        if ev.get("kind") == "command_sent" and isinstance(fields, dict):
+            if "K" in fields:
+                fields["K"] = _flip_gain(fields["K"])
+            for key in ("dth", "th0_deg"):           # kick (eski biçim) ve reset: θ işaretli alanlar
+                if isinstance(fields.get(key), (int, float)) and not isinstance(fields[key], bool):
+                    fields[key] = -fields[key]
+        settings = ev.get("settings")
+        if ev.get("kind") == "pc_design_snapshot" and isinstance(settings, dict):
+            if "K" in settings:
+                settings["K"] = _flip_gain(settings["K"])
+            sack = settings.get("device_acknowledged_settings")
+            if isinstance(sack, dict) and "K" in sack:
+                sack["K"] = _flip_gain(sack["K"])
+    meta[THETA_SIGN_KEY] = THETA_SIGN_VALUE
+    meta["theta_isareti_donusturuldu"] = True     # arayüz bilgi olarak gösterebilir
+    return True
 
 
 def _extract_replay_config(meta: dict, fallback_state=None):
@@ -315,7 +391,8 @@ def _settings_at_row(session: RecordedSession, row: int, end_row: int | None = N
         elif kind == "pc_design_snapshot" and before:
             snap = ev.get("settings")
             if isinstance(snap, dict):
-                meta.update({k: v for k, v in snap.items() if k != "device_acknowledged_settings"})
+                meta.update({k: v for k, v in snap.items()
+                             if k not in ("device_acknowledged_settings", THETA_SIGN_KEY, DEVICE_THETA_KEY)})
     meta["device_acknowledged_settings"] = ack
     return meta, sorted(later)
 

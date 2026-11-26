@@ -45,6 +45,8 @@ class AppState(QtCore.QObject):
         self.swingup_enabled = True
         self.x_ref = 0.0
         self.device_Ts: float | None = None     # cihazın bildirdiği kontrol periyodu
+        self.device_info_seen = False
+        self.device_theta = None
         self._last_info = -1e9
         self.K = np.zeros(4)
         self.cl_poles = np.array([])
@@ -69,6 +71,12 @@ class AppState(QtCore.QObject):
         return self.reader is not None and not isinstance(self.reader.transport, SimTransport)
 
     @property
+    def theta_mismatch(self) -> bool:
+        """Bağlı cihaz θ kuralını bizimkiyle aynı bildirmedi (θ'yı bildirmeyen eski firmware dahil).
+        Cihaz bilgisi (ping yanıtı / boot) henüz gelmediyse de True: K yalnız olumlu onaydan sonra gider."""
+        return self.reader is not None and self.device_theta != P.THETA_CONVENTION
+
+    @property
     def placeholder_on_real_device(self) -> bool:
         """Yer tutucu parametrelerle hesaplanmış K gerçek motoru sürebilir mi (uyarı gerekir)."""
         return self.real_device and self.p.placeholder
@@ -76,6 +84,8 @@ class AppState(QtCore.QObject):
     def set_reader(self, reader):
         self.reader = reader
         self.device_Ts = None
+        self.device_info_seen = False   # ping yanıtı / boot olayı geldi mi
+        self.device_theta = None        # cihazın bildirdiği θ kuralı ("sol"); eski firmware bildirmez
         self._last_info = -1e9          # yeni bağlantı: ilk cihaz bilgisi ayarları mutlaka yükler
         self.connection_changed.emit(reader is not None)
 
@@ -86,12 +96,20 @@ class AppState(QtCore.QObject):
         yanıtı aynı ayarları ikinci kez göndermez."""
         if "Ts" in data:
             self.device_Ts = float(data["Ts"])
+        self.device_info_seen = True             # boot ya da ping yanıtı
+        self.device_theta = data.get("theta")
         now = time.monotonic()
         if not boot and now - self._last_info < 1.0:
             return
         self._last_info = now
         ts = f"  Ts={self.device_Ts * 1000:g} ms" if self.device_Ts else "  (Ts bildirilmedi)"
         self.log.emit(f"Cihaz: fw={data.get('fw', '?')}{ts}")
+        if self.theta_mismatch:
+            self.log.emit(f"UYARI: cihaz θ kuralını bildirmedi ya da farklı bildirdi (theta={self.device_theta!r}); "
+                          f"bu arayüz θ'yı '{P.THETA_CONVENTION}' (sola yatınca pozitif, #50) sayar. Eski firmware "
+                          "olabilir: K GÖNDERİLMEZ (θ kazançları ters çalışır, sarkaç düşer); θ grafikleri ve "
+                          "animasyon ters işaretlidir; kayıtlara cihaz_theta_pozitif: sag yazılır (oynatmada çevrilir). "
+                          "Firmware'i güncelleyin.")
         if data.get("angle_ok") is False:      # açılıştaki calib olayı bağlanmadan önce gelip kaybolmuş olabilir
             self.log.emit("UYARI: cihazın açı kalibrasyonu BAŞARISIZ — sarkacı aşağıda hareketsiz tutup "
                           "'Açı Sıfırla (calib)'a basın; olmadan BAŞLAT reddedilir.")
@@ -127,6 +145,16 @@ class AppState(QtCore.QObject):
             # ve ölçeği farklıdır, cihazda arabayı raydan kaçırır (gains.h dışa aktarımı da #error verir)
             self.log.emit(f"K gönderilmedi: giriş türü '{self.p.input_mode}'. Cihaz yalnız 'voltage' (DC motor) "
                           "girişini destekler — Tasarım sekmesinde giriş türünü voltage yapıp K'yı yeniden hesaplayın.")
+            return False
+        if self.theta_mismatch:
+            if not self.device_info_seen:
+                self.send("ping")                # yanıt kaybolmuş olabilir: cihaz bilgisini yeniden iste
+                self.log.emit("K gönderilmedi: cihaz bilgisi (ping yanıtı) henüz gelmedi; θ kuralı doğrulanamadı. "
+                              "Cihaz bilgisi yeniden istendi; birkaç saniye sonra tekrar deneyin (gelmezse yeniden "
+                              "bağlanın).")
+            else:
+                self.log.emit("K gönderilmedi: cihazın θ kuralı bu arayüzünkiyle aynı değil (eski firmware?). "
+                              "Firmware'i güncelleyip yeniden bağlanın.")
             return False
         if self.placeholder_on_real_device and not force:
             self.log.emit("K gönderilmedi: parametreler yer tutucu ve gerçek karta bağlısınız.")
@@ -173,6 +201,10 @@ class AppState(QtCore.QObject):
         su = self.swingup
         return {
             "schema_version": 1,
+            # cihazın θ kuralı: eski (θ sağa +) firmware'e bağlıyken telemetri eski kuraldadır, load_recording
+            # yalnız θ, θ̇ sütunlarını çevirir. Bilgi gelmeden kayıt başlatılmaz (live_tab.toggle_record).
+            "cihaz_theta_pozitif": (self.device_theta if self.device_theta == P.THETA_CONVENTION else "sag")
+                                   if self.device_info_seen else None,
             "settings_scope": "PC tasarım anlık görüntüsü; gönderilen komutlar ve cihaz ACK/olayları event satırlarında",
             "device_Ts": self.device_Ts,
             "device_acknowledged_settings": dict(getattr(self.reader, "applied_settings", {})),

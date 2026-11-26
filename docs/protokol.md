@@ -18,7 +18,8 @@ PC portu açarken DTR/RTS'yi düşük tutar, böylece ESP32 resetlenmez.
 ## 2. Ortak kurallar
 
 * **SI birimleri**: metre, radyan, saniye, volt (veya input_mode'a göre N / m/s²).
-* **θ = 0 sarkacın DİK konumudur.** θ > 0 iken sarkaç +x yönüne yatıktır. θ, (−π, π] aralığına sarılmış gönderilir.
+* **θ = 0 sarkacın DİK konumudur, θ = ±π aşağıda asılı.** **θ > 0 iken sarkaç SOLA (−x yönüne) yatıktır** (mekatronik raporu Bölüm 8.1.3; Matlab dosyalarıyla aynı, #50). θ, (−π, π] aralığına sarılmış gönderilir. θ̇ aynı işarettedir: sarkaç sola doğru dönerken pozitif.
+* F > 0 (ve gerilim girişinde u > 0) arabayı sağa (+x) iter.
 * **x = 0 rayın ortasıdır**, sağa doğru pozitif. Homing'den önce x'in anlamı yoktur.
 * Durum vektörü sırası her yerde **[x, ẋ, θ, θ̇]** şeklindedir.
 * Kontrol kanunu: `u = −(K0·(x − x_ref) + K1·ẋ + K2·θ + K3·θ̇)`.
@@ -26,7 +27,7 @@ PC portu açarken DTR/RTS'yi düşük tutar, böylece ESP32 resetlenmez.
 ### Montaj sonrası işaret kontrolü (mekatronik ekibi)
 1. Kartı açın; sarkaç **aşağıda ve hareketsiz** olsun (açılışta açı sıfırı bu konumdan bulunur). Açılıştaki `calib` olayı arayüz bağlanmadan önce gelip kaybolabilir; bu yüzden `ping` yanıtındaki `angle_ok` alanı da sonucu söyler (arayüz `false` ise uyarır; o zaman "Açı Sıfırla (calib)"). Telemetride `th` yaklaşık ±3.14 olmalıdır.
 2. Sarkacı elle dik konuma getirin: `th` ≈ 0 olmalıdır.
-3. Dik konumdan arabanın **sağına** doğru yatırın: `th` **pozitif** olmalıdır. Değilse firmware'de `ANGLE_SIGN = -1` yapın.
+3. Dik konumdan arabanın **soluna** doğru yatırın: `th` **pozitif** olmalıdır. Değilse firmware'de `ANGLE_SIGN = -1` yapın. (#50'den önceki kuralda bu adım "sağına"ydı; eski kurala göre ayarlanmış bir kartta `ANGLE_SIGN` ters çevrilmelidir.)
 4. Arabayı elle sağa itin: `x` artmalıdır. Artmıyorsa `X_SIGN = -1` yapın.
 5. Motor yönü (ham gerilim komutu yoktur): **KALİBRE ET**'e basın, bir eliniz Esc'de. Araba **sola** gitmelidir. Sağa giderse ya da hızlanarak kaçarsa cihaz kendisi durur (`homing_wrong_side` / `homing_runaway`): motor kablolarını ters çevirin (x yönü 4. adımda doğrulandıysa). Homing başarıyla bittikten sonra Sürtünme Ölç ile de görebilirsiniz: önce +x'e (sağa) gider. Uç sensörsüz derlemede (`LIMIT_SWITCHES 0`) KALİBRE ET arabayı hareket ettirmez; motor yönünü o zaman Sürtünme Ölç'ün ilk hareketiyle kontrol edin (Esc hazırda).
 
@@ -50,7 +51,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 ### 3.2 Olaylar
 | Mesaj | Ne zaman |
 |---|---|
-| `{"evt":"boot","fw":"ref-1.1","Ts":0.002}` | Açılışta. Firmware boot satırından önce boş bir satır (`\n`) basar: ESP32'nin 115200 baud'daki ROM açılış mesajı 921600'de çöp olarak görünür ve PC çöpü `{`'den önce keser. İlk telemetri satırı ancak ilk gerçek ölçümden sonra gelir. PC sıra sayacını ve grafiği sıfırlar, Ts'yi kontrol eder, K ve ayarları **yeniden yükler** (cihaz resetlenince PC'den gelen ayarlar kaybolur) |
+| `{"evt":"boot","fw":"ref-1.2","theta":"sol","Ts":0.002}` | Açılışta. `theta`: cihazın θ işaret kuralı (`"sol"`: θ > 0 sarkaç sola yatık, #50; ping yanıtında da var). Bu alanı taşımayan ya da başka değer bildiren cihaza (θ sağa + kullanan eski firmware) ve cihaz bilgisi henüz gelmemişken PC K ve ayarları **göndermez** (yalnız swing-up açık/kapalı anahtarı gider) ve uyarır; böyle bir cihazdan alınan kayıtların başlığına `cihaz_theta_pozitif: sag` yazılır (okurken yalnız θ, θ̇ sütunları çevrilir). Cihaz bilgisi gelmeden kayıt başlatılmaz. Firmware boot satırından önce boş bir satır (`\n`) basar: ESP32'nin 115200 baud'daki ROM açılış mesajı 921600'de çöp olarak görünür ve PC çöpü `{`'den önce keser. İlk telemetri satırı ancak ilk gerçek ölçümden sonra gelir. PC sıra sayacını ve grafiği sıfırlar, Ts'yi kontrol eder, K ve ayarları **yeniden yükler** (cihaz resetlenince PC'den gelen ayarlar kaybolur) |
 | `{"evt":"friction","ok":true,"v_pos":0.51,"v_neg":0.47,"v_c":0.49,"slope":8.6}` | Sürtünme ölçümü bittiğinde. `v_c`: kayma sürtünmesini yenen gerilim [V] (iki yönün ortalaması), `slope`: (β + b)/α [V·s/m]. Başarısızsa `{"ok":false,"reason":"…"}`, mod IDLE'a döner |
 | `{"evt":"calib","ok":true}` | Açı kalibrasyonu bittiğinde (açılışta ve `calib` komutundan sonra). `ok:false` → `start` reddedilir |
 | `{"evt":"limit","side":"L"}` / `"R"` | Limit switch'e ilk basıldığında |
@@ -65,7 +66,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 
 | Komut | Örnek | Etki |
 |---|---|---|
-| `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.1","homed":false,"angle_ok":true}`. `angle_ok` açılış kalibrasyonu bitene kadar (~1.1 s) **gönderilmez** (alanın yokluğu "başarısız" demek değildir; sonuç `calib` olayıyla gelir). PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
+| `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.2","theta":"sol","homed":false,"angle_ok":true}`. `angle_ok` açılış kalibrasyonu bitene kadar (~1.1 s) **gönderilmez** (alanın yokluğu "başarısız" demek değildir; sonuç `calib` olayıyla gelir). PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
 | `hb` | `{"cmd":"hb"}` | **Bağlantı bekçisi, yanıtsız.** PC bağlıyken 0.25 s'de bir gönderir (`protocol.py::HB_PERIOD_S`); arayüzde okuyucu thread'inden gider, uzun bir hesap arayüzü dondursa da kesilmez. Cihaz HOMING, SWING_UP, WAIT, BALANCE veya FRICTION modundayken **1 s** (`LINK_TIMEOUT_S`, firmware `LINK_TIMEOUT_MS`) boyunca hiç komut satırı almazsa motoru keser: FAULT `link`. IDLE/FAULT'ta denetlenmez. Herhangi bir komut satırı da sayacı sıfırlar |
 | `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Yeni homing başlarken önceki kalibrasyon geçersiz sayılır (homing yarıda `stop` edilirse `start` reddedilir). Araba sola gider, sol limit switch'te (zaten basılıysa hemen) x = −rail_half kabul eder, sonra ortaya döner. Güvenlik: bkz. 3.2 `homing_*` hataları. **Switch'siz derlenmiş firmware'de (`LIMIT_SWITCHES 0`):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir; `limit` olayı ve `limit`/`homing_*` hataları oluşmaz |
 | `calib` | `{"cmd":"calib"}` | Yalnız IDLE modunda. Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (açılıştaki kalibrasyon başarısız olduysa) |
@@ -73,7 +74,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 | `start` | `{"cmd":"start"}` | Yalnız **IDLE** modunda, homing ve açı kalibrasyonu yapılmışsa. FAULT'tan doğrudan başlatılamaz (önce `stop`). Araba ray ucuna 0.10 m'den yakınsa veya 0.2 m/s'den hızlı gidiyorsa reddedilir. Swing-up açıksa SWING_UP, kapalıysa WAIT |
 | `stop` | `{"cmd":"stop"}` | IDLE moduna geçer, sürücü kapatılır (araba elle itilebilir). Homing'i de iptal eder |
 | `estop` | `{"cmd":"estop"}` | FAULT moduna geçer, sürücü EN pini düşürülür. Aynı anda gelen diğer komutları **ezer**. Arayüzde **Esc** tuşu (açık bir pencere varken de çalışır) |
-| `set_gain` | `{"cmd":"set_gain","K":[-9.57,-22.13,-56.44,-8.71]}` | LQR kazancı. Çalışırken de değiştirilebilir |
+| `set_gain` | `{"cmd":"set_gain","K":[-9.52,-27.29,61.49,9.74]}` | LQR kazancı (örnek: `config/params.json` ile; θ sola + kuralında θ, θ̇ kazançları pozitiftir, #50). Çalışırken de değiştirilebilir |
 | `set_param` | `{"cmd":"set_param","catch_deg":15,"release_deg":30}` | Aşağıdaki tablo |
 
 **Yalnız sanal ESP32 (firmware'de yok, gerçek kart `ok:false` döner):** `{"cmd":"kick","F":1.2,"dur":0.05,"at":"pole"}` F newton yatay kuvveti `dur` saniye uygular; `at`: `"pole"` sarkacın ağırlık merkezine (varsayılan), `"cart"` arabaya (Matlab'daki "Apply push" gibi) (F: ±20 N, dur: 0.001–2 s; Analiz sekmesindeki dürtmeyle aynı model; eski biçim `{"cmd":"kick","dth":1.0}` θ̇'ye anlık ekler ve hâlâ kabul edilir); `{"cmd":"pause","on":1}` / `"on":0` fiziği ve kontrolü dondurur / sürdürür (telemetri son değerlerle akmaya devam eder); `{"cmd":"reset","th0_deg":180}` IDLE'a döner, duraklatmayı kaldırır ve sarkacı θ₀ açısında durağan koyar. Liste: `protocol.py::SIM_ONLY_COMMANDS`.

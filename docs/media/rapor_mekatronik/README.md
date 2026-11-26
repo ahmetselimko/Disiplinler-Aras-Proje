@@ -1,10 +1,10 @@
 # Rapor şekilleri
 
-`tools/rapor_sekilleri.py` ile 23.11.2026 tarihinde üretildi. **Elle düzenlemeyin;** parametreler değişince script'i yeniden çalıştırın.
+`tools/rapor_sekilleri.py` ile 25.11.2026 tarihinde üretildi. **Elle düzenlemeyin;** parametreler değişince script'i yeniden çalıştırın.
 
 * Parametreler: `config/params_mekatronik_tasarim.json` (M = 1.28 kg, m = 0.105 kg, l = 0.0992 m, ray ±0.4 m, giriş: motor gerilimi, |u| ≤ 12 V)
 * Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up (hedef enerji oranı 1.05)
-* K = [-9.83, -46.64, -101.46, -14.36]
+* K = [-9.83, -46.64, 101.46, 14.36]
 * Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 48 CPR × 19 redüktör = 912 sayım/tur, 0.066 mm/sayım); dik bölgede Kalman (firmware gibi)
 
 > ⚠ **Parametreler yer tutucu değerlerdir** (`config/params_mekatronik_tasarim.json`, ölçüm değil). Gerçek ölçüler girilince şekiller yeniden üretilmelidir; sayılar değişecektir.
@@ -19,7 +19,7 @@
 
 | LQR'a geçiş | Yerleşme (±2°) | Max \|x\| | Max \|u\| | Sonuç |
 |---|---|---|---|---|
-| 4.32 s | 4.55 s | 0.142 m | 12.00 V | dengede kaldı |
+| 4.32 s | 4.55 s | 0.143 m | 12.00 V | dengede kaldı |
 
 ## 2. Dürtmeye tepki — `durtme.png`
 
@@ -63,7 +63,7 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 | -5% | dengede kaldı | 4.23 s | 0.150 m | 0.0° |
 | +0% | dengede kaldı | 4.32 s | 0.143 m | 0.0° |
 | +5% | dengede kaldı | 3.57 s | 0.142 m | 0.0° |
-| +10% | dengede kaldı | 3.55 s | 0.140 m | 0.0° |
+| +10% | dengede kaldı | 3.55 s | 0.143 m | 0.0° |
 | +15% | dengede kaldı | 3.57 s | 0.154 m | 0.0° |
 | +20% | dengede kaldı (ray ucuna yakın) | 3.60 s | 0.305 m | 0.0° |
 | +25% | LQR yakaladı ama tutamadı | 3.64 s | 0.272 m | 11.9° |

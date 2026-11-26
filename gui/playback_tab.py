@@ -256,6 +256,12 @@ class PlaybackTab(QtWidgets.QWidget):
         ]
         if comp.t_start > 0:
             lines.append(f"Simülasyon BAŞLAT anında başlar: t = {comp.t_start:.2f} s")
+        if self.session.meta.get("theta_isareti_donusturuldu"):
+            lines.append("Not: eski θ kuralıyla (sağa +) alınmış kayıt; θ, θ̇ ve K'lar okunurken yeni kurala "
+                         "(sola +) çevrildi.")
+        elif self.session.meta.get("cihaz_theta_donusturuldu"):
+            lines.append("Not: kayıt eski (θ sağa +) firmware'le alınmış; θ, θ̇ okunurken yeni kurala (sola +) "
+                         "çevrildi. Kart bu denemede PC'nin K'sını kullanmadı (θ uyuşmazlığında K gönderilmez).")
         if comp.changed_during_trial:
             lines += [
                 f"UYARI: deneme sırasında değişen ayar(lar): {', '.join(comp.changed_during_trial)}",

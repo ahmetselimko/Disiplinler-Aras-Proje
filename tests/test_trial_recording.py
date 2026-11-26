@@ -29,7 +29,8 @@ def test_settings_commands_and_acceptance_are_preserved_in_csv(tmp_path):
     rd._handle_lines([P.encode_ack("set_param", False, "reddedildi")])
     rec.close()
     lines = path.read_text(encoding="utf-8").splitlines()
-    assert json.loads(lines[0].split(": ", 1)[1]) == [10, 1, 100, 1]
+    assert lines[0] == "# theta_pozitif: sol"
+    assert json.loads(lines[1].split(": ", 1)[1]) == [10, 1, 100, 1]
     events = [json.loads(line[len("# event: "):]) for line in lines if line.startswith("# event: ")]
     assert [e["kind"] for e in events] == ["command_sent", "Ack", "command_sent", "Ack"]
     assert events[0]["fields"] == {"u_max": 6.}

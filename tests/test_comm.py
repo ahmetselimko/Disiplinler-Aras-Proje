@@ -259,9 +259,10 @@ def test_recorder_writes_csv(tmp_path):
     rec.write_rows([(0.0, 0.1, 0, 0.01, 0, 1.0, 4.0)])
     rec.close()
     text = (tmp_path / "a.csv").read_text(encoding="utf-8").splitlines()
-    assert text[0] == "# not: test"
-    assert text[1] == ",".join(COLUMNS)
-    assert text[2].endswith("BALANCE")
+    assert text[0] == "# theta_pozitif: sol"          # θ işaret kuralı her kaydın başında (#50)
+    assert text[1] == "# not: test"
+    assert text[2] == ",".join(COLUMNS)
+    assert text[3].endswith("BALANCE")
 
 
 def test_gains_header_contains_K():
@@ -413,7 +414,7 @@ def test_recorder_as_reader_sink(tmp_path):
     assert _wait(lambda: rec.rows == 30)
     rd.stop()
     rec.close()
-    assert len((tmp_path / "s.csv").read_text(encoding="utf-8").splitlines()) == 31
+    assert len((tmp_path / "s.csv").read_text(encoding="utf-8").splitlines()) == 32   # theta_pozitif + başlık + 30 satır
 
 
 def test_recorder_never_overwrites(tmp_path):

@@ -88,7 +88,7 @@ MODE_TR = {
 
 
 class PendulumView(pg.PlotWidget):
-    """Araba-sarkaç çizimi. θ=0 dik."""
+    """Araba-sarkaç çizimi. θ = 0 dik, θ > 0 sarkaç SOLA yatık (mekatronik raporu 8.1.3, #50)."""
 
     def __init__(self, rail_half: float = 0.4, length: float = 0.3, parent=None):
         super().__init__(parent)
@@ -126,7 +126,7 @@ class PendulumView(pg.PlotWidget):
 
     def set_state(self, x: float, th: float, x_ref: float | None = None):
         self.cart.setPos(x, 0)
-        tx, ty = x + self.length * math.sin(th), self.length * math.cos(th)
+        tx, ty = x - self.length * math.sin(th), self.length * math.cos(th)    # θ > 0 → uç arabanın solunda
         self.rod.setData([x, tx], [0, ty])
         self.bob.setData([tx], [ty])
         if x_ref is not None:

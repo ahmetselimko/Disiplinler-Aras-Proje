@@ -17,7 +17,7 @@ python main.py
 ## 1. Bağlanma
 Üstteki **Port** listesinde varsayılan olarak **★ Sanal ESP32 (simülasyon)** seçilidir. Donanım yokken her şey bu sanal cihazla denenir. Gerçek kart takılıysa listede ESP32'nin COM portu da görünür (yenilemek için ⟳). Baud: **921600**. **Bağlan**'a basın.
 
-Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı her durumda (güvenlik) gönderilir. K ve diğer ayarlar ise yalnız cihazın kontrol periyodu (Ts) tasarımdakiyle aynıysa, parametreler yer tutucu değilse ve giriş türü `voltage` ise otomatik yüklenir ve sağ alttaki günlükte görünür. Ts farklıysa K **gönderilmez** ve uyarı çıkar; yer tutucu parametrelerle gerçek kartta K yalnız **K'yı Cihaza Gönder** ile onaylanarak gider.
+Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı her durumda (güvenlik) gönderilir. K ve diğer ayarlar ise yalnız cihaz θ kuralını `"theta":"sol"` olarak bildirdiyse (#50; eski firmware bildirmez), cihazın kontrol periyodu (Ts) tasarımdakiyle aynıysa, parametreler yer tutucu değilse ve giriş türü `voltage` ise otomatik yüklenir ve sağ alttaki günlükte görünür. Ts farklıysa K **gönderilmez** ve uyarı çıkar; yer tutucu parametrelerle gerçek kartta K yalnız **K'yı Cihaza Gönder** ile onaylanarak gider.
 
 ## 2. Canlı İzleme sekmesi
 
@@ -25,7 +25,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı 
 
 | Bölge | Ne gösterir / ne yapar |
 |---|---|
-| Sol grafikler | Sarkaç açısı θ (0 = dik; yeşil kesikli çizgiler LQR devreye girme sınırı ±15°), araba konumu x (kırmızı kesikli çizgiler ray uçları), kontrol girişi u (volt), sarkacın enerjisi E (0 = dik konum enerjisi) ve mod. Son 10 s kayarak çizilir |
+| Sol grafikler | Sarkaç açısı θ (0 = dik, pozitif = sola yatık; yeşil kesikli çizgiler LQR devreye girme sınırı ±15°), araba konumu x (kırmızı kesikli çizgiler ray uçları), kontrol girişi u (volt), sarkacın enerjisi E (0 = dik konum enerjisi) ve mod. Son 10 s kayarak çizilir |
 | Sonuç Özeti | Son denemenin özeti: dengeye geçiş anı, oturma süresi, en büyük \|x\| ve \|u\|, doyumda geçen süre, bitiş modu |
 | Yeşil/turuncu/kırmızı kutu | Mod: BEKLEMEDE · KALİBRASYON · SWING-UP · DENGE (LQR) · DURDURULDU · HATA/STOP. DURDURULDU, DURDUR'dan sonraki BEKLEMEDE'dir (yalnız arayüzde). Simülasyon duraklatılmışsa başında ⏸ görünür |
 | Animasyon | Araba ve sarkacın anlık konumu; yeşil kesikli çizgi hedef konum |
@@ -37,9 +37,9 @@ Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı 
 | **Açı Sıfırla (calib)** | Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur. Açılışta sarkaç sallanıyorduysa kullanılır |
 | **Sürtünme Ölç** | KALİBRE ET'ten sonra, sarkaç aşağıda dururken. Araba önce sağa sonra sola ~8 cm'er gider ve motor + kayış sürtünmesini gerilim olarak ölçer (gösterge: SÜRTÜNME ÖLÇÜMÜ, ~5 s). Sonuç penceresinde onaylanırsa T_f parametrelere yazılır ve telafi karta gönderilir; kalıcı olması için Tasarım sekmesinde **Parametre Kaydet**. Eğim satırı motor sabitlerinin kontrolüdür: ölçülen ile model çok farklıysa motor değerleri gözden geçirilmeli |
 | **● Kaydı Başlat** | Telemetriyi `kayitlar/` klasörüne yazar: sanal ESP32'de `sim_….csv`, gerçek kartta `gercek_….csv`. Kaynak dosyanın başında da yazar (Excel/Matlab ile açılır) |
-| **Dürt** + kuvvet, süre, yer | Yalnız simülasyonda: girilen yatay kuvveti (N) verilen süre (ms) boyunca uygular, LQR'ın toparlamasını görmek için. Yer **sarkaca** (ağırlık merkezine) veya **arabaya** (Matlab'daki "Apply push" ile aynı). Varsayılan 1.2 N × 50 ms sarkaca: θ̇'yi ~1 rad/s değiştirir |
+| **Dürt** + kuvvet, süre, yer | Yalnız simülasyonda: girilen yatay kuvveti (N) verilen süre (ms) boyunca uygular, LQR'ın toparlamasını görmek için. Yer **sarkaca** (ağırlık merkezine) veya **arabaya** (Matlab'daki "Apply push" ile aynı). Varsayılan 1.2 N × 50 ms sarkaca: θ̇'yi ~1 rad/s değiştirir. Pozitif kuvvet sağa iter: sarkaca sağa itme dik sarkacı sağa (θ < 0), arabaya sağa itme sarkacı sola (θ > 0) yatırır |
 | **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
-| **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik) durağan koyar. Kalibre edildiyse araba x = 0 noktasına gelir, kalibrasyonun tekrarı gerekmez |
+| **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik, pozitif = sola yatık) durağan koyar. Kalibre edildiyse araba x = 0 noktasına gelir, kalibrasyonun tekrarı gerekmez |
 | Hedef + x_ref gönder | Dengedeyken arabanın gideceği konum (ray sınırına göre kısıtlanır) |
 | Swing-up açık | Kapatılırsa cihaz sarkacın elle dik konuma getirilmesini bekler (WAIT), sonra LQR tutar. Swing-up sürerken kapatılırsa pompalama hemen durur. İlk donanım denemesinde önerilir |
 | Durum çubuğu | Veri hızı (Hz), kayıp satır, hatalı satır, çizim FPS, güncel K |
@@ -86,7 +86,7 @@ Gerçek parametreler gelince **ilk iş** buradan θ₀ = 180° ile denemektir: s
 - **Matlab'ın kendi ayarlarıyla** (varsayılan): `cart_pendulum_lqr.m`'deki parametreler, Q, R ve ±10 N kuvvet sınırı kullanılır; sonuç ve K Matlab'ınkiyle karşılaştırılabilir.
 - Kapatılırsa projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır, kuvvet sınırı yoktur; o zaman gösterilen K Matlab'ın K'sı değildir.
 
-K iki işarette de gösterilir: Matlab'da θ sola, projede sağa pozitiftir. Ayrıntı: [matlab/README.md](../matlab/README.md).
+K tek satırda gösterilir: #50'den beri projede de Matlab'daki gibi θ sola pozitiftir, K'lar doğrudan karşılaştırılabilir. Ayrıntı: [matlab/README.md](../matlab/README.md).
 
 ### Basamak yanıtı
 ![Basamak yanıtı](media/basamak_yaniti.png)
@@ -126,6 +126,8 @@ RMSE büyükse önce parametreleri (özellikle motor değerleri ve sürtünme) g
 | "✗ sürtünme ölçümü: yeterli hıza ulaşılamadı" | Gerilim (6 V), yol (8 cm) veya süre sınırına takıldı: sürtünme çok yüksek ya da araba sıkışıyor. Mekanizmayı elle itip kontrol edin |
 | "✗ start: açı kalibrasyonu başarısız" | Sarkacı aşağıda durdurup **Açı Sıfırla (calib)** |
 | Gerçek karta bağlanınca "Yer tutucu parametreler" uyarısı, K gönderilmiyor | `config/params.json` hâlâ yer tutucu. Tasarım sekmesinde ölçülmüş değerleri girip **Ölçülmüş gerçek değerler** kutusunu işaretleyin, **Parametre Kaydet**. Kart o zamana kadar derlendiği `gains.h` ile çalışır |
+| "UYARI: cihaz θ kuralını bildirmedi ya da farklı bildirdi" / "K gönderilmedi: cihazın θ kuralı …" | Kartta #50 öncesi (θ sağa +) firmware var: K gönderilmez, θ grafikleri ve animasyon ters; kayıtlara `cihaz_theta_pozitif: sag` yazılır, oynatmada θ çevrilir. Firmware'i güncelleyin; `gains.h`'yi arayüzden yeniden dışa aktarın (eski `gains.h` yeni firmware'le derlenmez) |
+| "K gönderilmedi: cihaz bilgisi (ping yanıtı) henüz gelmedi" | Bağlandıktan hemen sonra basıldı (kayıt da bu durumda başlatılmaz) ya da ping yanıtı kayboldu. Arayüz bilgiyi yeniden ister; birkaç saniye sonra tekrar deneyin, olmazsa yeniden bağlanın |
 | "UYARI: cihaz Ts = … ms, tasarım Ts = … ms" | Tasarım sekmesinde Ts'yi cihazınkiyle aynı yapıp K Hesapla → Cihaza Gönder |
 | "olay: fault reason=homing_wrong_side" | Homing'de sağ uç sensörü tetiklendi: motor veya enkoder yönü ters (protokol.md §2) ya da sağ sensörün kablosu kopuk/sürekli basılı |
 | "olay: fault reason=homing_switch" | Sol uç sensörü araba uzaklaştığı hâlde basılı kalıyor: kablosu kopuk ya da sensör takılı. Kabloyu ve sensörü kontrol edin |
