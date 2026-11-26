@@ -121,7 +121,7 @@ class PlaybackTab(QtWidgets.QWidget):
         self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=dash)))
         setup_mode_axis(self.p_m)
 
-        self.cursor = [pg.InfiniteLine(angle=90, pen=pg.mkPen("#f39c12")) for _ in range(5)]
+        self.cursor = [pg.InfiniteLine(angle=90, pen=pg.mkPen("#f39c12")) for _ in range(len(plots))]
         for pl, c in zip(plots, self.cursor):
             pl.addItem(c)
         mid.addWidget(self.glw)

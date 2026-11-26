@@ -162,3 +162,43 @@ def test_gui_gyro_plots_and_rmse():
     assert not live.p_w.isVisible() and live.gyro_mix.isHidden()
     live.close()
     assert app is not None
+
+
+
+def test_frozen_gyro_detected_and_normal_run_not():
+    """İnceleme (Aşama 5, 1. tur): MPU resetlenip uykuya dönerse okuma başarılı ama değer 0 → tutarlılık
+    denetimi jiroskobu kapatır (FAULT yok, olay bir kez). Normal swing-up'ta denetim yanlış tetiklenmez."""
+    assert "GYRO_CHECK_RAD_S = 3.0f" in FW and "GYRO_CHECK_N = 25;" in FW
+    assert MD.GYRO_CHECK_RAD_S == 3.0 and MD.GYRO_CHECK_N == 25
+    assert "MPU_PWR_CHECK_N = 50;" in FW and MD.MPU_PWR_CHECK_N == 50 and "pwr != 0x01" in FW
+    for frozen in (False, True):
+        dev, out = _dev()
+        dev.feed(P.encode_command("set_param", gyro_mix=1.0))
+        dev.feed(P.encode_command("home"))
+        for _ in range(6000):
+            dev.step()
+            if dev.homed and dev.sup.mode == Mode.IDLE:
+                break
+        assert dev.homed
+        dev.gyro_frozen = frozen
+        dev.feed(P.encode_command("start"))
+        modes = set()
+        for _ in range(5000):
+            dev.step()
+            modes.add(dev.sup.mode)
+        ev = [m for m in _msgs(out) if isinstance(m, P.Event) and m.name == "gyro"]
+        assert dev.mpu_ok is (not frozen) and len(ev) == (1 if frozen else 0)
+        assert Mode.FAULT not in modes and Mode.BALANCE in modes   # γ = 1 iken de (donmuşta AS5600'e dönüp) yakalar
+
+
+def test_calib_with_failed_gyro_and_boot_bias():
+    dev, out = _dev()
+    boot = [m for m in _msgs(out) if isinstance(m, P.Event) and m.name == "calib"][0]
+    assert "gyro_bias" in boot.data                         # firmware gibi açılış calib olayında da
+    out.clear()
+    dev.gyro_fail = True
+    dev.feed(P.encode_command("calib"))
+    dev.step()
+    names = [m.name for m in _msgs(out) if isinstance(m, P.Event)]
+    assert names == ["gyro", "calib"] and not dev.mpu_ok
+    assert "vTaskDelay(pdMS_TO_TICKS(50)); mpu_ok = calibrateGyro" in FW   # uykudan çıkışı bekle

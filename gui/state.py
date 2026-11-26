@@ -58,6 +58,7 @@ class AppState(QtCore.QObject):
         self.catch_dx = CATCH_DX        # LQR'a girişte |ẋ| sınırı [m/s]
         self.swingup_enabled = True
         self.x_ref = 0.0
+        self.gyro_mix = 0.0             # MPU6050 karışımı; kart resetlenirse yeniden gönderilir
         self.device_Ts: float | None = None     # cihazın bildirdiği kontrol periyodu
         self.device_info_seen = False
         self.device_theta = None
@@ -195,6 +196,8 @@ class AppState(QtCore.QObject):
         if self.p.input_mode == "voltage":       # Coulomb telafisi, gerilim olarak (firmware: fc_N = fc_volt·α)
             msgs.append(("set_param", dict(fc_volt=min(6.0, self.p.F_coulomb / self.p.motor.alpha))))
         msgs.append(("set_param", dict(x_ref=self.x_ref)))
+        if self.gyro_mix > 0:                    # 0 kartın varsayılanı; MPU'suz firmware'e gereksiz alan gitmesin
+            msgs.append(("set_param", dict(gyro_mix=self.gyro_mix)))
         failed = [", ".join(f) for cmd, f in msgs if not self.send(cmd, **f)]
         if failed:
             self.log.emit("UYARI: şu ayarlar GÖNDERİLEMEDİ, cihaz eski değerlerini kullanıyor: " + "; ".join(failed))

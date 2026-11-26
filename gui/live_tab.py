@@ -191,7 +191,7 @@ class LiveTab(QtWidgets.QWidget):
 
         self._stopped = False      # son mod komutu DURDUR muydu (IDLE "Durduruldu" gösterilir)
         self.b_home.clicked.connect(lambda: self.send_mode_cmd("home"))
-        self.b_gyro_mix.clicked.connect(lambda: self.state.send("set_param", gyro_mix=self.gyro_mix.value()))
+        self.b_gyro_mix.clicked.connect(self._send_gyro_mix)
         self.b_calib.clicked.connect(lambda: state.send("calib"))
         self.b_push.clicked.connect(lambda: push_with_confirm(self, state))
         self.b_start.clicked.connect(lambda: self.send_mode_cmd("start"))
@@ -211,6 +211,12 @@ class LiveTab(QtWidgets.QWidget):
         self._on_conn(False)
 
     # ------------------------------------------------------------ eylemler
+    def _send_gyro_mix(self):
+        """Karışımı gönder; durumda tutulur, kart resetlenince ayarlarla yeniden gider."""
+        v = self.gyro_mix.value()
+        if self.state.send("set_param", gyro_mix=v):
+            self.state.gyro_mix = v
+
     def send_mode_cmd(self, cmd: str):
         # start reddedilebilir: kabul edilirse mod zaten IDLE'dan çıkar, "Durduruldu" burada silinmez
         if self.state.send(cmd) and cmd != "start":

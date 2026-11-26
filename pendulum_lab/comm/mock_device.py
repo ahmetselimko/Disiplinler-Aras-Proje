@@ -58,6 +58,10 @@ HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı 
 HOME_SW_CLEAR = 0.05     # sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa sensör takılı → FAULT (firmware ile aynı)
 HOME_BACKOFF = 0.01      # END_SENSORS 2: homing optik etkinken başlarsa optik bırakıldıktan sonra bu kadar daha sağa (firmware ile aynı)
 MPU_FAIL_LIMIT = 3       # MPU6050 art arda bu kadar okunamazsa devre dışı (firmware ile aynı)
+GYRO_CHECK_RAD_S = 3.0                            # firmware tutarlılık denetimi: |gy − θ̇_türev| eşiği
+GYRO_CHECK_N = 25                                 # art arda adım (50 ms)
+MPU_PWR_CHECK_N = 50                              # firmware: bu kadar adımda bir PWR_MGMT_1 (uyku/reset) okunur
+MOCK_I2C_US = 250                                 # ping i2c_us: sanal değer (400 kHz tahmini)
 MPU_BIAS_SAMPLES = 200   # calib: jiroskop bias ortalaması (firmware ile aynı)
 OPT_FROM_END = 0.03      # END_SENSORS 2: optik sensör, mikro switch'ten (ray sonundan) bu kadar içeride [m] (firmware ile aynı)
 FW_NAME = "mock-1.2"     # 1.2: θ sola + (#50); firmware gibi boot/ping'de "theta":"sol"
@@ -102,6 +106,9 @@ class MockDevice:
         self.gyro = gyro
         self.mpu_ok = gyro
         self.gyro_fail = False                    # test: okumalar başarısız (kopuk kablo / I²C hatası)
+        self.gyro_frozen = False                  # test: MPU resetlenip uykuda: okuma başarılı ama ham değer 0
+        self._mpu_bad = 0
+        self._mpu_k = 0
         self._mpu_fails = 0
         self.gyro_mix = 0.0
         self._gy = 0.0
@@ -134,7 +141,10 @@ class MockDevice:
     def start(self):
         self._running = True
         self._emit(P.encode_event("boot", fw=FW_NAME, theta=P.THETA_CONVENTION, Ts=self.Ts))
-        self._emit(P.encode_event("calib", ok=True))   # firmware: açılış kalibrasyonunun sonucu (protokol §3.2)
+        if self.mpu_ok:                                  # firmware: açılış kalibrasyonunun sonucu (protokol §3.2)
+            self._emit(P.encode_event("calib", ok=True, gyro_bias=round(self._gyro_bias, 5)))
+        else:
+            self._emit(P.encode_event("calib", ok=True))
         if self.realtime:
             self._thread = threading.Thread(target=self._run, name="MockDevice", daemon=True)
             self._thread.start()
@@ -189,6 +199,9 @@ class MockDevice:
                     self._emit(reply)
                 if self._calib_evt:                # firmware gibi: önce ACK, sonra calib olayı
                     self._calib_evt = False
+                    if self.mpu_ok and self.gyro_fail:  # firmware: bias okunamadı → jiroskop kapanır
+                        self.mpu_ok = False
+                        self._emit(P.encode_event("gyro", ok=False))
                     if self.mpu_ok:                    # firmware: calib jiroskop sıfırını da ölçer
                         self._gyro_bias = self._measure_gyro_bias()
                         self._emit(P.encode_event("calib", ok=True, gyro_bias=round(self._gyro_bias, 5)))
@@ -205,7 +218,7 @@ class MockDevice:
             return b""
         if cmd == "ping":
             # angle_ok: sanal sensör her zaman kalibre (firmware'de açılış/calib sonucunu söyler)
-            extra = {"gyro": self.mpu_ok} if self.gyro else {}
+            extra = {"gyro": self.mpu_ok, "i2c_us": MOCK_I2C_US} if self.gyro else {}
             return P.encode_ack("ping", True, "pong", Ts=self.Ts, fw=FW_NAME, theta=P.THETA_CONVENTION,
                                 homed=self.homed, angle_ok=True, **extra)
         if cmd == "set_gain":  # çalışırken de kabul edilir (firmware kritik bölgede değiştirir)
@@ -484,7 +497,14 @@ class MockDevice:
                     self._emit(P.encode_event("gyro", ok=False))
             else:
                 self._mpu_fails = 0
-                self._gy = self.sensor.measure_gyro(self.s) - self._gyro_bias
+                raw = 0.0 if self.gyro_frozen else self.sensor.measure_gyro(self.s)
+                self._gy = raw - self._gyro_bias
+                # firmware ile aynı tutarlılık denetimi (dth_lp: karışımsız türev)
+                self._mpu_bad = self._mpu_bad + 1 if abs(self._gy - dth_lp) > GYRO_CHECK_RAD_S else 0
+                self._mpu_k += 1                  # firmware: k % MPU_PWR_CHECK_N == 0'da PWR_MGMT_1
+                if self._mpu_bad >= GYRO_CHECK_N or (self.gyro_frozen and self._mpu_k % MPU_PWR_CHECK_N == 0):
+                    self.mpu_ok = False
+                    self._emit(P.encode_event("gyro", ok=False))
             if self.mpu_ok:
                 dth_lp = mix_gyro(dth_lp, self._gy, self.gyro_mix)
         th_wrap = math.atan2(math.sin(thm), math.cos(thm))

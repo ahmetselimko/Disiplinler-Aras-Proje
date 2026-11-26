@@ -136,6 +136,14 @@ static const int   MPU_AXIS = 0;                       // sarkaç eksenine paral
 static const float MPU_SIGN = +1.0f;                   // sarkaç sola (+θ) dönerken gy pozitif değilse −1
 static const float MPU_LSB_RAD = (1.0f / 16.4f) * PI / 180.0f;   // ±2000 °/s aralığında 1 LSB [rad/s]
 static const int   MPU_FAIL_LIMIT = 3;                 // art arda bu kadar okunamazsa jiroskop devre dışı
+// Tutarlılık denetimi: okuma başarılı ama değer yanlış olabilir (MPU güç kesintisinde resetlenip uykuya döner:
+// ACK verir, yazmaçlar 0, aralık ±250 °/s). |gy − θ̇_türev| art arda GYRO_CHECK_N adım GYRO_CHECK_RAD_S'yi
+// aşarsa jiroskop devre dışı (I²C arızasıyla aynı: FAULT yok, gyro olayı). AS5600 türev gürültüsü ~0.8 rad/s.
+static const float GYRO_CHECK_RAD_S = 3.0f;
+static const int   GYRO_CHECK_N = 25;                  // 50 ms
+// Hareketsizken (ya da γ = 1'de donmuş jiroskop swing-up'ı durdurunca) tutarlılık denetimi tetiklenmez; bu yüzden
+// ayrıca her MPU_PWR_CHECK_N adımda PWR_MGMT_1 okunur: resetlenen MPU uykuda (0x40) ve saat 0 → devre dışı.
+static const int   MPU_PWR_CHECK_N = 50;               // 100 ms, 1 bayt ek okuma
 static const int   MPU_BIAS_SAMPLES = 200;             // calib: sarkaç hareketsizken bias ortalaması
 #endif
 static const float SOFT_MARGIN = 0.03f;               // rayın ucundan bu kadar önce FAULT [m]
@@ -557,7 +565,8 @@ void ctrlTask(void *) {
 #if USE_MPU6050
   bool mpu_ok = mpuInit();
   int mpu_fails = 0; float gyro_bias = 0.0f, gy = 0.0f;
-  if (mpu_ok) mpu_ok = calibrateGyro(gyro_bias);
+  int mpu_bad = 0;                                     // tutarlılık denetimi sayacı
+  if (mpu_ok) { vTaskDelay(pdMS_TO_TICKS(50)); mpu_ok = calibrateGyro(gyro_bias); }   // uykudan çıkış ~30 ms
   if (!mpu_ok) SET_SHARED(ev_gyro_fail, true);         // WHO_AM_I yanıtsız ya da bias okunamadı: MPU'suz devam
   portENTER_CRITICAL(&mux); S.mpu_ok = mpu_ok; S.gyro_bias = gyro_bias; portEXIT_CRITICAL(&mux);
 #endif
@@ -623,7 +632,15 @@ void ctrlTask(void *) {
 #if USE_MPU6050
     if (mpu_ok) {
       float w;
-      if (mpuReadGyro(w)) { mpu_fails = 0; gy = w - gyro_bias; }
+      if (mpuReadGyro(w)) {
+        mpu_fails = 0; gy = w - gyro_bias;
+        mpu_bad = fabsf(gy - dth) > GYRO_CHECK_RAD_S ? mpu_bad + 1 : 0;   // dth: henüz karışımsız AS5600 türevi
+        if (mpu_bad >= GYRO_CHECK_N) { mpu_ok = false; SET_SHARED(ev_gyro_fail, true); }
+        uint8_t pwr = 0x01;
+        if (mpu_ok && k % MPU_PWR_CHECK_N == 0 && (!i2cReadDev(MPU_ADDR, 0x6B, &pwr, 1) || pwr != 0x01)) {
+          mpu_ok = false; SET_SHARED(ev_gyro_fail, true);   // resetlenmiş (uyku, ±250 °/s) ya da yanıtsız
+        }
+      }
       else if (++mpu_fails >= MPU_FAIL_LIMIT) { mpu_ok = false; SET_SHARED(ev_gyro_fail, true); }  // FAULT değil
     }
     {
