@@ -64,6 +64,10 @@ Enerji/mod grafikleri, deneme özeti, CSV ayar kaydı ve parametre hassasiyet
 taramasının tanımları ve çalıştırılması: **[3, 6 ve 13 numaralı görevler](docs/katki_3_6_13.md)**.
 Üretilen sonuçlar: [hassasiyet raporu](docs/hassasiyet_raporu.md).
 
+**Swing-up karar çalışması** (#50 Aşama 3; uç kütlesi × geçiş kuralı × hedef enerji oranı × ray × sürtünme
+telafisi, her durum 3 tohum ve m, l ±%5): `python tools/swingup_karar.py` (~900 koşu, 2 çekirdekte ~6 dk;
+`--hizli` tek durumla dener). Sonuç: [docs/swingup_karar_calismasi.md](docs/swingup_karar_calismasi.md).
+
 ```bash
 python -m pytest -q
 ```
@@ -79,7 +83,7 @@ matlab/         mekatronik ekibinin Matlab/Simulink dosyaları
 docs/           protokol.md · mimari.md · parametre_tablosu.md · matlab_karsiliklari.md · kullanim_kilavuzu.md · proje_durumu.md · katki_*.md
 tests/          pytest
 .github/        workflows/test.yml (GitHub Actions)
-tools/          demo_kayit.py (tanıtım videosu/GIF) · hassasiyet_analizi.py · motor_karsilastirma.py · rapor_sekilleri.py · mekatronik_on_degerlendirme.py
+tools/          demo_kayit.py (tanıtım videosu/GIF) · hassasiyet_analizi.py · motor_karsilastirma.py · rapor_sekilleri.py · mekatronik_on_degerlendirme.py · swingup_karar.py
 kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 ```
 

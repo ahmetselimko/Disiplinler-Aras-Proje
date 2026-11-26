@@ -10,7 +10,7 @@ Bu rapor bilgisayar ekibinin şimdiye kadar yaptıklarını, mekatronik ekibinin
 
 * Bilgisayar tarafı **çalışır durumda**: Matlab'in yerini tutan bir Python kütüphanesi, canlı izleme ve kontrol arayüzü, donanım olmadan deneme yapmayı sağlayan bir sanal ESP32, mekatronik ekibe başlangıç olarak bir ESP32 firmware'i ve iki ekip arasındaki haberleşme sözleşmesi hazır.
 * Sanal cihazla uçtan uca deneme başarılı: kalibrasyon (homing) → swing-up → LQR ile denge. Veri 200 Hz'de kayıpsız geliyor, grafik ~60 FPS çiziliyor.
-* **302 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
+* **305 otomatik test** geçiyor; firmware her push'ta GitHub Actions'ta iki kart (ESP32-S3, klasik ESP32) × iki core sürümüyle derleniyor. Kod art arda bağımsız incelemelerden geçti (§4: ilk tur 21, doğrulama turu 6 bulgu; §4.2: 22–25.11.2026 tarihli turlar, 25.11'deki tam proje denetimi dahil); bulunanların hepsi düzeltildi. 18.11.2026'da belgeler kodla ayrıca karşılaştırıldı (§4.1).
 * Fiziksel parametreler **mekatronik ara raporunun (23.11.2026) tasarım değerleri** (#50 Aşama 2): +20 g uç kütleli sarkaç (m = 0.105 kg, l = 0.0992 m), araba M = 1.28 kg, JGB37-520 19:1 (Tablo 16: α = 2.26 N/V, b = 48.41 N·s/m), 3 N sürtünme, enkoder 44 CPR (836 sayım/tur, 0.072 mm). Uç kütlesiz ve +50 g seçenekleri `params_ucsuz.json` / `params_50g.json`. Ölçüm değil (`placeholder: true`). Bu değerlerle K = [−9.83, −46.64, +101.47, +14.36]; aşağıdan kalkış ~4.3 s, max \|x\| ≈ 0.14 m (swing-up hedef enerji oranı 1.05). Ölçüm gelince yalnızca `config/params.json` değişecek.
 * Mekatronik ekibinin Matlab/Simulink dosyaları `matlab/` klasöründe; model Python kütüphanesiyle birebir aynı (testle doğrulanıyor).
 * **θ işareti (#50 Aşama 1, 25.11.2026):** bütün projede mekatronik raporundaki (8.1.3) ve Matlab'daki kural geçerli: θ = 0 dik, **θ > 0 sarkaç sola yatık**, x ve F sağa pozitif. Fiziksel davranış değişmedi (eski kodla alınmış referans senaryolarla doğrulandı: `tests/test_theta_isaret.py`); K'nın θ, θ̇ kazançlarının işareti döndü, ör. (Aşama 1 anındaki yer tutucu parametrelerle) K = [−9.52, −27.29, +61.49, +9.74]. Eski kurala göre üretilmiş `gains.h` kullanılmamalı; firmware `ref-1.2` boot/ping'de `"theta":"sol"` bildirir, bildirmeyen (eski) cihaza arayüz K göndermez. Eski CSV kayıtları (başlıkta `theta_pozitif` yok) okunurken otomatik çevrilir; başlıksız CSV eski kuralda sayılır.
@@ -63,6 +63,7 @@ Mekatronik ekibe başlangıç noktası. İki FreeRTOS görevi var: 500 Hz kontro
 | `matlab_karsiliklari.md` | Herkes | Matlab fonksiyonu → kütüphanedeki karşılığı; mekatronik Matlab modeliyle karşılaştırma |
 | `kullanim_kilavuzu.md` | Herkes | Ekran görüntülü arayüz anlatımı |
 | `katki_3_6_13.md`, `katki_10.md`, `katki_14_15.md` | Bilgisayar ekibi | Enerji grafiği, deneme özeti, hassasiyet analizi; Matlab karşılaştırması; Kalman ve kayıt oynatma ayrıntıları |
+| `swingup_karar_calismasi.md` (+ `.json`) | İki ekip | #50 Aşama 3 karar çalışması: uç kütlesi × geçiş kuralı × E_ratio × ray × telafi (betikle üretilir) |
 | `hassasiyet_raporu.md` | Herkes | Parametre hassasiyet taramasının sonuçları (25.11.2026'da Aşama 2'nin `params.json`'ı, Kalman ve 44 CPR enkoderle yeniden üretildi) |
 | `../matlab/README.md` | İki ekip | Matlab dosyaları, ortak θ işareti (sola +), eski K'lara dikkat |
 | `mekatronik_on_degerlendirme.md` | İki ekip | Mekatronik tasarım ölçüleriyle ön değerlendirme: swing-up için uç kütlesi ve hedef enerji, iki raporun farkları |
@@ -87,6 +88,15 @@ Toplantı notları ve tahtadaki plana göre:
 | **Homing'i kim başlatacak** | Kapandı | Kart açılınca bekler; kalibrasyon yalnızca arayüzdeki KALİBRE ET ile, sol switch'i bularak (`protokol.md` §6) |
 
 ---
+
+### Swing-up karar çalışması (#50 Aşama 3, 25.11.2026)
+ `python tools/swingup_karar.py` → [`swingup_karar_calismasi.md`](swingup_karar_calismasi.md). Uç kütlesi (yok / +20 g / +50 g) × geçiş kuralı (bizim 15°/30° ya da mekatroniğin 10°/25° + θ̇, x, ẋ şartları) × E_ratio (1.00–1.10) × ray (±0.40 / 0.60 / 0.80 m) × sürtünme telafisi; her durum 3 gürültü tohumu ve m, l ±%5 ile (900 koşu, tasarım değerleri). Tablolardan çıkanlar:
+* "Kalktı" = sonda dengede **ve** LQR yakaladıktan sonra hiç bırakmadı (`rapor_sekilleri.classify`); LQR'ın bırakıp swing-up'ın yeniden kaldırdığı koşular kalkmış sayılmadı (26.11 incelemesi).
+* Her rayda ve telafi açık/kapalı sağlam yalnız **+50 g, bizim kural, E_ratio 1.02 ya da 1.05** (araba en fazla 0.26 / 0.19 m).
+* Yalnız sürtünme telafisi açıkken her rayda sağlam: uç kütlesiz – bizim – 1.10; **+20 g – bizim – 1.05**; +50 g – bizim – 1.01; +50 g – mekatronik – 1.02. +20 g telafi kapalıyken hiçbir durumda sağlam değil: **ilk denemeden önce sürtünme ölçülüp telafi açılmalı.**
+* **Mekatroniğin geçiş kuralı** yalnız +50 g'de sağlam (E_ratio 1.02 telafi açık, 1.05 telafi kapalı); uç kütlesiz ve +20 g'de hiçbir durumda sağlam değil.
+* **Ray uzunluğu** 60 grubun hiçbirinde sağlamlığı ya da kalkan koşu sayısını değiştirmedi (yalnız iki grupta başarısızlığın biçimi değişti: ray ucuna çarpma ↔ düşüp yeniden kalkma); kalkan koşularda araba en fazla 0.34 m gitti: mevcut swing-up kazançlarıyla ±0.40 m yetiyor.
+* Varsayılanlar (eşikler #11, `rail_half`) değiştirilmedi; karar iki ekibin.
 
 ## 4. Bağımsız kod incelemesi
 
@@ -237,6 +247,10 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Belge | Rapor şekillerinde elle yazılı "`l` KRİTİK" cümlesi yeni hassasiyet sonucuyla çelişiyordu; `mekatronik_on_degerlendirme.md` §3–4'te eski sayılar ve kaynak; §6 ve motor yorumlarında "T_f = 0"; firmware README'de telafinin nasıl gittiği | Cümle kaldırıldı, şekiller yeniden üretildi; belgeler güncellendi; ilk açılış kontrol listesine "Sürtünme Ölç" adımı |
 
 **#50 Aşama 2, ikinci tur (26.11.2026):** birinci turun düzeltmeleri doğrulandı; değerler PDF'le yeniden karşılaştırıldı, `gains.h` birebir. **Yeni kod hatası yok.** Kalan küçük kenarlar düzeltildi: parametre dosyası okunamadığında "Kaydet" koruma bayrağını kaldırıyordu (genel varsayılanlar `params.json`'a yazılıp K gidebilirdi) → artık yalnız Yükle kaldırır; firmware README'de eski CPR hatasının yönü (x ~1.74 kat büyük okunurdu).
+
+**#50 Aşama 3 (swing-up karar çalışması), birinci tur (26.11.2026):** denetçi kuralların Supervisor'a (Kalman bölgesinin release açısı dahil), ray yarı boyunun hem fiziğe hem kontrolcüye uygulandığını, telafi kapalının doğru modellendiğini ve 900 koşunun tam çarpım olduğunu doğruladı; JSON'dan rapor birebir yeniden üretildi, 4 koşu tek tek tekrarlandı. **Yeni kod hatası yok.** Düzeltilenler (Küçük/Belge): "bizim" kural elle yazılıydı → ortak sabitlerden; "dike geldi" sebebi artık hangi şartın tutmadığını yazıyor (hepsi \|θ̇\|); "kalkan koşularda en büyük max \|x\|" yalnız kalkan koşulardan; nominal koşunun da gürültülü olduğu (ön değerlendirmeyle birebir karşılaştırılamaz) notu; proje_durumu özetindeki iki cümle tablolara göre düzeltildi, alt başlık ve belge tablosu satırı; süre tek değer (~6 dk). Tarama yeniden koşuldu; sağlamlık sonuçları değişmedi.
+
+**#50 Aşama 1–5 ortak inceleme (26.11.2026, ahmetselimko):** Aşama 1'in θ işaret testi kuantalı sensörde 1 ulp'lik farkın kaydırdığı bir adım yüzünden Windows'ta düşüyordu (eski kod aynı makinede referansla 6e-9 m içinde) → adım kaydıktan sonrası gevşek tolerans. Aşama 2: protokoldeki `set_gain` örneği ve `katki_10.md` K tablosu eski parametrelerleydi. **Aşama 3: karar aracı LQR'ın bırakıp swing-up'ın yeniden kaldırdığı koşuları "kalktı" sayıyordu → `classify` ile yeniden üretildi; "+50 g ve +20 g'de 1.10 sağlam" gibi sonuçlar düştü, özet yukarıda güncellendi.**
 
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
