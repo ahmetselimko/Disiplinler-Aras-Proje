@@ -478,7 +478,7 @@ void ctrlTask(void *) {
       delayMicroseconds(200);
     }
     // *_prev da başlatılır (homing faz 3 kararı ilk adımda doğru olsun); açılışta etkin sensörün olayları
-    // (limit, sensor_mismatch) burada bir kez gönderilir, sanal ESP32'deki gibi
+    // (limit, sensor_mismatch) burada bir kez gönderilir; olay kümesi sanal ESP32 ile aynı, sıra farklı: kart bunları calib'den ÖNCE, sanal ESP32 calib'den sonra yollar (arayüz yalnız log yazar)
     fL.seed(aL); fR.seed(aR); limL_prev = aL; limR_prev = aR;
     if (aL) SET_SHARED(ev_limitL, true);
     if (aR) SET_SHARED(ev_limitR, true);
