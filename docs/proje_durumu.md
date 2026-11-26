@@ -269,6 +269,12 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 |---|---|---|
 | Küçük | Açılış kalibrasyonu (~1.1 s) sürerken `home` kabul ediliyordu; döngünün ilk adımında filtreler sıfırdan başladığı için faz 3 atlanıyor (araba optik ile uç arasındaysa sıfır yine kayıyordu), mikro switch basılıyken de `home` reddedilmiyordu | Kalibrasyon bitmeden `start`/`home`/`friction` reddediliyor; filtreler döngüden önce gerçek sensör durumuyla başlatılıyor (3 okumadan biri etkinse etkin) |
 
+**#50 Aşama 4, dördüncü tur (26.11.2026):** Yeni başlatma bloğunun END_SENSORS 0/1/2'de derlendiği, `pinMode`'dan sonra çalıştığı, ret kuralının yalnız hareket komutlarını kapsadığı, açılışta sensör etkinken FAULT olmadığı doğrulandı. Düzeltilenler:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Küçük | Filtrelerle birlikte önceki durumlar da başlatıldığı için açılışta zaten etkin sensörün `limit` / `sensor_mismatch` olayları hiç gönderilmiyordu (sanal ESP32 gönderiyor) | Başlatma sırasında etkin sensörlerin olayları bir kez gönderiliyor |
+| Belge | Açılış kalibrasyonundaki ret yalnız §5'te yazıyordu | Komut tablosunda `start` / `home` / `friction` satırlarına eklendi |
+
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
 ---

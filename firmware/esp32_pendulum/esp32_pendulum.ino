@@ -477,9 +477,15 @@ void ctrlTask(void *) {
 #endif
       delayMicroseconds(200);
     }
+    // *_prev da başlatılır (homing faz 3 kararı ilk adımda doğru olsun); açılışta etkin sensörün olayları
+    // (limit, sensor_mismatch) burada bir kez gönderilir, sanal ESP32'deki gibi
     fL.seed(aL); fR.seed(aR); limL_prev = aL; limR_prev = aR;
+    if (aL) SET_SHARED(ev_limitL, true);
+    if (aR) SET_SHARED(ev_limitR, true);
 #if END_SENSORS == 2
     fHL.seed(hL); fHR.seed(hR); hardL_prev = hL; hardR_prev = hR;
+    if (hL) { SET_SHARED(ev_hardL, true); if (!aL) SET_SHARED(ev_mismatchL, true); }
+    if (hR) { SET_SHARED(ev_hardR, true); if (!aR) SET_SHARED(ev_mismatchR, true); }
     portENTER_CRITICAL(&mux); S.hardL = hL; S.hardR = hR; portEXIT_CRITICAL(&mux);
 #endif
   }
