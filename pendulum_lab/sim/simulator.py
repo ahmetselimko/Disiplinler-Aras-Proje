@@ -19,6 +19,16 @@ from ..model.dynamics import accelerations, dynamics, wrap_angle
 from ..model.params import PendulumParams
 
 
+GYRO_NOISE_DENSITY = math.radians(0.005)   # MPU6050 [rad/s/√Hz]
+GYRO_RANGE = math.radians(2000.0)          # ±2000 °/s [rad/s]
+GYRO_LSB = math.radians(1.0 / 16.4)        # ±2000 °/s aralığında 1 LSB [rad/s] (firmware MPU_LSB_RAD)
+
+
+def mix_gyro(dth_diff: float, gy: float, gyro_mix: float) -> float:
+    """Denklem 8.5 (mekatronik raporu): θ̇ = γ·ω_gyro + (1 − γ)·θ̇_türev. Firmware ve sanal ESP32 ile aynı."""
+    return gyro_mix * gy + (1.0 - gyro_mix) * dth_diff if gyro_mix > 0.0 else dth_diff
+
+
 @dataclass
 class SensorModel:
     """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 44 CPR motor enkoderi, 19:1, HTD3M 20 diş (~0.072 mm/sayım).
@@ -28,6 +38,13 @@ class SensorModel:
     th_noise_std: float = 0.0
     x_noise_std: float = 0.0
     seed: int | None = 0
+    # MPU6050 jiroskobu (#50 Aşama 5; varsayılan kapalı). Datasheet: gürültü yoğunluğu ~0.005 °/s/√Hz, DLPF ≈ 98 Hz
+    # bant genişliği, ±2000 °/s aralığı (1 LSB = 1/16.4 °/s). Bias sabit; firmware'deki calib ölçüp çıkarır.
+    gyro: bool = False
+    gyro_noise_density: float = GYRO_NOISE_DENSITY      # [rad/s/√Hz]
+    gyro_bandwidth: float = 98.0                        # [Hz]
+    gyro_bias: float = 0.02                             # [rad/s] (≈ 1.1 °/s; MPU6050 sıfır hızı ±20 °/s'ye kadar)
+    gyro_range: float = GYRO_RANGE                      # [rad/s]
     _rng: np.random.Generator = field(init=False, repr=False)
 
     def __post_init__(self):
@@ -42,6 +59,12 @@ class SensorModel:
     @staticmethod
     def _q(v: float, res: float) -> float:
         return round(v / res) * res if res > 0 else v
+
+    def measure_gyro(self, s) -> float:
+        """Jiroskobun ham okuması [rad/s]: gerçek θ̇ + bias + beyaz gürültü, kuantalanmış ve doymuş (bias çıkarılmamış)."""
+        w = s[3] + self.gyro_bias + self._rng.normal(0, self.gyro_noise_density * math.sqrt(self.gyro_bandwidth))
+        w = self._q(w, GYRO_LSB)
+        return max(-self.gyro_range, min(self.gyro_range, w))
 
     def measure(self, s) -> tuple[float, float]:
         x = s[0] + (self._rng.normal(0, self.x_noise_std) if self.x_noise_std else 0.0)
@@ -67,6 +90,14 @@ class SimResult:
     s: np.ndarray          # (n+1, 4) gerçek durum
     u: np.ndarray          # (n+1,) uygulanan giriş (son eleman tekrar)
     mode: list             # (n+1,) mod adları
+    # θ̇ kestirimleri (yalnız sensor verildiyse; yoksa None): yalnız AS5600 türevi, jiroskop karışımı (jiroskop
+    # yoksa türevle aynı), Kalman (Kalman bölgesi dışında NaN), kontrolcüye giden; jiroskobun bias'ı çıkarılmış
+    # okuması (jiroskop yoksa None). Analiz sekmesindeki RMSE karşılaştırması bunları kullanır.
+    dth_diff: np.ndarray | None = None
+    dth_mix: np.ndarray | None = None
+    dth_kf: np.ndarray | None = None
+    dth_used: np.ndarray | None = None
+    gy: np.ndarray | None = None
 
     @property
     def x(self): return self.s[:, 0]
@@ -87,7 +118,7 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
                          delay_steps: int = 0, vel_fc_hz: float = 25.0,
                          disturbance=None, end_stops: bool = True,
                          use_kalman: bool = True, disturbance_target: str = "pole",
-                         kalman_Rn=None) -> SimResult:
+                         kalman_Rn=None, gyro_mix: float = 0.0, gyro_bias_est: float | None = None) -> SimResult:
     """controller.update(s_hat) -> (u, mode)  veya  controller(s_hat) -> u.
 
     sensor=None ise kontrolcü gerçek durumu görür (ideal). disturbance(t) -> ek yatay kuvvet [N]
@@ -96,6 +127,9 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
     end_stops: araba ±rail_half'teki mekanik uçlarda durur (hız sıfırlanır), rayı aşamaz.
     use_kalman: True ise (firmware gibi) dik konum bölgesinde (|θ| < release) hız Kalman filtresiyle
     kestirilir; geniş açıda vel_fc_hz'lik türev filtresi kullanılır. Eski davranış için False verin.
+    gyro_mix: sensor.gyro açıkken türev bölgesinde θ̇ = γ·gy + (1 − γ)·θ̇_türev (firmware ile aynı; Kalman
+    bölgesinde Kalman aynen kalır). gyro_bias_est: kalibrasyonun ölçtüğü bias (None: sensörün gerçek bias'ı,
+    yani kusursuz calib).
     """
     if disturbance_target not in ("pole", "cart"):
         raise ValueError(f"disturbance_target 'pole' veya 'cart' olmalı, verilen {disturbance_target!r}")
@@ -103,6 +137,9 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
     t = np.arange(n + 1) * dt
     S = np.empty((n + 1, 4))
     U = np.zeros(n + 1)
+    est = np.full((n + 1, 5), np.nan) if sensor is not None else None   # dth_diff, dth_mix, dth_kf, dth_used, gy
+    use_gyro = sensor is not None and sensor.gyro
+    bias_est = (sensor.gyro_bias if gyro_bias_est is None else gyro_bias_est) if use_gyro else 0.0
     modes: list = [None] * (n + 1)
     s = [float(v) for v in s0]
     vx = VelocityEstimator(dt, vel_fc_hz)
@@ -126,7 +163,12 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
                 vx.prime(xm, float(s0[1]))
                 vth.prime(thm, float(s0[3]))
             dx_lp = vx.update(xm)
-            dth_lp = vth.update(thm)
+            dth_diff = vth.update(thm)
+            gy = sensor.measure_gyro(s) - bias_est if use_gyro else None
+            dth_lp = mix_gyro(dth_diff, gy, gyro_mix) if use_gyro else dth_diff
+            est[k, 0], est[k, 1] = dth_diff, dth_lp
+            if use_gyro:
+                est[k, 4] = gy
             if kf is not None:
                 cur_mode = getattr(controller, "mode", "BALANCE")
                 mode_name = getattr(cur_mode, "value", cur_mode)
@@ -138,11 +180,13 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
                     else:
                         kf.step([xm, thm], u_prev)
                     s_hat = [xm, float(kf.s[1]), thm, float(kf.s[3])]
+                    est[k, 2] = float(kf.s[3])
                 else:
                     in_kf = False
                     s_hat = [xm, dx_lp, thm, dth_lp]
             else:
                 s_hat = [xm, dx_lp, thm, dth_lp]
+            est[k, 3] = s_hat[3]
         u, mode = call(s_hat)
         modes[k] = getattr(mode, "value", mode)
         if delay_steps:
@@ -162,4 +206,9 @@ def simulate_closed_loop(p: PendulumParams, controller, s0, T: float, dt: float 
         if not all(math.isfinite(v) for v in s):
             raise FloatingPointError(f"Simülasyon ıraksadı (t={t[k]:.3f})")
     S[n], U[n], modes[n] = s, U[n - 1] if n else 0.0, modes[n - 1] if n else None
-    return SimResult(t, S, U, modes)
+    if est is None:
+        return SimResult(t, S, U, modes)
+    if n:
+        est[n] = est[n - 1]
+    return SimResult(t, S, U, modes, dth_diff=est[:, 0], dth_mix=est[:, 1], dth_kf=est[:, 2],
+                     dth_used=est[:, 3], gy=est[:, 4] if use_gyro else None)

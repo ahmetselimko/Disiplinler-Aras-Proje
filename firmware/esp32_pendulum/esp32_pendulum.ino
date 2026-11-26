@@ -122,6 +122,22 @@ static const float VEL_FC_HZ = 25.0f;                 // hız kestirim filtresi 
 #undef USE_KALMAN
 #define USE_KALMAN 0
 #endif
+// MPU6050 jiroskobu (#50 Aşama 5; mekatronik raporu 8.1.4, Denklem 8.5). Varsayılan KAPALI: 0 iken kod ve
+// telemetri birebir eskisi gibi. 1: AS5600 ile aynı I²C hattı (PIN_SDA/PIN_SCL), adres 0x68 (AD0 = GND).
+// θ̇ = γ·ω_gyro + (1 − γ)·θ̇_türev, γ = set_param gyro_mix (varsayılan 0) — YALNIZ türev filtresinin kullanıldığı
+// bölgede (|θ| > release ya da Kalman kapalı); Kalman bölgesinde Kalman aynen kalır (jiroskobu Kalman'a ölçüm
+// olarak eklemek ileride). MPU okunamazsa FAULT YOK: yedek sensör, karışım 0'a düşer, "gyro" olayı bir kez.
+#ifndef USE_MPU6050
+#define USE_MPU6050 0
+#endif
+#if USE_MPU6050
+static const uint8_t MPU_ADDR = 0x68;
+static const int   MPU_AXIS = 0;                       // sarkaç eksenine paralel jiroskop ekseni: 0 = X, 1 = Y, 2 = Z
+static const float MPU_SIGN = +1.0f;                   // sarkaç sola (+θ) dönerken gy pozitif değilse −1
+static const float MPU_LSB_RAD = (1.0f / 16.4f) * PI / 180.0f;   // ±2000 °/s aralığında 1 LSB [rad/s]
+static const int   MPU_FAIL_LIMIT = 3;                 // art arda bu kadar okunamazsa jiroskop devre dışı
+static const int   MPU_BIAS_SAMPLES = 200;             // calib: sarkaç hareketsizken bias ortalaması
+#endif
 static const float SOFT_MARGIN = 0.03f;               // rayın ucundan bu kadar önce FAULT [m]
 static const float START_X_MARGIN = 0.10f;            // BAŞLAT için rayın ucuna en az bu kadar uzak [m]
 static const float START_MAX_SPEED = 0.2f;            // BAŞLAT için araba hızı bundan düşük [m/s]
@@ -180,6 +196,7 @@ static const ParamLimit PARAM_LIMITS[] = {
   {"u_max", 0.0f, 48.0f},
   {"telemetry_hz", 1.0f, 500.0f},
   {"fc_volt", 0.0f, 6.0f},
+  {"gyro_mix", 0.0f, 1.0f},
 };
 
 // ============================================================ MODLAR (Python Mode ile aynı adlar)
@@ -203,6 +220,9 @@ struct Shared {
   // olaylar (kontrol üretir, iletişim gönderir)
   bool ev_homed, ev_fault, ev_limitL, ev_limitR, ev_calib, ev_friction;
   bool ev_hardL, ev_hardR, ev_mismatchL, ev_mismatchR;   // END_SENSORS 2: mikro switch ve tutarsızlık olayları
+  float gyro_mix;                                    // MPU6050 karışımı γ (set_param gyro_mix)
+  float gy, tel_gy, gyro_bias; bool mpu_ok, ev_gyro_fail;   // USE_MPU6050: son ölçüm [rad/s], telemetri örneği, bias, durum, olay
+  uint32_t i2c_us;                                   // USE_MPU6050: AS5600 + MPU okuma süresi [µs] (en büyük)
   bool hardL, hardR;                                 // mikro switch şu an basılı mı (komut reddi için, her adımda)
   bool fr_ok; const char *fr_reason; float fr_v_pos, fr_v_neg, fr_v_c, fr_slope;   // sürtünme ölçümü sonucu
   const char *fault_reason;
@@ -263,6 +283,35 @@ struct KalmanEst {            // ayrık kararlı hal Kalman filtresi (filters.Ka
   }
 };
 
+static bool i2cReadDev(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t n) {
+  Wire.beginTransmission(addr);
+  Wire.write(reg);
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(addr, n) != n) return false;
+  for (uint8_t i = 0; i < n; i++) buf[i] = Wire.read();
+  return true;
+}
+
+#if USE_MPU6050
+static bool mpuWrite(uint8_t reg, uint8_t val) {
+  Wire.beginTransmission(MPU_ADDR); Wire.write(reg); Wire.write(val);
+  return Wire.endTransmission() == 0;
+}
+// Uykudan çıkar, saat = X ekseni PLL; DLPF_CFG = 2 → jiroskop bant genişliği ≈ 98 Hz (gecikme ≈ 2.8 ms; 500 Hz
+// döngüde örtüşmeyi sınırlar, θ̇'yi fazla geciktirmez); jiroskop aralığı ±2000 °/s (swing-up'ta θ̇ 15–20 rad/s).
+static bool mpuInit() {
+  uint8_t who = 0;
+  if (!i2cReadDev(MPU_ADDR, 0x75, &who, 1) || who != 0x68) return false;   // WHO_AM_I
+  return mpuWrite(0x6B, 0x01) && mpuWrite(0x1A, 0x02) && mpuWrite(0x1B, 0x18);
+}
+static bool mpuReadGyro(float &w) {            // yalnız gereken eksenin 2 baytı
+  uint8_t b[2];
+  if (!i2cReadDev(MPU_ADDR, 0x43 + 2 * MPU_AXIS, b, 2)) return false;
+  w = MPU_SIGN * (int16_t)((b[0] << 8) | b[1]) * MPU_LSB_RAD;
+  return true;
+}
+#endif
+
 static bool i2cRead(uint8_t reg, uint8_t *buf, uint8_t n) {
   Wire.beginTransmission(AS5600_ADDR);
   Wire.write(reg);
@@ -304,6 +353,21 @@ static bool calibrateAngle(float &hang_rad) {
   hang_rad = mean;
   return true;
 }
+
+#if USE_MPU6050
+// Jiroskop sıfırı: sarkaç aşağıda ve hareketsizken (calib ile aynı koşul) MPU_BIAS_SAMPLES örneğin ortalaması.
+static bool calibrateGyro(float &bias) {
+  float sum = 0; int ok = 0;
+  for (int i = 0; i < MPU_BIAS_SAMPLES; i++) {
+    float w;
+    if (mpuReadGyro(w)) { sum += w; ok++; }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+  if (ok < MPU_BIAS_SAMPLES * 3 / 4) return false;
+  bias = sum / ok;
+  return true;
+}
+#endif
 
 static void motorWrite(float volts) {
   float duty = clampf(fabsf(volts) / V_SUPPLY, 0, 1) * ((1 << PWM_BITS) - 1);
@@ -490,6 +554,13 @@ void ctrlTask(void *) {
 #endif
   }
 #endif
+#if USE_MPU6050
+  bool mpu_ok = mpuInit();
+  int mpu_fails = 0; float gyro_bias = 0.0f, gy = 0.0f;
+  if (mpu_ok) mpu_ok = calibrateGyro(gyro_bias);
+  if (!mpu_ok) SET_SHARED(ev_gyro_fail, true);         // WHO_AM_I yanıtsız ya da bias okunamadı: MPU'suz devam
+  portENTER_CRITICAL(&mux); S.mpu_ok = mpu_ok; S.gyro_bias = gyro_bias; portEXIT_CRITICAL(&mux);
+#endif
   portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.calib_done = true; S.ev_calib = true; portEXIT_CRITICAL(&mux);
 
   TickType_t last = xTaskGetTickCount();
@@ -524,6 +595,10 @@ void ctrlTask(void *) {
     }
     if (p.req_calib && mode == IDLE) {
       angle_ok = calibrateAngle(raw_hang);              // motor kapalıyken ~130 ms bloklar
+#if USE_MPU6050
+      if (mpu_ok && !calibrateGyro(gyro_bias)) { mpu_ok = false; SET_SHARED(ev_gyro_fail, true); }  // +~0.2 s
+      portENTER_CRITICAL(&mux); S.mpu_ok = mpu_ok; S.gyro_bias = gyro_bias; portEXIT_CRITICAL(&mux);
+#endif
       vth.reset(); kf.reset(); last = xTaskGetTickCount();
       portENTER_CRITICAL(&mux); S.angle_ok = angle_ok; S.ev_calib = true; portEXIT_CRITICAL(&mux);
     }
@@ -535,6 +610,9 @@ void ctrlTask(void *) {
     if (p.req_estop) mode = raiseFault(mode, "estop");
 
     // ---------- sensörler
+#if USE_MPU6050
+    const uint32_t t_i2c = micros();
+#endif
     if (readAS5600(raw)) sensor_fails = 0;
     else if (++sensor_fails >= SENSOR_FAIL_LIMIT && mode != IDLE) mode = raiseFault(mode, "sensor");
     float th = wrapAngle(ANGLE_SIGN * wrapAngle(rawToRad(raw) - raw_hang) + PI);
@@ -542,6 +620,19 @@ void ctrlTask(void *) {
     float x_enc = X_SIGN * cnt * X_PER_COUNT;
     float x = x_enc - x_offset;
     float dx = vx.update(x, dt), dth = vth.update(th, dt);
+#if USE_MPU6050
+    if (mpu_ok) {
+      float w;
+      if (mpuReadGyro(w)) { mpu_fails = 0; gy = w - gyro_bias; }
+      else if (++mpu_fails >= MPU_FAIL_LIMIT) { mpu_ok = false; SET_SHARED(ev_gyro_fail, true); }  // FAULT değil
+    }
+    {
+      const uint32_t us = micros() - t_i2c;
+      portENTER_CRITICAL(&mux); if (us > S.i2c_us) S.i2c_us = us; S.mpu_ok = mpu_ok; S.gy = gy; portEXIT_CRITICAL(&mux);
+    }
+    // türev bölgesinde karışım (Denklem 8.5); Kalman bölgesinde kf.update bunu kendi kestirimiyle değiştirir
+    if (mpu_ok && p.gyro_mix > 0.0f) dth = p.gyro_mix * gy + (1.0f - p.gyro_mix) * dth;
+#endif
     bool kf_en = USE_KALMAN && homed && (mode == SWING_UP || mode == WAIT || mode == BALANCE) && (fabsf(th) < p.release_rad);
     kf.update(x, dx, th, dth, u_prev, kf_en, dx, dth);
     // limL/limR: REFERANS sensör (1'de switch, 2'de optik): homing ve çalışırken "limit".
@@ -644,6 +735,7 @@ void ctrlTask(void *) {
     if (tel_acc >= 1.0f) {
       tel_acc -= 1.0f;
       S.n = n++; S.t = k * dt; S.x = x; S.dx = dx; S.th = th; S.dth = dth; S.u = u; S.tel_valid = true;
+      S.tel_gy = S.gy;                                 // telemetri örneğiyle aynı an (USE_MPU6050 0'da kullanılmaz)
     }
     portEXIT_CRITICAL(&mux);
   }
@@ -705,6 +797,7 @@ static void handleSetParam(JsonObject d) {
   if (d["x_ref"].is<float>()) S.x_ref   = d["x_ref"].as<float>();
   if (d["u_max"].is<float>()) S.u_max   = d["u_max"].as<float>();
   if (d["fc_volt"].is<float>()) S.fc_volt = d["fc_volt"].as<float>();
+  if (d["gyro_mix"].is<float>()) S.gyro_mix = d["gyro_mix"].as<float>();   // USE_MPU6050 0'da etkisiz
   portEXIT_CRITICAL(&mux);
   if (d["telemetry_hz"].is<float>()) telemetry_hz = (int)d["telemetry_hz"].as<float>();
   sendAck("set_param", true);
@@ -727,11 +820,18 @@ static void handleCommand(const char *line) {
 
   if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
-    char extra[112];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
+    char extra[144];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
     // açılış kalibrasyonu (~1.1 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
     snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"theta\":\"sol\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
              FW_NAME, s.homed ? "true" : "false",
              !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");
+#if USE_MPU6050
+    {   // jiroskop durumu ve ölçülen en büyük I²C okuma süresi (AS5600 + MPU, µs): README'deki bütçe için
+      size_t L = strlen(extra);
+      snprintf(extra + L, sizeof extra - L, ",\"gyro\":%s,\"i2c_us\":%lu", s.mpu_ok ? "true" : "false",
+               (unsigned long)s.i2c_us);
+    }
+#endif
     sendAck("ping", true, "pong", extra); return;
   }
   if (!strcmp(cmd, "set_gain")) {
@@ -798,7 +898,7 @@ void commTask(void *) {
     Shared s;
     portENTER_CRITICAL(&mux);
     s = S; S.ev_homed = S.ev_fault = S.ev_limitL = S.ev_limitR = S.ev_calib = S.ev_friction = false;
-    S.ev_hardL = S.ev_hardR = S.ev_mismatchL = S.ev_mismatchR = false;
+    S.ev_hardL = S.ev_hardR = S.ev_mismatchL = S.ev_mismatchR = false; S.ev_gyro_fail = false;
     portEXIT_CRITICAL(&mux);
 #if END_SENSORS == 2
     if (s.ev_limitL) Serial.print("{\"evt\":\"limit\",\"side\":\"L\",\"stage\":\"opt\"}\n");
@@ -812,7 +912,15 @@ void commTask(void *) {
     if (s.ev_limitR) Serial.print("{\"evt\":\"limit\",\"side\":\"R\"}\n");
 #endif
     if (s.ev_homed)  Serial.print("{\"evt\":\"homed\"}\n");
+#if USE_MPU6050
+    if (s.ev_calib) {
+      if (s.mpu_ok) Serial.printf("{\"evt\":\"calib\",\"ok\":%s,\"gyro_bias\":%.5f}\n", s.angle_ok ? "true" : "false", s.gyro_bias);
+      else          Serial.printf("{\"evt\":\"calib\",\"ok\":%s}\n", s.angle_ok ? "true" : "false");
+    }
+    if (s.ev_gyro_fail) Serial.print("{\"evt\":\"gyro\",\"ok\":false}\n");
+#else
     if (s.ev_calib)  Serial.printf("{\"evt\":\"calib\",\"ok\":%s}\n", s.angle_ok ? "true" : "false");
+#endif
     if (s.ev_fault)  Serial.printf("{\"evt\":\"fault\",\"reason\":\"%s\"}\n", s.fault_reason ? s.fault_reason : "?");
     if (s.ev_friction) {
       if (s.fr_ok) Serial.printf("{\"evt\":\"friction\",\"ok\":true,\"v_pos\":%.4f,\"v_neg\":%.4f,\"v_c\":%.4f,\"slope\":%.4f}\n",
@@ -821,9 +929,19 @@ void commTask(void *) {
     }
     if (s.tel_valid && s.n != last_n) {                 // yeni telemetri (açılıştaki boş yapı gönderilmez)
       last_n = s.n;
+#if USE_MPU6050
+      int l = s.mpu_ok
+        ? snprintf(buf, sizeof buf,
+            "{\"n\":%lu,\"t\":%.4f,\"x\":%.5f,\"dx\":%.4f,\"th\":%.5f,\"dth\":%.4f,\"u\":%.3f,\"mode\":\"%s\",\"gy\":%.4f}\n",
+            (unsigned long)s.n, s.t, s.x, s.dx, s.th, s.dth, s.u, MODE_NAMES[s.mode], s.tel_gy)
+        : snprintf(buf, sizeof buf,
+            "{\"n\":%lu,\"t\":%.4f,\"x\":%.5f,\"dx\":%.4f,\"th\":%.5f,\"dth\":%.4f,\"u\":%.3f,\"mode\":\"%s\"}\n",
+            (unsigned long)s.n, s.t, s.x, s.dx, s.th, s.dth, s.u, MODE_NAMES[s.mode]);
+#else
       int l = snprintf(buf, sizeof buf,
         "{\"n\":%lu,\"t\":%.4f,\"x\":%.5f,\"dx\":%.4f,\"th\":%.5f,\"dth\":%.4f,\"u\":%.3f,\"mode\":\"%s\"}\n",
         (unsigned long)s.n, s.t, s.x, s.dx, s.th, s.dth, s.u, MODE_NAMES[s.mode]);
+#endif
       if (l > 0 && l < (int)sizeof buf) Serial.write((const uint8_t *)buf, l);
     }
     vTaskDelay(1);

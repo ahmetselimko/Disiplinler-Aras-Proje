@@ -29,7 +29,7 @@ from pathlib import Path
 import numpy as np
 
 from .analysis.summary import TrialSummary, compute_trial_summary
-from .comm.reader import COLUMNS, match_ack, mode_name
+from .comm.reader import COLUMNS, OLD_COLUMNS, match_ack, mode_name
 from .control.lqr import design_lqr
 from .control.supervisor import CATCH_DEG, RELEASE_DEG, Mode, Supervisor
 from .control.swingup import EnergySwingUp
@@ -46,6 +46,12 @@ OLD_THETA_SIGN_VALUES = ("sag", "sağ")
 DEVICE_THETA_KEY = "cihaz_theta_pozitif"
 # Kayıt başlığındaki swing-up ayarlarında E_ratio yoksa (eski kayıt): #50 Aşama 2 öncesi varsayılan
 LEGACY_E_RATIO = 1.0
+
+
+def _gy_cell(r) -> str:
+    """CSV'nin gy hücresi: jiroskop yoksa (sütun eksik ya da NaN) boş."""
+    gy = r[7] if len(r) > 7 else math.nan
+    return "" if gy is None or math.isnan(gy) else f"{gy:.4f}"
 
 
 class Recorder:
@@ -72,7 +78,7 @@ class Recorder:
         with self._lock:
             if self._f.closed:
                 return
-            self._w.writerows(r[:-1] + (mode_name(r[-1]),) for r in rows)
+            self._w.writerows(tuple(r[:6]) + (mode_name(r[6]), _gy_cell(r)) for r in rows)
             self.rows += len(rows)
             if time.perf_counter() - self._last_flush > 1.0:
                 self._f.flush()
@@ -122,6 +128,7 @@ class RecordedSession:
     dth: np.ndarray
     u: np.ndarray
     mode: list[str]
+    gy: np.ndarray | None = None      # MPU6050 [rad/s]; kayıtta sütun yoksa ya da hep boşsa None
 
     def active_slice(self) -> slice:
         """İlk WAIT/SWING_UP/BALANCE örneğinden deneme bitişine kadar olan dilimi döndürür."""
@@ -161,6 +168,7 @@ class ReplayComparison:
     sim_actions_during_trial: list = None  # deneme sırasında gönderilen dürt/duraklat/sıfırla (simülasyon içermez)
     x_ref: float = 0.0                   # simülasyonun kullandığı hedef konum [m]
     k_unconfirmed: bool = False          # gerçek kart K'yı onaylamamıştı (gains.h'deki K çalışmış olabilir)
+    gy: np.ndarray | None = None         # kayıttaki MPU6050 θ̇ (gösterilen dilim; jiroskop yoksa None)
 
 
 def load_recording(path: str | Path) -> RecordedSession:
@@ -196,7 +204,7 @@ def load_recording(path: str | Path) -> RecordedSession:
                 continue
             parts = [c.strip() for c in next(csv.reader([line]))]
             if header is None:
-                if parts != list(COLUMNS):
+                if parts not in (list(COLUMNS), list(OLD_COLUMNS)):   # eski kayıtlarda "gy" sütunu yok
                     raise ValueError(f"Beklenen CSV sütunları {list(COLUMNS)}, bulunan: {parts}")
                 header = parts
                 continue
@@ -208,7 +216,11 @@ def load_recording(path: str | Path) -> RecordedSession:
                 continue
             if not all(math.isfinite(v) for v in vals):
                 continue
-            rows.append((vals[0], vals[1], vals[2], vals[3], vals[4], vals[5], parts[6]))
+            try:
+                gy = float(parts[7]) if len(parts) > 7 and parts[7] else math.nan
+            except ValueError:
+                gy = math.nan
+            rows.append((vals[0], vals[1], vals[2], vals[3], vals[4], vals[5], parts[6], gy))
 
     if len(rows) < 2:
         raise ValueError(f"Kayıtta karşılaştırma için en az 2 geçerli telemetri satırı olmalı ({p.name}).")
@@ -223,9 +235,11 @@ def load_recording(path: str | Path) -> RecordedSession:
     if dev in OLD_THETA_SIGN_VALUES:                          # yeni arayüz, eski firmware: yalnız telemetri
         flip = True
         meta["cihaz_theta_donusturuldu"] = True
+    gy = np.array([r[7] for r in rows], dtype=float)
     if flip:
         arr[:, 3] *= -1.0                     # th
         arr[:, 4] *= -1.0                     # dth
+        gy *= -1.0
     return RecordedSession(
         path=p,
         meta=meta,
@@ -237,6 +251,7 @@ def load_recording(path: str | Path) -> RecordedSession:
         dth=arr[:, 4],
         u=arr[:, 5],
         mode=modes,
+        gy=gy if np.isfinite(gy).any() else None,
     )
 
 
@@ -536,6 +551,7 @@ def compare_recording_with_simulation(
                            and str(session.meta.get("kaynak", "")).startswith("gerçek kart")
                            and "K" not in (meta.get("device_acknowledged_settings") or {})),
         x_ref=float(sup.x_ref),
+        gy=session.gy[shown] if session.gy is not None else None,
         rmse_th_deg=float(np.sqrt(np.mean(err_th_deg ** 2))),
         rmse_x=float(np.sqrt(np.mean(err_x ** 2))),
         rmse_u=float(np.sqrt(np.mean(err_u ** 2))),

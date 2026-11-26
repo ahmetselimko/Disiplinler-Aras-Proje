@@ -34,6 +34,10 @@ jobs:
         core: ["3.3.12", "2.0.17"]
         board: ["esp32", "esp32s3"]
         end_sensors: [1, 2]   # uç sensörü: 1 tek sensör, 2 optik + mikro switch (#50 Aşama 4)
+        mpu: [0]
+        include:              # MPU6050 jiroskobu açık (#50 Aşama 5): S3 kartında iki core sürümüyle
+          - {core: "3.3.12", board: "esp32s3", end_sensors: 2, mpu: 1}
+          - {core: "2.0.17", board: "esp32s3", end_sensors: 2, mpu: 1}
     env:
       ESP32_URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     steps:
@@ -51,5 +55,5 @@ jobs:
       - name: Firmware'i derle
         run: >
           arduino-cli compile --fqbn esp32:esp32:${{ matrix.board }} --warnings all
-          --build-property "compiler.cpp.extra_flags=-DEND_SENSORS=${{ matrix.end_sensors }}"
+          --build-property "compiler.cpp.extra_flags=-DEND_SENSORS=${{ matrix.end_sensors }} -DUSE_MPU6050=${{ matrix.mpu }}"
           firmware/esp32_pendulum

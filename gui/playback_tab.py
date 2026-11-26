@@ -92,7 +92,10 @@ class PlaybackTab(QtWidgets.QWidget):
         self.p_u = self.glw.addPlot(row=2, col=0, title="u")
         self.p_e = self.glw.addPlot(row=3, col=0, title="Enerji E [J]  (0 = dik)")
         self.p_m = self.glw.addPlot(row=4, col=0, title="mod")
-        plots = (self.p_th, self.p_x, self.p_u, self.p_e, self.p_m)
+        # MPU6050 (#50 Aşama 5): kayıtta "gy" sütunu varsa görünür
+        self.p_w = self.glw.addPlot(row=5, col=0, title="θ̇ [rad/s]  (kayıt: kullanılan / jiroskop; kesikli: simülasyon)")
+        self.p_w.hide()
+        plots = (self.p_th, self.p_x, self.p_u, self.p_e, self.p_m, self.p_w)
         for pl in plots:
             pl.showGrid(x=True, y=True, alpha=0.25)
         for pl in plots[1:]:
@@ -111,6 +114,9 @@ class PlaybackTab(QtWidgets.QWidget):
         self.c_sim_e = self.p_e.plot(pen=pg.mkPen("#935116", width=1.6, style=dash))
         self.c_rec_m = self.p_m.plot(pen=pg.mkPen("#8e44ad", width=2), stepMode="left")
         self.c_sim_m = self.p_m.plot(pen=pg.mkPen("#4a235a", width=1.6, style=dash), stepMode="left")
+        self.c_rec_w = self.p_w.plot(pen=pg.mkPen("#2980b9", width=1.8))
+        self.c_rec_gy = self.p_w.plot(pen=pg.mkPen("#e67e22", width=1.4))
+        self.c_sim_w = self.p_w.plot(pen=pg.mkPen("#1b4f72", width=1.6, style=dash))
 
         self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=dash)))
         setup_mode_axis(self.p_m)
@@ -248,6 +254,12 @@ class PlaybackTab(QtWidgets.QWidget):
         sim_codes = np.array([MODE_CODES.get(Mode(m), -1) if m else -1 for m in sim.mode], dtype=float)
         self.c_rec_m.setData(comp.t, rec_codes)
         self.c_sim_m.setData(sim.t, sim_codes)
+        has_gy = comp.gy is not None and bool(np.isfinite(comp.gy).any())
+        self.p_w.setVisible(has_gy)
+        if has_gy:
+            self.c_rec_w.setData(comp.t, comp.dth)
+            self.c_rec_gy.setData(comp.t, comp.gy)
+            self.c_sim_w.setData(sim.t, sim.s[:, 3])
 
         src_lbl = self.session.meta.get("kaynak", "belirtilmemiş")
         lines = [

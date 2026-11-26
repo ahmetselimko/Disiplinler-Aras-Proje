@@ -40,6 +40,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı 
 | **Dürt** + kuvvet, süre, yer | Yalnız simülasyonda: girilen yatay kuvveti (N) verilen süre (ms) boyunca uygular, LQR'ın toparlamasını görmek için. Yer **sarkaca** (ağırlık merkezine) veya **arabaya** (Matlab'daki "Apply push" ile aynı). Varsayılan 1.2 N × 50 ms sarkaca: θ̇'yi ~1 rad/s değiştirir. Pozitif kuvvet sağa iter: sarkaca sağa itme dik sarkacı sağa (θ < 0), arabaya sağa itme sarkacı sola (θ > 0) yatırır |
 | **Duraklat / Devam Et** | Yalnız simülasyonda: fizik ve kontrol donar, grafikler son değerlerle akmaya devam eder. Grafiği yalnızca ekranda donduran **Dondur** kutusundan farklıdır |
 | **Sıfırla** + θ₀ | Yalnız simülasyonda: BEKLEMEDE'ye döner, duraklatmayı kaldırır, sarkacı θ₀ açısında (180° = aşağıda, 0° = dik, pozitif = sola yatık) durağan koyar. Kalibre edildiyse araba x = 0 noktasına gelir, kalibrasyonun tekrarı gerekmez |
+| θ̇ grafiği + **Karışımı gönder** | Yalnız MPU6050'li firmware'de (telemetride `gy` varsa) görünür: AS5600 açısının bilgisayarda alınan türevi, jiroskop ve kontrolde kullanılan θ̇. `gyro_mix` (0…1) θ̇'nın ne kadarının jiroskoptan alınacağını cihaza gönderir; 0 = jiroskop yalnız izlenir |
 | Hedef + x_ref gönder | Dengedeyken arabanın gideceği konum (ray sınırına göre kısıtlanır) |
 | Swing-up açık | Kapatılırsa cihaz sarkacın elle dik konuma getirilmesini bekler (WAIT), sonra LQR tutar. Swing-up sürerken kapatılırsa pompalama hemen durur. İlk donanım denemesinde önerilir |
 | Durum çubuğu | Veri hızı (Hz), kayıp satır, hatalı satır, çizim FPS, güncel K |
@@ -82,6 +83,8 @@ Başlangıç açısı (180° = aşağıda), başlangıç konumu x₀ ve hızlar�
 
 Gerçek parametreler gelince **ilk iş** buradan θ₀ = 180° ile denemektir: son mod BALANCE olmalı ve max |x| ray sınırının altında kalmalı.
 
+**Jiroskop (MPU6050)** kutusu ve **gyro_mix** ayarı simülasyona jiroskop modelini (gürültü, bias, ±2000 °/s doyum) ekler; sonuç kutusunda AS5600 türevi, karışım ve kullanılan θ̇ için RMSE yazar. Jiroskopun gerçekten işe yarayıp yaramadığını donanıma geçmeden görmek için kullanılır.
+
 **Matlab uyumlu** kutusu, mekatronik ekibinin `cart_pendulum_application.m` denemesini Python'da tekrarlar: sürekli zamanlı LQR, kuvvet girişi (motor yok), ideal sensör, 2.5 ms RK4; araba ±0.2 m'ye ulaşınca veya \|θ\| ≥ 90° olunca deneme durur. Swing-up yoktur (θ₀ 90°'den küçük olmalı); dürtme Matlab'daki gibi arabaya uygulanır.
 - **Matlab'ın kendi ayarlarıyla** (varsayılan): `cart_pendulum_lqr.m`'deki parametreler, Q, R ve ±10 N kuvvet sınırı kullanılır; sonuç ve K Matlab'ınkiyle karşılaştırılabilir.
 - Kapatılırsa projenin parametreleri ve Tasarım sekmesindeki Q, R kullanılır, kuvvet sınırı yoktur; o zaman gösterilen K Matlab'ın K'sı değildir.
@@ -105,7 +108,7 @@ Gerçek (veya sanal) denemenin kaydını modelle karşılaştırmak için:
    - **Kayıttaki model ve K ayarlarını kullan**: kayıt başlığındaki parametreler ve o ana kadar cihazın onayladığı ayarlar kullanılır; deneme sırasında değişen ayarlar uyarı olarak yazılır. Kapatılırsa arayüzdeki güncel ayarlar kullanılır.
    - **Yalnız aktif denemeyi hizala**: yalnız BAŞLAT → bitiş aralığı gösterilir; kapatılırsa kaydın tamamı gösterilir, simülasyon BAŞLAT anına hizalanır.
    - **Gerçekçi sensör** ve **Kalman** kutuları Analiz sekmesindekiyle aynı anlamdadır.
-3. θ, x, u, enerji ve mod grafiklerinde kayıt düz, simülasyon kesikli çizilir; özet kutusunda RMSE(θ, x, u) ve en büyük hatalar yazar. **▶ Oynat** kaydı zaman damgalarına göre 0.25x–2x hızla canlandırır.
+3. Kayıtta `gy` sütunu varsa (MPU6050'li firmware) θ̇ grafiği de çizilir: kayıttaki θ̇, jiroskop ve simülasyon. Eski kayıtlar (gy sütunsuz) da açılır. θ, x, u, enerji ve mod grafiklerinde kayıt düz, simülasyon kesikli çizilir; özet kutusunda RMSE(θ, x, u) ve en büyük hatalar yazar. **▶ Oynat** kaydı zaman damgalarına göre 0.25x–2x hızla canlandırır.
 
 RMSE büyükse önce parametreleri (özellikle motor değerleri ve sürtünme) gözden geçirin.
 
