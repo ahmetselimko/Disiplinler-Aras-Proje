@@ -356,5 +356,5 @@ def test_simulated_encoder_resolution_matches_firmware():
     res = 2 * math.pi * p.motor.r_pulley / (ENC_CPR_MOTOR * p.motor.gear)
     assert encoder_resolution(p) == pytest.approx(res)
     assert SensorModel.for_params(p).x_resolution == pytest.approx(res)
-    assert SensorModel().x_resolution == pytest.approx(res)               # varsayılan da 48 CPR
+    assert SensorModel().x_resolution == pytest.approx(res)               # varsayılan da ENC_CPR_MOTOR
     assert MockDevice(params=p, seed=0).sensor.x_resolution == pytest.approx(res)

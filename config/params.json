@@ -1,10 +1,10 @@
 {
-  "_aciklama": "YER TUTUCU değerler. Mekanik tasarım bitince mekatronik ekibi doldurur (bkz. docs/parametre_tablosu.md). Birimler SI. Gerçek ölçüler girilince \"placeholder\": false yapılmalı.",
+  "_aciklama": "Mekatronik ara raporu 23.11.2026, TASARIM değeri, ölçülmedi (+20 g uç kütlesi (varsayılan)). Sarkaç: Tablo 15 (m, l; I = I_pivot − m·l², ağırlık merkezi etrafında). Araba: M = 1.10 kg (Bölüm 12/15, sarkaç DAHİL) − m + 0.26 kg kayış + 0.025 kg kasnaklar. Motor JGB37-520 19:1, HTD3M 20 diş (Bölüm 13.3, 14.1, Tablo 16): R, Kt, Ke, Tablo 16'daki α = 2.26 N/V ve b_elec = 48.41 N·s/m'yi Kt = Ke ile verecek şekilde (motor sabitleri config/params_mekatronik_tasarim.json ile aynı; I burada 6 ondalığa yuvarlı, o dosyada 0.0012027, bu yüzden K[2] 101.47 / 101.46); J_rotor arabaya yansıyan 1.346 kg'dan (1.346·r²/N²), T_f 3.0 N araba sürtünmesinden (3·r/N). Datasheet ve ölçüm gelince güncellenmeli; o zamana kadar \"placeholder\": true kalır. Uç kütlesi seçenekleri: params.json (+20 g), params_ucsuz.json, params_50g.json (arayüzde Yükle).",
   "placeholder": true,
-  "M": 0.5,
-  "m": 0.2,
-  "l": 0.3,
-  "I": 0.0,
+  "M": 1.28,
+  "m": 0.105,
+  "l": 0.0992,
+  "I": 0.001203,
   "b": 0.1,
   "c": 0.0005,
   "g": 9.81,
@@ -12,15 +12,15 @@
   "u_max": 12.0,
   "input_mode": "voltage",
   "motor": {
-    "R": 2.18,
-    "Kt": 0.00892,
-    "Ke": 0.01104,
-    "gear": 10.0,
+    "R": 9.478,
+    "Kt": 0.0107654,
+    "Ke": 0.0107654,
+    "gear": 19.0,
     "r_pulley": 0.009549,
     "V_max": 12.0,
-    "J_rotor": 0.0,
-    "T_f": 0.0,
+    "J_rotor": 3.4e-07,
+    "T_f": 0.0015077,
     "B_m": 0.0
   },
-  "note": "YER TUTUCU DEĞERLER — mekatronik ekibinden gerçek değerler gelince güncellenecek"
+  "note": "Mekatronik raporu 23.11, tasarım değeri, ölçülmedi — +20 g uç kütlesi (varsayılan); motor Tablo 16'dan, datasheet bekleniyor"
 }

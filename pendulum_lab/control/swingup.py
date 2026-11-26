@@ -11,6 +11,10 @@ Rayın dışına taşmamak için araba merkezleme terimi eklenir: −k_x x − k
 
 Hedef enerji oranı E_ratio, hedefi aşağı-durağan konumdan ölçülen enerjinin dik konumdakine (2mgl)
 oranı olarak verir: 1 → tam dik konum enerjisi (E = 0), 1.1 → %10 fazlası (E = 0.2 mgl).
+DİKKAT, tanımlar farklı: mekatroniğin E_ref = 1.02·mgl'si (enerji dikte +mgl, aşağıda −mgl; rapor 8.2.4) bizim
+tanımımızda E_ratio = 1.01'e karşılık gelir (fazla enerji 0.02·mgl / 2mgl). Varsayılan 1.05 (#50 Aşama 2):
+mekatronik tasarım değerleriyle (+20 g / +50 g uç kütlesi, 3 N sürtünme) 1.0'da sarkaç kalkmıyor, 1.05'te
+~4 s'de dengeye geliyor (docs/mekatronik_on_degerlendirme.md).
 Çıkış İVMEdir; motor girişine dynamics.accel_to_input ile çevrilir.
 """
 
@@ -32,7 +36,7 @@ class EnergySwingUp:
     k_x: float = 10.0       # merkezleme (konum) kazancı
     k_v: float = 6.0        # merkezleme (hız) kazancı
     a_kick: float = 2.0     # sarkaç tam aşağıda hareketsizken ilk dürtme ivmesi
-    E_ratio: float = 1.0    # hedef enerji oranı (1 = dik konum enerjisi)
+    E_ratio: float = 1.05   # hedef enerji oranı (1 = dik konum enerjisi; mekatroniğin 1.02·mgl'si = 1.01)
 
     def target_energy(self, p: PendulumParams) -> float:
         """Hedef enerji [J], energy() ile aynı sıfır noktasında (dik-durağan = 0)."""

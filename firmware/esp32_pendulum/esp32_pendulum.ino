@@ -44,7 +44,7 @@
 #define CATCH_DX 2.0f      // LQR'a girişte |ẋ| sınırı [m/s]
 #endif
 #ifndef SU_E_RATIO
-#define SU_E_RATIO 1.0f    // swing-up hedef enerji oranı (1 = dik konum)
+#define SU_E_RATIO 1.05f   // swing-up hedef enerji oranı (1 = dik konum; swingup.EnergySwingUp varsayılanı)
 #endif
 #ifndef INPUT_MODE_VOLTAGE
 #error "Bu firmware yalnız DC motor (input_mode = voltage) için yazıldı. Step motor için motor sürme kısmı yeniden yazılmalı."
@@ -77,7 +77,7 @@ static const char *FW_NAME = "ref-1.2";                // 1.2: θ sola + (#50); 
 static const uint8_t AS5600_ADDR = 0x36;
 static const float ANGLE_SIGN = +1.0f;                // θ > 0: sarkaç SOLA yatık (mekatronik raporu 8.1.3, #50). Sola yatınca θ artmıyorsa -1 yapın
 static const float X_SIGN = +1.0f;                    // araba sağa giderken x artmıyorsa -1 yapın
-static const float ENC_CPR_MOTOR = 48.0f;             // motor milindeki enkoder, 4x sayım. YER TUTUCU: motor teyit bekliyor (BOM v3: JGB37-520 ya da FIT0186); kesinleşince düzenleyin
+static const float ENC_CPR_MOTOR = 44.0f;             // motor milindeki enkoder, 4x sayım: JGB37-520 (rapor: 836 sayım/çıkış turu ÷ 19 = 44; motorda doğrulanacak)
 // redüktör ve kasnak gains.h'den gelir: motor/kasnak değişince arayüzden yeniden dışa aktarmak yeter
 static const float ENC_COUNTS_PER_REV = ENC_CPR_MOTOR * MOTOR_GEAR;
 static const float X_PER_COUNT = 2.0f * PI * PULLEY_R_M / ENC_COUNTS_PER_REV;

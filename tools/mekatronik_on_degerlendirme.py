@@ -10,7 +10,8 @@ E_ratio bizim tanımımızdır: hedef enerji aşağı-durağan konumdan ölçül
 Mekatroniğin E_ref = 1.02·mgl'si (enerji dikte +mgl, aşağıda −mgl) bizim tanımımızda E_ratio = 1.01'dir.
 
 İki tablo yazdırılır: sürtünme telafisi AÇIK (kontrolcü 3 N'u biliyor, firmware'de ölçülen fc_volt gönderilmiş gibi)
-ve KAPALI (fc_volt = 0, şu anki varsayılan).
+ve KAPALI (fc_volt = 0: kontrolcü sürtünmeyi bilmiyor; Aşama 2'den beri params.json'da T_f tasarım değerinde,
+yani arayüzün varsayılanı telafi açık).
 
     python tools/mekatronik_on_degerlendirme.py
 
@@ -31,7 +32,7 @@ import numpy as np  # noqa: E402
 
 from pendulum_lab.analysis.sensitivity import evaluate_result  # noqa: E402
 from pendulum_lab.control.lqr import design_lqr  # noqa: E402
-from pendulum_lab.control.supervisor import Supervisor  # noqa: E402
+from pendulum_lab.control.supervisor import CATCH_DEG, RELEASE_DEG, Supervisor  # noqa: E402
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
 from pendulum_lab.model.params import load_params  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
@@ -64,7 +65,8 @@ def run(p, e_ratio, friction_comp=True, T=T):
     if not friction_comp:
         p_ctrl = copy.deepcopy(p)
         p_ctrl.motor.T_f = 0.0
-    sup = Supervisor(p_ctrl, K.ravel(), swingup=EnergySwingUp(E_ratio=e_ratio))
+    sup = Supervisor(p_ctrl, K.ravel(), swingup=EnergySwingUp(E_ratio=e_ratio),
+                     catch_deg=CATCH_DEG, release_deg=RELEASE_DEG)          # arayüzle aynı kaynaktan
     sup.start()
     r = simulate_closed_loop(p, sup, [0, 0, math.pi, 0], T, dt=TS, sensor=SensorModel.for_params(p, seed=0))
     e = evaluate_result(r, p)

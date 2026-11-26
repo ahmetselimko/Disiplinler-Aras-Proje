@@ -31,7 +31,7 @@ import numpy as np
 from .analysis.summary import TrialSummary, compute_trial_summary
 from .comm.reader import COLUMNS, match_ack, mode_name
 from .control.lqr import design_lqr
-from .control.supervisor import Mode, Supervisor
+from .control.supervisor import CATCH_DEG, RELEASE_DEG, Mode, Supervisor
 from .control.swingup import EnergySwingUp
 from .model.params import PendulumParams
 from .sim.simulator import SensorModel, SimResult, simulate_closed_loop
@@ -44,6 +44,8 @@ THETA_SIGN_VALUE = "sol"
 OLD_THETA_SIGN_VALUES = ("sag", "sağ")
 # Yeni arayüzün kaydında cihazın (telemetrinin) θ kuralı; "sag": eski firmware, yalnız θ, θ̇ sütunları çevrilir
 DEVICE_THETA_KEY = "cihaz_theta_pozitif"
+# Kayıt başlığındaki swing-up ayarlarında E_ratio yoksa (eski kayıt): #50 Aşama 2 öncesi varsayılan
+LEGACY_E_RATIO = 1.0
 
 
 class Recorder:
@@ -285,8 +287,8 @@ def _extract_replay_config(meta: dict, fallback_state=None):
     fb_K = getattr(fallback_state, "K", None)
     fb_Ts = getattr(fallback_state, "Ts", 0.002)
     fb_su = getattr(fallback_state, "swingup", None)
-    fb_catch = getattr(fallback_state, "catch_deg", 15.0)
-    fb_release = getattr(fallback_state, "release_deg", 30.0)
+    fb_catch = getattr(fallback_state, "catch_deg", CATCH_DEG)
+    fb_release = getattr(fallback_state, "release_deg", RELEASE_DEG)
     fb_su_en = getattr(fallback_state, "swingup_enabled", True)
     fb_xref = getattr(fallback_state, "x_ref", 0.0)
 
@@ -303,6 +305,8 @@ def _extract_replay_config(meta: dict, fallback_state=None):
         # yalnız EnergySwingUp'ın bugün tanıdığı alanlar: eski kayıtlardaki kaldırılmış alanlar
         # (ör. E_target) hata vermesin, yeni alanlar (ör. E_ratio) da kendiliğinden okunsun
         su_kw = {k: float(v) for k, v in su_raw.items() if k in SWINGUP_FIELDS}
+        # E_ratio'suz eski kayıtlar (E_target dönemi) 1.0 ile alındı; bugünkü varsayılan (1.05, #50 Aşama 2) değil
+        su_kw.setdefault("E_ratio", LEGACY_E_RATIO)
         swingup = EnergySwingUp(**su_kw)
     else:
         swingup = copy.deepcopy(fb_su) if fb_su is not None else EnergySwingUp()

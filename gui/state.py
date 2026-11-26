@@ -11,7 +11,7 @@ from PyQt5 import QtCore
 from pendulum_lab.comm import protocol as P
 from pendulum_lab.comm.transport import SimTransport
 from pendulum_lab.control.lqr import design_lqr
-from pendulum_lab.control.supervisor import CATCH_DTH, CATCH_DX, CATCH_X
+from pendulum_lab.control.supervisor import CATCH_DEG, CATCH_DTH, CATCH_DX, CATCH_X, RELEASE_DEG
 from pendulum_lab.control.swingup import EnergySwingUp
 from pendulum_lab.model.params import PendulumParams, load_params
 
@@ -28,17 +28,31 @@ class AppState(QtCore.QObject):
         self.base_dir = Path(params_path).resolve().parent.parent
         self.params_path = Path(params_path)
         self.startup_warning = ""
+        # params.json okunamazsa genel yer tutucu varsayılanlarla açılır (motor/kasnak projeninkinden farklı:
+        # 10:1, 12.7 mm). Bu durumda K gönderilmez ve gains.h dışa aktarılmaz (firmware'deki 44 CPR'la x yanlış
+        # ölçeklenirdi); bir parametre dosyası Yüklenince kalkar (clear_params_fallback), kaydetmek kaldırmaz.
+        self.params_fallback = False
         try:
-            self.p = load_params(self.params_path) if self.params_path.exists() else PendulumParams()
+            if self.params_path.exists():
+                self.p = load_params(self.params_path)
+            else:
+                self.p = PendulumParams()
+                self.params_fallback = True
+                self.startup_warning = (f"{self.params_path} bulunamadı; GENEL varsayılan parametreler kullanılıyor. "
+                                        "K gönderilmez ve gains.h dışa aktarılmaz; Tasarım sekmesinden bir parametre "
+                                        "dosyası yükleyin.")
         except (ValueError, TypeError, OSError) as e:   # bozuk/geçersiz dosya: varsayılanlarla aç, uyar
             self.p = PendulumParams()
-            self.startup_warning = f"{self.params_path} okunamadı ({e}); varsayılan parametreler kullanılıyor."
+            self.params_fallback = True
+            self.startup_warning = (f"{self.params_path} okunamadı ({e}); GENEL varsayılan parametreler kullanılıyor. "
+                                    "K gönderilmez ve gains.h dışa aktarılmaz; Tasarım sekmesinden bir parametre "
+                                    "dosyası yükleyin.")
         self.Q = [10.0, 1.0, 100.0, 1.0]
         self.R = 0.1
         self.Ts = 0.002
         self.swingup = EnergySwingUp()
-        self.catch_deg = 15.0
-        self.release_deg = 30.0
+        self.catch_deg = CATCH_DEG      # LQR'a geçiş / bırakma açıları [°] (supervisor.py'deki ortak varsayılan)
+        self.release_deg = RELEASE_DEG
         self.catch_dth = CATCH_DTH      # LQR'a girişte |θ̇| sınırı [rad/s]
         self.catch_x = CATCH_X          # LQR'a girişte |x| sınırı [m]
         self.catch_dx = CATCH_DX        # LQR'a girişte |ẋ| sınırı [m/s]
@@ -146,6 +160,10 @@ class AppState(QtCore.QObject):
             self.log.emit(f"K gönderilmedi: giriş türü '{self.p.input_mode}'. Cihaz yalnız 'voltage' (DC motor) "
                           "girişini destekler — Tasarım sekmesinde giriş türünü voltage yapıp K'yı yeniden hesaplayın.")
             return False
+        if self.params_fallback:
+            self.log.emit("K gönderilmedi: parametre dosyası okunamadı, genel varsayılanlar kullanılıyor "
+                          "(motor/kasnak projeninkinden farklı). Tasarım sekmesinden bir parametre dosyası yükleyin.")
+            return False
         if self.theta_mismatch:
             if not self.device_info_seen:
                 self.send("ping")                # yanıt kaybolmuş olabilir: cihaz bilgisini yeniden iste
@@ -184,6 +202,10 @@ class AppState(QtCore.QObject):
         self.log.emit("K = [" + ", ".join(f"{k:.3f}" for k in self.K) + "] ve ayarlar gönderildi "
                       "(reddedilen olursa aşağıda ✗ ile görünür).")
         return True
+
+    def clear_params_fallback(self):
+        """Bir parametre dosyası yüklendi: K gönderimi ve dışa aktarma yeniden serbest (kaydetmek kaldırmaz)."""
+        self.params_fallback = False
 
     def send_swingup(self) -> bool:
         """Swing-up açık/kapalı anahtarını tek başına gönderir (bağlıysa)."""

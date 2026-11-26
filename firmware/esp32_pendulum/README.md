@@ -36,7 +36,7 @@ Aynı derleme her push ve PR'da GitHub Actions'ta iki kart × iki core sürümü
 | `esp32_pendulum.ino` | 500 Hz kontrol görevi (çekirdek 1) + iletişim görevi (çekirdek 0) |
 | `gains.h` | LQR kazancı, eşikler ve LQR'a geçiş şartları (`CATCH_*`), swing-up kazançları ve hedef enerji oranı (`SU_*`), model sabitleri, redüktör oranı ve kasnak yarıçapı, Kalman matrisleri (`KALMAN_AD/BD/L`). PC arayüzünden üretilir (**gains.h Dışa Aktar**). Eski bir `gains.h`'de olmayan değerler için `.ino`'daki `#ifndef` varsayılanları kullanılır; Kalman matrisleri yoksa Kalman uyarıyla kapalı derlenir |
 
-Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR`: şimdilik 48, **yer tutucu**; motor teyit bekliyor: BOM v3'te JGB37-520 ya da DFRobot FIT0186) ise motora özgüdür. Yanlış CPR/redüktör x ölçeğini doğrudan bozar: ör. FIT0186 (16 CPR × 4 × 43.8 ≈ 2800 sayım/tur) 48 CPR × 10:1 (480) varsayımıyla ~6 kat büyük x okunur; motor değişirse `.ino`'da elle düzenlenir.
+Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTOR · MOTOR_GEAR)` ile hesaplanır. Redüktör (`MOTOR_GEAR`) ve kasnak (`PULLEY_R_M`) `gains.h`'den gelir: motor veya kasnak değişince arayüzde girip yeniden dışa aktarmak yeter. Motor milindeki enkoder çözünürlüğü (`ENC_CPR_MOTOR` = **44**: JGB37-520, mekatronik raporunda 836 sayım / çıkış turu ÷ 19; motorda doğrulanacak) ise motora özgüdür. Yanlış CPR/redüktör x ölçeğini doğrudan bozar: ör. eski 48 CPR × 10:1 (480) varsayımı 836 sayımlık motorda x'i ~1.74 kat (≈ %74) büyük okurdu; motor değişirse `.ino`'da elle düzenlenir.
 
 ## Pinler (`board_pins.h` — kart türüne göre otomatik)
 | İşlev | ESP32-S3-DevKitC-1 N16R8 | Klasik ESP32 |
@@ -90,7 +90,7 @@ Donanımda switch var (varsayılan `LIMIT_SWITCHES 1`). Switch'ler henüz takıl
 | `accelToVolt` (Coulomb telafisi dahil) | `pendulum_lab/model/dynamics.py::accel_to_input`, `coulomb_compensation` (test: `test_firmware_coulomb_compensation_matches_python`) |
 | `VelEst` (25 Hz) | `pendulum_lab/filters.py::VelocityEstimator` |
 | `KalmanEst` (dik bölgede, `USE_KALMAN 1`; `0` ile kapatılır) | `pendulum_lab/filters.py::KalmanFilter`, `design_kalman` (test: `test_firmware_kalman_matches_python`) |
-| `ENC_CPR_MOTOR` (48), `X_PER_COUNT` | `pendulum_lab/filters.py::ENC_CPR_MOTOR`, `encoder_resolution` (test: `test_simulated_encoder_resolution_matches_firmware`) |
+| `ENC_CPR_MOTOR` (44), `X_PER_COUNT` | `pendulum_lab/filters.py::ENC_CPR_MOTOR`, `encoder_resolution` (test: `test_simulated_encoder_resolution_matches_firmware`) |
 | telemetri `snprintf` biçimi | `pendulum_lab/comm/protocol.py::encode_telemetry` |
 | `PARAM_LIMITS`, komut kabul/ret kuralları | `protocol.py::SET_PARAM_LIMITS`, `mock_device.py::_handle` (test: `test_firmware_param_limits_match_python`) |
 
@@ -104,13 +104,14 @@ Birinde yapılan değişiklik diğerine de yansıtılmalıdır. Python tarafı t
 | `#ifndef P_FC … #define P_FC 0.0f` (derleme anı denetimlerinde) | Eski `gains.h`'de `P_FC` yoksa telafiyi kapatır, derleme bozulmaz | — |
 | `FC_V_COMP = 0.01f` | Bu hızın [m/s] altında araba duruyor sayılır | `dynamics.V_COMP` |
 | `accelToVolt` içindeki `F += / -= fc_N` | Kuvvete motorun kuru sürtünmesi kadar ek: araba hareket ediyorsa hareket yönünde, duruyorsa istenen ivme yönünde. `fc_N` başta `P_FC`'dir; `set_param fc_volt` gelince `fc_volt·MOTOR_ALPHA` olur | `dynamics.coulomb_compensation` |
-| `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (`motor.T_f` = 0 iken 0) | `export.gains_header` |
+| `gains.h` → `P_FC` | Sürtünme kuvveti T_f·N/r [N]; arayüzden üretilir (şu anki `gains.h`'de rapordaki 3 N tasarım değeri; ölçülmedi) | `export.gains_header` |
 | `gains.h` → `P_B` | Artık motor mili viskoz sürtünmesini de (B_m·N²/r²) içerir | `PendulumParams.b_cart` |
 
-**Neden:** Simülasyonda Pololu 37D'nin tahmini kuru sürtünmesi (arabada ≈1.3 N) swing-up'ın ilk dürtmesini (≈1.4 N) yutuyor, sarkaç aşağıdan kalkamıyordu; telafiyle sürtünmesiz durumdaki gibi ~3.6 s'de kalkıyor. Telafi yalnız swing-up'ta çalışır; LQR'da ve homing'de yoktur. Homing sürtünmeyi hız döngüsünün integraliyle (PI, `HOME_KI`) yener; böylece T_f yanlış tahmin edilse ya da hiç ölçülmese de KALİBRE ET biter (#30). `motor.T_f` ölçülene kadar 0 olduğundan davranış değişmez.
+**Neden:** Kuru sürtünme swing-up'ın küçük itmelerini yutar. Mekatronik tasarım değerleriyle (3 N) telafisiz +20 g sarkaç ancak ~7 s'de, uçsuz sarkaç hiç kalkmıyor; telafiyle +20 g ~4.3 s'de kalkıyor (`docs/mekatronik_on_degerlendirme.md`). Telafi yalnız swing-up'ta çalışır; LQR'da ve homing'de yoktur. Homing sürtünmeyi hız döngüsünün integraliyle (PI, `HOME_KI`) yener; böylece T_f yanlış tahmin edilse ya da hiç ölçülmese de KALİBRE ET biter (#30). `params.json`'da T_f şimdilik rapordaki 3 N'dan (tasarım değeri). Parametreler yer tutucu sayıldığı sürece arayüz bunu gerçek karta onaysız göndermez; kart `gains.h`'deki `P_FC` (3 N) ile çalışır. Simülasyonda gerçek sürtünme 0–4.5 N iken de bu telafiyle kalkış sürüyor; yine de **Sürtünme Ölç** ile gerçek değer bulunmalı (aşağıdaki kontrol listesi, 4. adım).
 
 ## İlk açılış kontrol listesi
 1. Motor sürücüsünün EN pini bağlı değilken yükleyin, Seri Monitör'de (921600) telemetrinin geldiğini görün.
 2. `docs/protokol.md` §2'deki işaret kontrolünü yapın (sarkacı **sola** yatırınca `th` pozitif olmalı; değilse `ANGLE_SIGN = -1`).
 3. Arayüzden **KALİBRE ET** ile homing'i deneyin (elinizi acil stop'ta tutun).
-4. Önce **Swing-up açık** kutusunu kaldırıp sarkacı elle dik tutun, **BAŞLAT** ile yalnızca LQR'ı deneyin. Sonra swing-up'ı açın.
+4. Sarkaç aşağıda dururken **Sürtünme Ölç**: sonucu kabul edin (telafi karta gider) ve **Parametre Kaydet**.
+5. Önce **Swing-up açık** kutusunu kaldırıp sarkacı elle dik tutun, **BAŞLAT** ile yalnızca LQR'ı deneyin. Sonra swing-up'ı açın.

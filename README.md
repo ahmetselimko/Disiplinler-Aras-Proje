@@ -51,7 +51,7 @@ python main.py
 Arayüz gerçek ESP32'ye de bağlanacak şekilde yazıldı: port listesinden kartın COM portu seçilir, denge döngüsü kartta çalışır, arayüz izler ve komut gönderir. **Ancak bu yol henüz denenmedi.** Şimdiye kadarki bütün sonuçlar simülasyondan geliyor. Gerçek sistemde çalışması için:
 
 1. Firmware karta yüklenmeli (derleme CI'da doğrulanıyor).
-2. Kablolama `firmware/esp32_pendulum/board_pins.h`'deki pinlere göre yapılmalı. Donanım (BOM v3, 13.11.2026): ESP32-S3-DevKitC-1 N16R8, BTS7960 sürücü, AS5600 açı sensörü, HTD3M 20 dişli kasnak (`config/params.json`'da r = 9.55 mm). **Motor JGB37-520** (mekatronik raporu, son seçim); datasheet'i gelene kadar motor değerleri (R, Kt, Ke, redüktör 10:1) eski 37D yer tutucusu, enkoder 48 CPR yer tutucusudur.
+2. Kablolama `firmware/esp32_pendulum/board_pins.h`'deki pinlere göre yapılmalı. Donanım (BOM v3, 13.11.2026): ESP32-S3-DevKitC-1 N16R8, BTS7960 sürücü, AS5600 açı sensörü, HTD3M 20 dişli kasnak (`config/params.json`'da r = 9.55 mm). **Motor JGB37-520 19:1** (mekatronik raporu, son seçim); motor değerleri raporun Tablo 16'sından türetildi, enkoder 44 CPR (836 sayım / çıkış turu, 0.072 mm/sayım); datasheet ve motorla doğrulanacak.
 3. `config/params.json` gerçek ölçülerle doldurulmalı, K yeniden hesaplanıp karta gönderilmeli.
 4. Limit switch'ler takılacak (firmware varsayılanı `LIMIT_SWITCHES 1`; switch tipi ve pinleri teyit edilmeli). Donanımsal acil stop **yok**: motor beslemesi elle kolayca kesilebilmeli (fiş/anahtar). Esc ve switch'ler yalnız kart çalışırken motoru durdurur.
 5. [İlk açılış kontrol listesi](firmware/esp32_pendulum/README.md#i̇lk-açılış-kontrol-listesi) sırayla uygulanmalı: işaret kontrolü → homing → yalnız LQR → swing-up.
@@ -73,7 +73,7 @@ Testler her push ve PR'da GitHub Actions ile de otomatik çalışır; firmware d
 ```
 pendulum_lab/   model/ control/ analysis/ sim/ comm/ filters.py recorder.py export.py
 gui/            main_window, live_tab, design_tab, analysis_tab, playback_tab, connection_panel, state, widgets
-config/         params.json  (YER TUTUCU değerler — mekatronik ekibi dolduracak)
+config/         params.json (+20 g, varsayılan), params_ucsuz.json, params_50g.json — mekatronik raporu (23.11) TASARIM değerleri, ölçüm değil
 firmware/       esp32_pendulum/ (CI'da derleniyor, kartta denenmedi)
 matlab/         mekatronik ekibinin Matlab/Simulink dosyaları
 docs/           protokol.md · mimari.md · parametre_tablosu.md · matlab_karsiliklari.md · kullanim_kilavuzu.md · proje_durumu.md · katki_*.md
@@ -85,5 +85,6 @@ kayitlar/       arayüzden alınan CSV kayıtları (otomatik oluşur)
 
 ## Bekleyen işler (diğer ekipten)
 * Gerçek fiziksel parametreler → `config/params.json` (`docs/parametre_tablosu.md`).
-* Seçilen JGB37-520 motorun datasheet'i: tork, akım, redüktör oranı, enkoder CPR (motor değerleri, `ENC_CPR_MOTOR` ve kazançlar buna göre yeniden hesaplanacak).
+* Seçilen JGB37-520 motorun datasheet'i ya da ölçümü: R, Kt, Ke, enkoder CPR (şimdilik rapordaki Tablo 16 ve 836 sayım/tur'dan; `ENC_CPR_MOTOR` = 44).
+* Uç kütlesi kararı (yok / +20 g / +50 g; şimdilik +20 g) ve raydaki gerçek kullanılabilir yol.
 * Montaj sonrası işaret kontrolü (`docs/protokol.md` §2).

@@ -2,7 +2,7 @@
 """Rapor şekillerini üretir (#25): aşağıdan kalkış, dürtmeye tepki, kutup haritası, model uyumsuzluğu.
 
 Ayarlar arayüzün varsayılanlarıyla aynıdır (Q = diag(10, 1, 100, 1), R = 0.1, Ts = 2 ms, enerji bazlı
-swing-up, yakalama 15°, bırakma 30°, 12-bit açı + 48 CPR enkoder kuantalaması, Kalman açık), yani şekiller
+swing-up, yakalama 15°, bırakma 30°, 12-bit açı + ENC_CPR_MOTOR (44) CPR enkoder kuantalaması, Kalman açık), yani şekiller
 Analiz sekmesinde aynı ayarlarla görülenin aynısıdır. Parametreler değişince (ör. mekatronik gerçek ölçüleri
 girince) tek komutla yeniden üretilir:
 
@@ -33,8 +33,9 @@ import numpy as np  # noqa: E402
 from pendulum_lab import linearize  # noqa: E402
 from pendulum_lab.analysis.sensitivity import evaluate_result  # noqa: E402
 from pendulum_lab.control.lqr import design_lqr  # noqa: E402
-from pendulum_lab.control.supervisor import Supervisor  # noqa: E402
+from pendulum_lab.control.supervisor import CATCH_DEG, RELEASE_DEG, Supervisor  # noqa: E402
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
+DEFAULT_E_RATIO = EnergySwingUp().E_ratio      # arayüz varsayılanı (swingup.py)
 from pendulum_lab.model.params import load_params  # noqa: E402
 from pendulum_lab.filters import ENC_CPR_MOTOR, encoder_resolution  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
@@ -43,8 +44,7 @@ from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa
 Q = (10.0, 1.0, 100.0, 1.0)
 R = 0.1
 TS = 0.002
-CATCH_DEG = 15.0
-RELEASE_DEG = 30.0
+# yakalama/bırakma açıları arayüzle aynı kaynaktan (supervisor.CATCH_DEG / RELEASE_DEG)
 
 # Deney ayarları
 PUSH_START = 1.0             # dürtme anı [s]
@@ -75,7 +75,7 @@ plt.rcParams.update({
 class Setup:
     p: object
     K: np.ndarray
-    e_ratio: float = 1.0
+    e_ratio: float = DEFAULT_E_RATIO
 
     def run(self, real, s0, T, dist=None, target="pole"):
         sup = Supervisor(self.p, self.K, swingup=EnergySwingUp(E_ratio=self.e_ratio), catch_deg=CATCH_DEG, release_deg=RELEASE_DEG)
@@ -391,8 +391,8 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
     if placeholder or "YER TUTUCU" in str(getattr(S.p, "note", "")):
         L += [f"> ⚠ **Parametreler yer tutucu değerlerdir** (`{prel}`, ölçüm değil). Gerçek ölçüler girilince "
               "şekiller yeniden üretilmelidir; sayılar değişecektir.", ""]
-    if S.e_ratio != 1.0:
-        L += [f"> Swing-up hedef enerji oranı arayüz varsayılanından (1.0) farklı: **{S.e_ratio:g}**.", ""]
+    if S.e_ratio != DEFAULT_E_RATIO:
+        L += [f"> Swing-up hedef enerji oranı arayüz varsayılanından ({DEFAULT_E_RATIO:g}) farklı: **{S.e_ratio:g}**.", ""]
     L += ["## 1. Aşağıdan kalkış — `asagidan_kalkis.png`",
           "",
           "![Aşağıdan kalkış](asagidan_kalkis.png)",
@@ -466,9 +466,6 @@ def write_readme(out: Path, S: Setup, params_path: Path, sw, push_rows, push_max
               f"her salınımda dik konuma ancak {f'{min(cl):.0f}' if round(min(cl)) == round(max(cl)) else f'{min(cl):.0f}–{max(cl):.0f}'}°'ye kadar yaklaşıyor, {CATCH_DEG:g}°'lik "
               "yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç "
               "farklıysa bu hedef de kayıyor."]
-        if side == "hafif/kısa" and prel == "config/params.json":   # hassasiyet raporu bu dosyayla üretildi
-            L[-1] += (" Bu, [hassasiyet raporundaki](../../hassasiyet_raporu.md) `l` parametresinin \"KRİTİK\" "
-                      "sonucuyla tutarlıdır.")
     fell = [k for k, v in mm.items() if v[0] == "DÜŞTÜ"]
     if fell:
         L += ["", f"**Not:** {pct_range(fell)} sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı "
@@ -493,8 +490,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--params", type=Path, default=ROOT_DIR / "config/params.json")
     ap.add_argument("--out", type=Path, default=ROOT_DIR / "docs/media/rapor")
-    ap.add_argument("--e-ratio", type=float, default=1.0,
-                    help="swing-up hedef enerji oranı: aşağıdan ölçülen hedef enerji / 2mgl (arayüz varsayılanı 1.0; mekatroniğin E_ref = 1.02·mgl'si burada 1.01)")
+    ap.add_argument("--e-ratio", type=float, default=DEFAULT_E_RATIO,
+                    help=f"swing-up hedef enerji oranı: aşağıdan ölçülen hedef enerji / 2mgl (arayüz varsayılanı {DEFAULT_E_RATIO:g}; mekatroniğin E_ref = 1.02·mgl'si burada 1.01)")
     args = ap.parse_args()
     p = load_params(args.params)
     K, _, _ = design_lqr(p, Q, [[R]], Ts=TS)

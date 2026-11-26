@@ -164,7 +164,7 @@ def test_coulomb_sweep_covers_37d_estimate():
 
 
 def test_report_sensor_settings_match_the_sensor_actually_used():
-    """Rapora yazılan sensör ayarı elle girilmemeli; deneylerde kullanılan SensorModel'den gelmeli (48 CPR)."""
+    """Rapora yazılan sensör ayarı elle girilmemeli; deneylerde kullanılan SensorModel'den gelmeli (ENC_CPR_MOTOR)."""
     from pendulum_lab.analysis.sensitivity import _sensor, _sensor_settings
     from pendulum_lab.filters import encoder_resolution
     from pendulum_lab.model.params import load_params

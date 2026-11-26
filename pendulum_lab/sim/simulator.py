@@ -21,7 +21,7 @@ from ..model.params import PendulumParams
 
 @dataclass
 class SensorModel:
-    """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 48 CPR motor enkoderi, 10:1, HTD3M 20 diş (~0.125 mm/sayım).
+    """Sensör kusurları. Varsayılan: AS5600 (12 bit) + 44 CPR motor enkoderi, 19:1, HTD3M 20 diş (~0.072 mm/sayım).
     Parametrelerden (gerçek redüktör ve kasnakla, firmware gibi) kurmak için SensorModel.for_params(p)."""
     th_resolution: float = KALMAN_TH_RES
     x_resolution: float = KALMAN_ENC_RES

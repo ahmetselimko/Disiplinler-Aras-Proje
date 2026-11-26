@@ -86,13 +86,32 @@ def test_swing_up_then_catch_with_lqr(p, th0):
 
 
 def test_swing_up_robust_to_model_mismatch(p):
-    """Kazançlar yer tutucu modelle tasarlanır, gerçek sistem %20 farklı olsa da çalışmalı."""
+    """Kazançlar yer tutucu modelle tasarlanır, gerçek sistem %20 farklı olsa da çalışmalı. Eski genel yer
+    tutucu model (params.py varsayılanları) bu swing-up kazançlarıyla E_ratio = 1.0 için seçilmişti."""
     K, _, _ = design_lqr(p, Q, R, Ts=0.002)
     real = PendulumParams(M=p.M * 1.2, m=p.m * 0.85, l=p.l * 1.1, b=p.b * 2)
-    sup = Supervisor(p, K)  # kontrolcü yanlış (nominal) modeli kullanıyor
+    sup = Supervisor(p, K, swingup=EnergySwingUp(E_ratio=1.0))  # kontrolcü yanlış (nominal) modeli kullanıyor
     sup.start()
     r = simulate_closed_loop(real, sup, [0, 0, math.pi, 0], 20.0, sensor=SensorModel())
     assert r.mode[-1] == "BALANCE"
+
+
+@pytest.mark.parametrize("dosya", ["params.json", "params_ucsuz.json", "params_50g.json"])
+def test_mekatronik_design_swing_up_robust_to_model_mismatch(dosya):
+    """#50 Aşama 2: mekatronik tasarım değerleriyle (üç uç kütlesi seçeneği, 3 N sürtünme) varsayılan swing-up
+    (E_ratio 1.05) karma model hatasında (M +%20, m −%15, l +%10, b ×2) da kalkıp dengede kalır."""
+    import copy
+    from pathlib import Path
+    from pendulum_lab import load_params
+    p = load_params(Path(__file__).resolve().parents[1] / "config" / dosya)
+    K, _, _ = design_lqr(p, Q, R, Ts=0.002)
+    real = copy.deepcopy(p)
+    real.M, real.m, real.l, real.b = p.M * 1.2, p.m * 0.85, p.l * 1.1, p.b * 2
+    sup = Supervisor(p, K)
+    sup.start()
+    r = simulate_closed_loop(real, sup, [0, 0, math.pi, 0], 20.0, sensor=SensorModel.for_params(p))
+    assert "SWING_UP" in r.mode and r.mode[-1] == "BALANCE"
+    assert np.abs(r.x).max() < p.rail_half - 0.1
 
 
 def test_supervisor_hysteresis_and_fault(p):

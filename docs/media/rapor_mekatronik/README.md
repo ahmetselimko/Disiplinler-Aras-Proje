@@ -5,11 +5,9 @@
 * Parametreler: `config/params_mekatronik_tasarim.json` (M = 1.28 kg, m = 0.105 kg, l = 0.0992 m, ray ±0.4 m, giriş: motor gerilimi, |u| ≤ 12 V)
 * Kontrolcü: arayüzün varsayılanları; Q = diag(10.0, 1.0, 100.0, 1.0), R = 0.1, Ts = 2 ms, yakalama 15°, bırakma 30°, enerji bazlı swing-up (hedef enerji oranı 1.05)
 * K = [-9.83, -46.64, 101.46, 14.36]
-* Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 48 CPR × 19 redüktör = 912 sayım/tur, 0.066 mm/sayım); dik bölgede Kalman (firmware gibi)
+* Sensör: 12-bit açı ve enkoder kuantalaması (motor milinde 44 CPR × 19 redüktör = 836 sayım/tur, 0.072 mm/sayım); dik bölgede Kalman (firmware gibi)
 
 > ⚠ **Parametreler yer tutucu değerlerdir** (`config/params_mekatronik_tasarim.json`, ölçüm değil). Gerçek ölçüler girilince şekiller yeniden üretilmelidir; sayılar değişecektir.
-
-> Swing-up hedef enerji oranı arayüz varsayılanından (1.0) farklı: **1.05**.
 
 ## 1. Aşağıdan kalkış — `asagidan_kalkis.png`
 
@@ -19,7 +17,7 @@
 
 | LQR'a geçiş | Yerleşme (±2°) | Max \|x\| | Max \|u\| | Sonuç |
 |---|---|---|---|---|
-| 4.32 s | 4.55 s | 0.143 m | 12.00 V | dengede kaldı |
+| 4.32 s | 4.55 s | 0.142 m | 12.00 V | dengede kaldı |
 
 ## 2. Dürtmeye tepki — `durtme.png`
 
@@ -29,7 +27,7 @@
 
 | İtme | Max \|θ\| | Max \|x\| | İtmeden sonra yerleşme (±2°) | Sonuç |
 |---|---|---|---|---|
-| 0.2 N | 1.3° | 0.141 m | — | dengede kaldı |
+| 0.2 N | 1.3° | 0.142 m | — | dengede kaldı |
 | 0.5 N | 3.0° | 0.138 m | 0.52 s | dengede kaldı |
 | 0.7 N | 5.0° | 0.222 m | 0.82 s | dengede kaldı |
 
@@ -57,24 +55,22 @@ LQR'ın swing-up'a düşmeden kurtarabildiği en büyük itme (aynı süreyle): 
 |---|---|---|---|---|
 | -30% | swing-up bitmedi | — | 0.163 m | 90.9° |
 | -25% | swing-up bitmedi | — | 0.156 m | 85.3° |
-| -20% | ray ucuna çarptı | 7.65 s | 0.400 m | 0.0° |
+| -20% | düştü, swing-up yeniden kaldırdı | 7.66 s | 0.294 m | 0.0° |
 | -15% | dengede kaldı | 5.62 s | 0.147 m | 0.0° |
-| -10% | düştü, swing-up yeniden kaldırdı | 4.93 s | 0.314 m | 0.0° |
-| -5% | dengede kaldı | 4.23 s | 0.150 m | 0.0° |
-| +0% | dengede kaldı | 4.32 s | 0.143 m | 0.0° |
-| +5% | dengede kaldı | 3.57 s | 0.142 m | 0.0° |
-| +10% | dengede kaldı | 3.55 s | 0.143 m | 0.0° |
-| +15% | dengede kaldı | 3.57 s | 0.154 m | 0.0° |
-| +20% | dengede kaldı (ray ucuna yakın) | 3.60 s | 0.305 m | 0.0° |
-| +25% | LQR yakaladı ama tutamadı | 3.64 s | 0.272 m | 11.9° |
-| +30% | swing-up bitmedi | — | 0.133 m | 15.8° |
+| -10% | düştü, swing-up yeniden kaldırdı | 4.92 s | 0.330 m | 0.0° |
+| -5% | dengede kaldı | 4.23 s | 0.144 m | 0.0° |
+| +0% | dengede kaldı | 4.32 s | 0.142 m | 0.0° |
+| +5% | dengede kaldı | 3.56 s | 0.143 m | 0.0° |
+| +10% | dengede kaldı | 3.55 s | 0.142 m | 0.0° |
+| +15% | dengede kaldı | 3.57 s | 0.156 m | 0.0° |
+| +20% | dengede kaldı (ray ucuna yakın) | 3.60 s | 0.353 m | 0.0° |
+| +25% | LQR yakaladı ama tutamadı | 3.63 s | 0.290 m | 10.6° |
+| +30% | swing-up bitmedi | — | 0.132 m | 15.8° |
 
 **Not:** Gerçek sarkaç modeldekinden hafif/kısa olduğunda (-30% … -25%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 85–91°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
 
 **Not:** Gerçek sarkaç modeldekinden ağır/uzun olduğunda (+30%) swing-up tamamlanmıyor: sarkaç her salınımda dik konuma ancak 16°'ye kadar yaklaşıyor, 15°'lik yakalama bölgesine giremiyor. Olası sebep: swing-up hedef enerjiyi nominal modelle hesaplıyor; gerçek sarkaç farklıysa bu hedef de kayıyor.
 
-**Not:** -10% sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı ve deneme dengede bitti (tablodaki geçiş zamanı ilk yakalamadır).
+**Not:** -20% … -10% sapmada LQR sarkacı yakaladıktan sonra bıraktı; swing-up yeniden kaldırdı ve deneme dengede bitti (tablodaki geçiş zamanı ilk yakalamadır).
 
 **Not:** +25% sapmada sarkaç yakalama bölgesine girip LQR'a geçti, ama LQR onu tutamadı ve swing-up süre sonuna kadar yeniden tamamlanmadı. LQR nominal modelle tasarlandığı için sapma büyüyünce denge payı azalıyor.
-
-Araba ray ucuna çarpan noktalar: -20%.

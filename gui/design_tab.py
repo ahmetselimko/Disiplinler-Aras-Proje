@@ -334,6 +334,11 @@ class DesignTab(QtWidgets.QWidget):
         if not self.calculate():
             return
         st = self.state
+        if st.params_fallback:
+            QtWidgets.QMessageBox.warning(self, "gains.h dışa aktarılmadı",
+                                          "Parametre dosyası okunamadı; genel varsayılanlar kullanılıyor (motor ve "
+                                          "kasnak projeninkinden farklı). Önce bir parametre dosyası yükleyin.")
+            return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "gains.h kaydet", str(st.base_dir / "firmware" / "esp32_pendulum" / "gains.h"), "C header (*.h)", options=NO_NATIVE)
         if path:
@@ -355,6 +360,7 @@ class DesignTab(QtWidgets.QWidget):
             except Exception as e:
                 QtWidgets.QMessageBox.warning(self, "Yüklenemedi", str(e))
                 return
+            self.state.clear_params_fallback()       # gerçek bir parametre dosyası okundu
             self.calculate()
 
     def save(self):
@@ -368,4 +374,5 @@ class DesignTab(QtWidgets.QWidget):
             except OSError as e:
                 QtWidgets.QMessageBox.warning(self, "Kaydedilemedi", str(e))
                 return
+            # kaydetmek bayrağı KALDIRMAZ: genel varsayılanlar kaydedilmiş olabilir (yalnız Yükle kaldırır)
             self.state.log.emit(f"Parametreler kaydedildi: {path}")

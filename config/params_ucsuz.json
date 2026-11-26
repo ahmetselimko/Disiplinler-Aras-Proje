@@ -1,0 +1,26 @@
+{
+  "_aciklama": "Mekatronik ara raporu 23.11.2026, TASARIM değeri, ölçülmedi (uç kütlesi yok (85 g sarkaç)). Sarkaç: Tablo 15 (m, l; I = I_pivot − m·l², ağırlık merkezi etrafında). Araba: M = 1.10 kg (Bölüm 12/15, sarkaç DAHİL) − m + 0.26 kg kayış + 0.025 kg kasnaklar. Motor JGB37-520 19:1, HTD3M 20 diş (Bölüm 13.3, 14.1, Tablo 16): R, Kt, Ke, Tablo 16'daki α = 2.26 N/V ve b_elec = 48.41 N·s/m'yi Kt = Ke ile verecek şekilde (config/params_mekatronik_tasarim.json ile aynı); J_rotor arabaya yansıyan 1.346 kg'dan (1.346·r²/N²), T_f 3.0 N araba sürtünmesinden (3·r/N). Datasheet ve ölçüm gelince güncellenmeli; o zamana kadar \"placeholder\": true kalır. Uç kütlesi seçenekleri: params.json (+20 g), params_ucsuz.json, params_50g.json (arayüzde Yükle).",
+  "placeholder": true,
+  "M": 1.3,
+  "m": 0.085,
+  "l": 0.0637,
+  "I": 0.000641,
+  "b": 0.1,
+  "c": 0.0005,
+  "g": 9.81,
+  "rail_half": 0.4,
+  "u_max": 12.0,
+  "input_mode": "voltage",
+  "motor": {
+    "R": 9.478,
+    "Kt": 0.0107654,
+    "Ke": 0.0107654,
+    "gear": 19.0,
+    "r_pulley": 0.009549,
+    "V_max": 12.0,
+    "J_rotor": 3.4e-07,
+    "T_f": 0.0015077,
+    "B_m": 0.0
+  },
+  "note": "Mekatronik raporu 23.11, tasarım değeri, ölçülmedi — uç kütlesi yok (85 g sarkaç); motor Tablo 16'dan, datasheet bekleniyor"
+}
