@@ -139,7 +139,7 @@ static const float HOME_STILL_DX = 0.01f;             // elle ortalamada araba h
 static const int   SENSOR_FAIL_LIMIT = 3;             // art arda bu kadar okuma hatası → FAULT
 // bağlantı bekçisi: hareketli modda PC'den bu süre satır gelmezse FAULT "link" (protocol.py LINK_TIMEOUT_S ile aynı)
 static const uint32_t LINK_TIMEOUT_MS = 1000;
-static const int   LIM_DEBOUNCE = 3;                  // uç sensörü bu kadar art arda okumada basılıysa basılı (6 ms)
+static const int   LIM_DEBOUNCE = 3;                  // uç sensörü bu kadar art arda okumada basılıysa basılı, bu kadar art arda boşsa bırakılmış (6 ms)
 static const float CALIB_MAX_SPREAD = 0.02f;          // kalibrasyonda izin verilen sapma [rad] (~1.1°)
 
 // sürtünme ölçümü — pendulum_lab/control/friction.py ile AYNI (test denetler)
@@ -429,6 +429,16 @@ static Mode raiseFault(Mode m, const char *reason) {
   return FAULT;
 }
 
+// İki yönlü parazit filtresi: durum ancak LIM_DEBOUNCE art arda aynı okumayla değişir (etkinleşme ve bırakma).
+struct DebouncedInput {
+  bool state = false; int cnt = 0;
+  bool update(bool raw) {
+    if (raw == state) cnt = 0;
+    else if (++cnt >= LIM_DEBOUNCE) { state = raw; cnt = 0; }
+    return state;
+  }
+};
+
 void ctrlTask(void *) {
   const float dt = CTRL_PERIOD_MS / 1000.0f;
   const TickType_t period = pdMS_TO_TICKS(CTRL_PERIOD_MS);
@@ -441,9 +451,10 @@ void ctrlTask(void *) {
   float home_sat = 0;                                  // homing'de gerilimin doyumda kaldığı süre [s]
   FrictionTest fr;
   bool limL_prev = false, limR_prev = false, hardL_prev = false, hardR_prev = false;
-  int limL_cnt = 0, limR_cnt = 0;                      // uç sensörü parazit filtresi (LIM_DEBOUNCE)
+  // uç sensörü parazit filtresi: hem etkinleşme hem bırakma LIM_DEBOUNCE art arda okuma ister (DebouncedInput)
+  DebouncedInput fL, fR;
 #if END_SENSORS == 2
-  int hardL_cnt = 0, hardR_cnt = 0;
+  DebouncedInput fHL, fHR;
 #endif
   int sensor_fails = 0; uint16_t raw = 0;
 
@@ -470,11 +481,11 @@ void ctrlTask(void *) {
       mode = HOMING; home_phase = 1; home_t0 = k * dt; home_x0 = X_SIGN * enc_count * X_PER_COUNT; home_i = 0;
       homed = false; SET_SHARED(homed, false);           // eski sıfır geçersiz: homing yarıda kalırsa start reddedilir
       home_sat = 0;
-      home_r0 = digitalRead(PIN_REF_R) == REF_ACTIVE;   // referans sensör: 1'de switch, 2'de optik
+      home_r0 = limR_prev;                               // referans sensörün filtrelenmiş durumu (1'de switch, 2'de optik)
 #if END_SENSORS == 2
       // optik zaten etkinse araba optik ile uç arasında, sıfır 3 cm'ye kadar kayardı: önce sağa çekilip optiği
       // bırak (HOME_BACKOFF_M daha), sonra kenara yeniden yaklaş (faz 3)
-      if (digitalRead(PIN_REF_L) == REF_ACTIVE) { home_phase = 3; home_rel = NAN; }
+      if (limL_prev) { home_phase = 3; home_rel = NAN; }   // filtrelenmiş durum: tek boş okuma atlatmaz
 #endif
 #else
       // elle ortalama: araba elle ortaya konmuş ve durağan (iletişim görevi denetledi) → bu nokta x = 0
@@ -508,16 +519,14 @@ void ctrlTask(void *) {
     // limL/limR: REFERANS sensör (1'de switch, 2'de optik): homing ve çalışırken "limit".
     // hardL/hardR: yalnız END_SENSORS 2'de dış kademe mikro switch.
 #if END_SENSORS
-    limL_cnt = digitalRead(PIN_REF_L) == REF_ACTIVE ? min(limL_cnt + 1, LIM_DEBOUNCE) : 0;
-    limR_cnt = digitalRead(PIN_REF_R) == REF_ACTIVE ? min(limR_cnt + 1, LIM_DEBOUNCE) : 0;
-    bool limL = limL_cnt >= LIM_DEBOUNCE, limR = limR_cnt >= LIM_DEBOUNCE;   // tek parazitli okuma tetiklemez
+    bool limL = fL.update(digitalRead(PIN_REF_L) == REF_ACTIVE);   // tek parazitli okuma ne tetikler ne bırakır
+    bool limR = fR.update(digitalRead(PIN_REF_R) == REF_ACTIVE);
 #else
     const bool limL = false, limR = false;               // switch yok: takılı olmayan pin "basılı" okunurdu
 #endif
 #if END_SENSORS == 2
-    hardL_cnt = digitalRead(PIN_LIM_L) == LIM_PRESSED ? min(hardL_cnt + 1, LIM_DEBOUNCE) : 0;
-    hardR_cnt = digitalRead(PIN_LIM_R) == LIM_PRESSED ? min(hardR_cnt + 1, LIM_DEBOUNCE) : 0;
-    bool hardL = hardL_cnt >= LIM_DEBOUNCE, hardR = hardR_cnt >= LIM_DEBOUNCE;
+    bool hardL = fHL.update(digitalRead(PIN_LIM_L) == LIM_PRESSED);
+    bool hardR = fHR.update(digitalRead(PIN_LIM_R) == LIM_PRESSED);
 #else
     const bool hardL = false, hardR = false;
 #endif
@@ -546,8 +555,9 @@ void ctrlTask(void *) {
       else if (home_phase == 2 && limL && x > -RAIL_HALF_M + REF_FROM_END_M + HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
       // faz 3: optikten geri çekilirken HOME_SW_CLEAR_M gidildiği hâlde optik bırakmıyor → takılı/kopuk
       else if (home_phase == 3 && limL && x_enc - home_x0 > HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
+      else if (home_phase == 3 && limL && !isnan(home_rel)) home_rel = NAN;            // optik yeniden etkin: baştan say
       else if (home_phase == 3 && !limL && isnan(home_rel)) home_rel = x_enc;
-      else if (home_phase == 3 && !isnan(home_rel) && x_enc - home_rel >= HOME_BACKOFF_M) { home_phase = 1; home_i = 0; }
+      else if (home_phase == 3 && !limL && x_enc - home_rel >= HOME_BACKOFF_M) { home_phase = 1; home_i = 0; }
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
         // referans sensörün konumu: 1'de −RAIL_HALF_M, 2'de optik (OPT_FROM_END_M içeride)
         x_offset = x_enc + RAIL_HALF_M - REF_FROM_END_M; x = -RAIL_HALF_M + REF_FROM_END_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;

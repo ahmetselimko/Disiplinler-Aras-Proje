@@ -84,7 +84,7 @@ Varsayılan `END_SENSORS 1`. Sensörler henüz takılmamışken kartı denemek g
 | Durum | Davranış |
 |---|---|
 | Hareketli modda (HOMING/SWING_UP/WAIT/BALANCE/FRICTION) 1 s boyunca PC'den satır gelmedi (USB koptu, arayüz çöktü) | FAULT `link`, motor kesilir. Arayüz bağlıyken 0.25 s'de bir `{"cmd":"hb"}` gönderir (`LINK_TIMEOUT_MS`, protokol.md §4) |
-| Uç sensöründe tek bir parazitli okuma | Dikkate alınmaz: art arda `LIM_DEBOUNCE` = 3 okuma (6 ms) basılıysa basılı sayılır |
+| Uç sensöründe tek bir parazitli okuma | Dikkate alınmaz: art arda `LIM_DEBOUNCE` = 3 okuma (6 ms) basılıysa basılı, 3 okuma boşsa bırakılmış sayılır (iki yönlü filtre; tek boş okuma homing'in geri çekilme fazını şaşırtmaz) |
 | Yeni `home` başladı | Önceki kalibrasyon geçersiz; homing yarıda `stop` edilirse `start` reddedilir |
 | Homing'de sağ switch'e basıldı | FAULT `homing_wrong_side` (motor veya enkoder yönü ters; ya da sağ sensör kablosu kopuk/sürekli basılı) |
 | Homing'de sola dayandıktan 5 cm sonra sol sensör hâlâ basılı | FAULT `homing_switch` (sol sensör kablosu kopuk ya da takılı; sıfır yanlış olurdu) |

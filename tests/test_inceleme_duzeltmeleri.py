@@ -236,7 +236,8 @@ def test_new_home_clears_homed_in_mock_and_firmware():
 
 def test_firmware_limit_debounce_and_live_state_checks():
     assert re.search(r"LIM_DEBOUNCE = \d+;", INO)
-    assert "limL_cnt >= LIM_DEBOUNCE" in INO
+    assert "if (++cnt >= LIM_DEBOUNCE) { state = raw; cnt = 0; }" in INO          # iki yönlü filtre (#50 Aşama 4)
+    assert "fL.update(digitalRead(PIN_REF_L) == REF_ACTIVE)" in INO
     i, j = INO.index("static void handleCommand"), INO.index("void commTask")
     h = INO[i:j]
     for stale in ("fabsf(s.x)", "fabsf(s.dx)", "wrapAngle(s.th)", "fabsf(s.dth)"):

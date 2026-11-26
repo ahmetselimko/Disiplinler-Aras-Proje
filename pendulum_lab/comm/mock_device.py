@@ -378,15 +378,21 @@ class MockDevice:
             self._fault("homing_wrong_side")
             return 0.0
         if self._home_phase == 3:             # optikten geri çekil (yalnız END_SENSORS 2)
+            # firmware ile aynı else-if sırası; geçiş adımlarında firmware motoru bir adım sürmez (u = 0)
             x_enc = self.enc_sign * self.s[0]
             if self._ref("L"):
                 if x_enc - self._home_x0 > HOME_SW_CLEAR:
                     self._fault("homing_switch")          # optik bırakmıyor: takılı / kopuk
                     return 0.0
+                if self._home_rel is not None:
+                    self._home_rel = None                 # optik yeniden etkin: baştan say
+                    return 0.0
             elif self._home_rel is None:
                 self._home_rel = x_enc
+                return 0.0
             elif x_enc - self._home_rel >= HOME_BACKOFF:
                 self._home_phase, self._home_i = 1, 0.0
+                return 0.0
             v_des = HOME_SPEED
         elif self._home_phase == 1:
             if self._ref("L"):                # switch SEVİYESİ (zaten basılıysa da çalışır)

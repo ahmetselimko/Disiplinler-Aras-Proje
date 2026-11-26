@@ -143,3 +143,22 @@ def test_backoff_with_stuck_optical_faults():
     dev.stuck_switch = "L"                                              # optik hep etkin (kopuk kablo)
     _home(dev)
     assert _events(out, "fault")[-1]["reason"] == "homing_switch"
+
+
+def test_backoff_glitch_does_not_shift_zero():
+    """Faz 3'te optik bölgesindeyken tek bir boş okuma (parazit) sıfırı kaydırmamalı: geçiş optik bırakılmış
+    olmasını ister, optik yeniden etkinleşince sayım baştan başlar (firmware: iki yönlü filtre + aynı kural)."""
+    dev, out = _dev(x0=-0.395)
+    orig = dev._ref
+    calls = {"n": 0}
+
+    def glitchy(side):                                  # faz 3'ün başında bir kez "boş" oku
+        if side == "L" and dev._home_phase == 3 and calls["n"] == 0:
+            calls["n"] += 1
+            return False
+        return orig(side)
+    dev._ref = glitchy
+    _home(dev)
+    assert dev.homed
+    assert dev.true_state[0] - dev.x_offset == pytest.approx(dev.true_state[0], abs=0.003)
+    assert "if (limL_prev) { home_phase = 3;" in FW and "home_phase == 3 && !limL && x_enc - home_rel" in FW

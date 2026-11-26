@@ -257,6 +257,13 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | END_SENSORS 0/1'de kullanılmayan sayaçlar | `#if END_SENSORS == 2` içine alındı |
 | Belge | protokol §5 şeması (`hard_limit`, mikro switch basılıyken `home` reddi), kılavuz ve README güvenlik tablosu | Güncellendi |
 
+**#50 Aşama 4, ikinci tur (26.11.2026):** Birinci turun düzeltmesi (faz 3 geri çekilme) ve sanal ESP32 ile firmware eşliği yeniden incelendi. Düzeltilenler:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Önemli | Parazit filtresi yalnız etkinleşmeyi süzüyordu, bırakma tek okumayla oluyordu: faz 3'te optik bölgesindeyken tek bir boş okuma `home_rel`'i bölge içinde başlatıyor, 1 cm sonra faz 1'e `limL` bakılmadan geçiliyor ve sıfır yine optik seviyesinden (4–17 mm hata) alınıyordu. Girişteki ham `digitalRead` da tek parazitte faz 3'ü atlatabiliyordu | İki yönlü filtre (`DebouncedInput`: durum ancak `LIM_DEBOUNCE` art arda aynı okumayla değişir); faz 3→1 geçişi `!limL` şartına bağlı, optik yeniden etkinleşirse sayım baştan; girişte filtrelenmiş durum. Sanal ESP32'de aynı kural; test (faz 3'te tek boş okuma sıfırı kaydırmıyor) |
+| Küçük | Sanal ESP32 geçiş adımlarında motoru sürüyordu, firmware sürmüyor (u = 0) | Sanal ESP32 geçiş adımında 0 döndürüyor |
+| Belge | protokol.md `home` açıklaması END_SENSORS 2'deki geri çekilmeyi, `homing_switch` açıklaması geri çekilirken optiğin bırakmamasını anlatmıyordu | Güncellendi |
+
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
 ---
