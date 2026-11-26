@@ -38,6 +38,8 @@ jobs:
         include:              # MPU6050 jiroskobu açık (#50 Aşama 5): S3 kartında iki core sürümüyle
           - {core: "3.3.12", board: "esp32s3", end_sensors: 2, mpu: 1}
           - {core: "2.0.17", board: "esp32s3", end_sensors: 2, mpu: 1}
+          - {core: "3.3.12", board: "esp32", end_sensors: 1, mpu: 1}
+          - {core: "2.0.17", board: "esp32", end_sensors: 1, mpu: 1}
     env:
       ESP32_URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
     steps:
