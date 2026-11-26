@@ -1,8 +1,8 @@
 {
  "meta": {
-  "date": "25.11.2026",
+  "date": "26.11.2026",
   "n_runs": 900,
-  "elapsed_s": 364.140345432,
+  "elapsed_s": 356.442858904,
   "T": 30.0,
   "Q": [
    10.0,
@@ -2493,7 +2493,7 @@
    "max_x": 0.14237996355929253,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.40|açık",
@@ -2503,7 +2503,7 @@
    "max_x": 0.16635785147684506,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.40|açık",
@@ -2513,7 +2513,7 @@
    "max_x": 0.16384526552521875,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.40|açık",
@@ -2523,7 +2523,7 @@
    "max_x": 0.16728380610431867,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.40|kapalı",
@@ -2593,7 +2593,7 @@
    "max_x": 0.14237996355929253,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.60|açık",
@@ -2603,7 +2603,7 @@
    "max_x": 0.16635785147684506,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.60|açık",
@@ -2613,7 +2613,7 @@
    "max_x": 0.16384526552521875,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.60|açık",
@@ -2623,7 +2623,7 @@
    "max_x": 0.16728380610431867,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.60|kapalı",
@@ -2693,7 +2693,7 @@
    "max_x": 0.14237996355929253,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.80|açık",
@@ -2703,7 +2703,7 @@
    "max_x": 0.16635785147684506,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.80|açık",
@@ -2713,7 +2713,7 @@
    "max_x": 0.16384526552521875,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.80|açık",
@@ -2723,7 +2723,7 @@
    "max_x": 0.16728380610431867,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.05|0.80|kapalı",
@@ -2783,7 +2783,7 @@
    "max_x": 0.2599806411545433,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|açık",
@@ -2793,7 +2793,7 @@
    "max_x": 0.14115263216729657,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|açık",
@@ -2803,7 +2803,7 @@
    "max_x": 0.17515477656137665,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|açık",
@@ -2813,7 +2813,7 @@
    "max_x": 0.18495213822275233,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|açık",
@@ -2823,7 +2823,7 @@
    "max_x": 0.17977099189539322,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|kapalı",
@@ -2833,7 +2833,7 @@
    "max_x": 0.20896014751310402,
    "max_u": 11.272317538999642,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|kapalı",
@@ -2843,7 +2843,7 @@
    "max_x": 0.11455948291409307,
    "max_u": 11.365747465853383,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|kapalı",
@@ -2853,7 +2853,7 @@
    "max_x": 0.16872289128493392,
    "max_u": 11.279781156509996,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|kapalı",
@@ -2863,7 +2863,7 @@
    "max_x": 0.17086353127106774,
    "max_u": 11.285001916420187,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.40|kapalı",
@@ -2873,7 +2873,7 @@
    "max_x": 0.16864832657976114,
    "max_u": 11.262580655542825,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|açık",
@@ -2883,7 +2883,7 @@
    "max_x": 0.2599806411545433,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|açık",
@@ -2893,7 +2893,7 @@
    "max_x": 0.14115263216729657,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|açık",
@@ -2903,7 +2903,7 @@
    "max_x": 0.17515477656137665,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|açık",
@@ -2913,7 +2913,7 @@
    "max_x": 0.18495213822275233,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|açık",
@@ -2923,7 +2923,7 @@
    "max_x": 0.17977099189539322,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|kapalı",
@@ -2933,7 +2933,7 @@
    "max_x": 0.20896014751310402,
    "max_u": 11.272317538999642,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|kapalı",
@@ -2943,7 +2943,7 @@
    "max_x": 0.11455948291409307,
    "max_u": 11.365747465853383,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|kapalı",
@@ -2953,7 +2953,7 @@
    "max_x": 0.16872289128493392,
    "max_u": 11.279781156509996,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|kapalı",
@@ -2963,7 +2963,7 @@
    "max_x": 0.17086353127106774,
    "max_u": 11.285001916420187,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.60|kapalı",
@@ -2973,7 +2973,7 @@
    "max_x": 0.16864832657976114,
    "max_u": 11.262580655542825,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|açık",
@@ -2983,7 +2983,7 @@
    "max_x": 0.2599806411545433,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|açık",
@@ -2993,7 +2993,7 @@
    "max_x": 0.14115263216729657,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|açık",
@@ -3003,7 +3003,7 @@
    "max_x": 0.17515477656137665,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|açık",
@@ -3013,7 +3013,7 @@
    "max_x": 0.18495213822275233,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|açık",
@@ -3023,7 +3023,7 @@
    "max_x": 0.17977099189539322,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|kapalı",
@@ -3033,7 +3033,7 @@
    "max_x": 0.20896014751310402,
    "max_u": 11.272317538999642,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|kapalı",
@@ -3043,7 +3043,7 @@
    "max_x": 0.11455948291409307,
    "max_u": 11.365747465853383,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|kapalı",
@@ -3053,7 +3053,7 @@
    "max_x": 0.16872289128493392,
    "max_u": 11.279781156509996,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|kapalı",
@@ -3063,7 +3063,7 @@
    "max_x": 0.17086353127106774,
    "max_u": 11.285001916420187,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+20 g|mekatronik|1.10|0.80|kapalı",
@@ -3073,7 +3073,7 @@
    "max_x": 0.16864832657976114,
    "max_u": 11.262580655542825,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|bizim|1.00|0.40|açık",
@@ -5483,7 +5483,7 @@
    "max_x": 0.22912671993329975,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.40|açık",
@@ -5493,7 +5493,7 @@
    "max_x": 0.16645927553019477,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.40|açık",
@@ -5503,7 +5503,7 @@
    "max_x": 0.20657521286588895,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.40|açık",
@@ -5513,7 +5513,7 @@
    "max_x": 0.20258318869136763,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.40|açık",
@@ -5523,7 +5523,7 @@
    "max_x": 0.20684087867870166,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.40|kapalı",
@@ -5583,7 +5583,7 @@
    "max_x": 0.22912671993329975,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.60|açık",
@@ -5593,7 +5593,7 @@
    "max_x": 0.16645927553019477,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.60|açık",
@@ -5603,7 +5603,7 @@
    "max_x": 0.20657521286588895,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.60|açık",
@@ -5613,7 +5613,7 @@
    "max_x": 0.20258318869136763,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.60|açık",
@@ -5623,7 +5623,7 @@
    "max_x": 0.20684087867870166,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.60|kapalı",
@@ -5683,7 +5683,7 @@
    "max_x": 0.22912671993329975,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.80|açık",
@@ -5693,7 +5693,7 @@
    "max_x": 0.16645927553019477,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.80|açık",
@@ -5703,7 +5703,7 @@
    "max_x": 0.20657521286588895,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.80|açık",
@@ -5713,7 +5713,7 @@
    "max_x": 0.20258318869136763,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.80|açık",
@@ -5723,7 +5723,7 @@
    "max_x": 0.20684087867870166,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.05|0.80|kapalı",
@@ -5783,7 +5783,7 @@
    "max_x": 0.23967421055752344,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|açık",
@@ -5793,7 +5793,7 @@
    "max_x": 0.18309517962097327,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|açık",
@@ -5803,7 +5803,7 @@
    "max_x": 0.21363162055997728,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|açık",
@@ -5813,7 +5813,7 @@
    "max_x": 0.2114425877907102,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|açık",
@@ -5823,7 +5823,7 @@
    "max_x": 0.21468087962073615,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|kapalı",
@@ -5833,7 +5833,7 @@
    "max_x": 0.21809788777209513,
    "max_u": 11.655371538462951,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|kapalı",
@@ -5843,7 +5843,7 @@
    "max_x": 0.17266477942757352,
    "max_u": 11.710185918778706,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|kapalı",
@@ -5853,7 +5853,7 @@
    "max_x": 0.19595119856582868,
    "max_u": 11.676605452379064,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|kapalı",
@@ -5863,7 +5863,7 @@
    "max_x": 0.19432474479806267,
    "max_u": 11.717362595235421,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.40|kapalı",
@@ -5873,7 +5873,7 @@
    "max_x": 0.19464456768755986,
    "max_u": 11.716231882105344,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|açık",
@@ -5883,7 +5883,7 @@
    "max_x": 0.23967421055752344,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|açık",
@@ -5893,7 +5893,7 @@
    "max_x": 0.18309517962097327,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|açık",
@@ -5903,7 +5903,7 @@
    "max_x": 0.21363162055997728,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|açık",
@@ -5913,7 +5913,7 @@
    "max_x": 0.2114425877907102,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|açık",
@@ -5923,7 +5923,7 @@
    "max_x": 0.21468087962073615,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|kapalı",
@@ -5933,7 +5933,7 @@
    "max_x": 0.21809788777209513,
    "max_u": 11.655371538462951,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|kapalı",
@@ -5943,7 +5943,7 @@
    "max_x": 0.17266477942757352,
    "max_u": 11.710185918778706,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|kapalı",
@@ -5953,7 +5953,7 @@
    "max_x": 0.19595119856582868,
    "max_u": 11.676605452379064,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|kapalı",
@@ -5963,7 +5963,7 @@
    "max_x": 0.19432474479806267,
    "max_u": 11.717362595235421,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.60|kapalı",
@@ -5973,7 +5973,7 @@
    "max_x": 0.19464456768755986,
    "max_u": 11.716231882105344,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|açık",
@@ -5983,7 +5983,7 @@
    "max_x": 0.23967421055752344,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|açık",
@@ -5993,7 +5993,7 @@
    "max_x": 0.18309517962097327,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|açık",
@@ -6003,7 +6003,7 @@
    "max_x": 0.21363162055997728,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|açık",
@@ -6013,7 +6013,7 @@
    "max_x": 0.2114425877907102,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|açık",
@@ -6023,7 +6023,7 @@
    "max_x": 0.21468087962073615,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|kapalı",
@@ -6033,7 +6033,7 @@
    "max_x": 0.21809788777209513,
    "max_u": 11.655371538462951,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|kapalı",
@@ -6043,7 +6043,7 @@
    "max_x": 0.17266477942757352,
    "max_u": 11.710185918778706,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|kapalı",
@@ -6053,7 +6053,7 @@
    "max_x": 0.19595119856582868,
    "max_u": 11.676605452379064,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|kapalı",
@@ -6063,7 +6063,7 @@
    "max_x": 0.19432474479806267,
    "max_u": 11.717362595235421,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "+50 g|mekatronik|1.10|0.80|kapalı",
@@ -6073,7 +6073,7 @@
    "max_x": 0.19464456768755986,
    "max_u": 11.716231882105344,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|bizim|1.00|0.40|açık",
@@ -8793,7 +8793,7 @@
    "max_x": 0.1278048623823742,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.40|açık",
@@ -8813,7 +8813,7 @@
    "max_x": 0.17962166608704574,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.40|açık",
@@ -8823,7 +8823,7 @@
    "max_x": 0.17847760021693693,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.40|kapalı",
@@ -8893,7 +8893,7 @@
    "max_x": 0.1278048623823742,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.60|açık",
@@ -8913,7 +8913,7 @@
    "max_x": 0.17962166608704574,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.60|açık",
@@ -8923,7 +8923,7 @@
    "max_x": 0.17847760021693693,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.60|kapalı",
@@ -8993,7 +8993,7 @@
    "max_x": 0.1278048623823742,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.80|açık",
@@ -9013,7 +9013,7 @@
    "max_x": 0.17962166608704574,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.80|açık",
@@ -9023,7 +9023,7 @@
    "max_x": 0.17847760021693693,
    "max_u": 12.0,
    "fault": false,
-   "reason": "dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+   "reason": "dike geldi (0°), yakalama şartı sağlanmadı: |θ̇|"
   },
   {
    "key": "uç kütlesiz|mekatronik|1.10|0.80|kapalı",

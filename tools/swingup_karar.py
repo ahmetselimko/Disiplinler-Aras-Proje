@@ -14,7 +14,7 @@ değiştirmezdi) ve gerçek sarkacın m ile l'si birlikte −%5 / +%5 iken (mode
 modeli kullanır, tohum 0) tekrar koşulur: durum başına 5 koşu.
 
 Kullanım:
-    python tools/swingup_karar.py                 # tam tarama (~900 koşu; 2 çekirdekte ~10 dk)
+    python tools/swingup_karar.py                 # tam tarama (~900 koşu; 2 çekirdekte ~6 dk)
     python tools/swingup_karar.py --hizli         # küçük alt küme (deneme/test), rapor yazmaz
     python tools/swingup_karar.py --yalniz-rapor  # .json'dan .md'yi yeniden yazar (simülasyon yok)
 Çıktı: docs/swingup_karar_calismasi.md ve .json (elle düzenlemeyin; betiği yeniden çalıştırın).
@@ -38,7 +38,8 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 from pendulum_lab.control.lqr import design_lqr  # noqa: E402
-from pendulum_lab.control.supervisor import Supervisor  # noqa: E402
+from pendulum_lab.control.supervisor import (CATCH_DEG, CATCH_DTH, CATCH_DX, CATCH_X, RELEASE_DEG,  # noqa: E402
+                                              Supervisor)
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
 from pendulum_lab.model.params import load_params  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
@@ -49,10 +50,12 @@ PROFILES = {                                    # ad → parametre dosyası (Aş
     "+50 g": "config/params_50g.json",
 }
 RULES = {                                       # geçiş kuralları (Supervisor argümanları)
-    "bizim": dict(catch_deg=15.0, release_deg=30.0, catch_dth=5.0, catch_x=0.40, catch_dx=2.0),
+    # bizim: arayüz varsayılanları (supervisor.py'deki ortak sabitler; değişirse bu çalışma da izler)
+    "bizim": dict(catch_deg=CATCH_DEG, release_deg=RELEASE_DEG, catch_dth=CATCH_DTH, catch_x=CATCH_X,
+                  catch_dx=CATCH_DX),
     "mekatronik": dict(catch_deg=10.0, release_deg=25.0, catch_dth=1.5, catch_x=0.25, catch_dx=0.70),
 }
-RULE_LABELS = {"bizim": "bizim (15°/30°, 5 rad/s, 0.40 m, 2 m/s)",
+RULE_LABELS = {"bizim": f"bizim ({CATCH_DEG:g}°/{RELEASE_DEG:g}°, {CATCH_DTH:g} rad/s, {CATCH_X:.2f} m, {CATCH_DX:g} m/s)",
                "mekatronik": "mekatronik (10°/25°, 1.5 rad/s, 0.25 m, 0.70 m/s)"}
 E_RATIOS = (1.00, 1.01, 1.02, 1.05, 1.10)       # 1.01 = mekatroniğin E_ref = 1.02·mgl'si
 RAILS = (0.40, 0.60, 0.80)                      # rail_half [m]
@@ -98,8 +101,14 @@ def run_one(args) -> dict:
         reason = "yakalandı, tutulamadı"
     else:
         closest = ang[r.t > min(3.0, 0.5 * T_sim)].min()
-        if closest < RULES[rule]["catch_deg"]:   # açı bölgesine girdi ama hız/konum şartları tutmadı
-            reason = f"dike geldi ({closest:.0f}°), yakalama şartları (θ̇, x, ẋ) sağlanmadı"
+        rl = RULES[rule]
+        inzone = ang < rl["catch_deg"]
+        if inzone.any():                       # açı bölgesine girdi ama hız/konum şartları tutmadı
+            fails = [name for name, v, lim in (("|θ̇|", r.s[:, 3], rl["catch_dth"]), ("|x|", r.x, rl["catch_x"]),
+                                               ("|ẋ|", r.s[:, 1], rl["catch_dx"]))
+                     if (np.abs(v[inzone]) >= lim).all()]   # açı bölgesindeki her adımda bu şart tutmadı
+            why = ", ".join(fails) if fails else "θ̇, x, ẋ birlikte"
+            reason = f"dike geldi ({closest:.0f}°), yakalama şartı sağlanmadı: {why}"
         else:
             reason = f"kalkmadı (dike en fazla {closest:.0f}°)"
     return {"key": case_key(profile, rule, e_ratio, rail, comp), "variant": vname, "up": bool(up),
@@ -136,7 +145,7 @@ def summarize(results: list[dict]) -> dict:
     out = {}
     for key, vs in by.items():
         nom = vs.get("t0")
-        out[key] = {"nominal": nom, "n_up": sum(v["up"] for v in vs.values()), "n": len(vs),
+        out[key] = {"nominal": nom, "runs": list(vs.values()), "n_up": sum(v["up"] for v in vs.values()), "n": len(vs),
                     "robust": all(v["up"] for v in vs.values()) and len(vs) == len(VARIANTS),
                     "worst_max_x": max(v["max_x"] for v in vs.values())}
     return out
@@ -175,8 +184,8 @@ def conclusions(summ: dict) -> list[str]:
         prof, rule, er, rail, comp = k.split("|")
         groups.setdefault((prof, rule, er, comp), []).append((s["robust"], s["nominal"]["up"]))
     differ = sum(1 for v in groups.values() if len(set(v)) > 1)
-    mx = max(s["worst_max_x"] for s in summ.values() if s["nominal"]["up"]) if any(
-        s["nominal"]["up"] for s in summ.values()) else float("nan")
+    ups = [r["max_x"] for s in summ.values() for r in s["runs"] if r["up"]]
+    mx = max(ups) if ups else float("nan")
     L += ["", f"**Ray uzunluğu:** {len(groups)} (uç kütlesi, kural, E_ratio, telafi) grubundan {differ}'inde sonuç "
           f"(sağlamlık ya da nominal kalkış) ray boyuyla değişti. Kalkan koşularda en büyük max |x| {mx:.2f} m."]
     # 2. her uç kütlesi ve kural için sağlam E_ratio'lar ve gereken en kısa ray
@@ -243,7 +252,8 @@ def markdown(results: list[dict], meta: dict) -> str:
          "- Sürtünme telafisi **açık**: kontrolcü 3 N'u biliyor (sürtünme ölçümü yapılıp `fc_volt` gönderilmiş gibi); "
          "**kapalı**: `fc_volt` = 0, fizikte yine 3 N.",
          "- Hücre: nominal koşu (tohum 0) için LQR'a geçiş zamanı / max |x|; parantezde 5 koşunun (3 tohum, m ve l "
-         "−%5, +%5) kaçında son mod BALANCE. ✅ beşinde de kalktı; ⚠️ nominalde kalktı ama en az birinde "
+         "−%5, +%5) kaçında son mod BALANCE. Nominal koşuya da gürültü eklendiği için sayılar gürültüsüz "
+         "`mekatronik_on_degerlendirme.md` tablolarıyla birebir karşılaştırılamaz. ✅ beşinde de kalktı; ⚠️ nominalde kalktı ama en az birinde "
          "kalkmadı; ❌ nominalde kalkmadı (sebep).", ""]
     for prof in PROFILES:
         L += [f"## {prof}", ""]

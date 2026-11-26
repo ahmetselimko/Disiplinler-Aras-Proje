@@ -1,6 +1,6 @@
 # Swing-up karar çalışması (#50 Aşama 3)
 
-`tools/swingup_karar.py` ile 25.11.2026 tarihinde üretildi (900 koşu, 364 s). **Elle düzenlemeyin;** parametreler değişince betiği yeniden çalıştırın. Ham sonuçlar: [`swingup_karar_calismasi.json`](swingup_karar_calismasi.json).
+`tools/swingup_karar.py` ile 26.11.2026 tarihinde üretildi (900 koşu, 356 s). **Elle düzenlemeyin;** parametreler değişince betiği yeniden çalıştırın. Ham sonuçlar: [`swingup_karar_calismasi.json`](swingup_karar_calismasi.json).
 
 > ⚠ **Tasarım değerleriyle (ölçüm değil) üretildi: Aşama 2 değerleri** (mekatronik ara raporu 23.11.2026; `config/params_ucsuz.json`, `config/params.json` (+20 g), `config/params_50g.json`). Ölçüm gelince sayılar değişir.
 
@@ -11,7 +11,7 @@
 - Geçiş kuralları: **bizim**: bizim (15°/30°, 5 rad/s, 0.40 m, 2 m/s); **mekatronik**: mekatronik (10°/25°, 1.5 rad/s, 0.25 m, 0.70 m/s).
 - E_ratio bizim tanımımız (aşağıdan ölçülen hedef enerji / 2mgl). **1.01 = mekatroniğin E_ref = 1.02·mgl'si.**
 - Sürtünme telafisi **açık**: kontrolcü 3 N'u biliyor (sürtünme ölçümü yapılıp `fc_volt` gönderilmiş gibi); **kapalı**: `fc_volt` = 0, fizikte yine 3 N.
-- Hücre: nominal koşu (tohum 0) için LQR'a geçiş zamanı / max |x|; parantezde 5 koşunun (3 tohum, m ve l −%5, +%5) kaçında son mod BALANCE. ✅ beşinde de kalktı; ⚠️ nominalde kalktı ama en az birinde kalkmadı; ❌ nominalde kalkmadı (sebep).
+- Hücre: nominal koşu (tohum 0) için LQR'a geçiş zamanı / max |x|; parantezde 5 koşunun (3 tohum, m ve l −%5, +%5) kaçında son mod BALANCE. Nominal koşuya da gürültü eklendiği için sayılar gürültüsüz `mekatronik_on_degerlendirme.md` tablolarıyla birebir karşılaştırılamaz. ✅ beşinde de kalktı; ⚠️ nominalde kalktı ama en az birinde kalkmadı; ❌ nominalde kalkmadı (sebep).
 
 ## uç kütlesiz
 
@@ -58,9 +58,9 @@
 | 1.02 | bizim | ⚠️ 4.4 s / 0.32 m (3/5) | ⚠️ 4.4 s / 0.32 m (3/5) | ⚠️ 4.4 s / 0.32 m (4/5) |
 | 1.02 | mekatronik | ❌ kalkmadı (dike en fazla 15°) (1/5) | ❌ kalkmadı (dike en fazla 15°) (1/5) | ❌ kalkmadı (dike en fazla 15°) (1/5) |
 | 1.05 | bizim | ✅ 4.3 s / 0.14 m (5/5) | ✅ 4.3 s / 0.14 m (5/5) | ✅ 4.3 s / 0.14 m (5/5) |
-| 1.05 | mekatronik | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (1/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (1/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (1/5) |
+| 1.05 | mekatronik | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (1/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (1/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (1/5) |
 | 1.10 | bizim | ✅ 4.3 s / 0.34 m (5/5) | ✅ 4.3 s / 0.34 m (5/5) | ✅ 4.3 s / 0.34 m (5/5) |
-| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) |
+| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) |
 
 **Sürtünme telafisi kapalı**
 
@@ -75,7 +75,7 @@
 | 1.05 | bizim | ✅ 7.2 s / 0.14 m (5/5) | ✅ 7.2 s / 0.14 m (5/5) | ✅ 7.2 s / 0.14 m (5/5) |
 | 1.05 | mekatronik | ⚠️ 8.3 s / 0.17 m (4/5) | ⚠️ 8.3 s / 0.17 m (4/5) | ⚠️ 8.3 s / 0.17 m (4/5) |
 | 1.10 | bizim | ✅ 7.2 s / 0.14 m (5/5) | ✅ 7.2 s / 0.14 m (5/5) | ✅ 7.2 s / 0.14 m (5/5) |
-| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) |
+| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) |
 
 ## +50 g
 
@@ -90,9 +90,9 @@
 | 1.02 | bizim | ✅ 3.7 s / 0.14 m (5/5) | ✅ 3.7 s / 0.14 m (5/5) | ✅ 3.7 s / 0.14 m (5/5) |
 | 1.02 | mekatronik | ✅ 3.8 s / 0.14 m (5/5) | ✅ 3.8 s / 0.14 m (5/5) | ✅ 3.8 s / 0.14 m (5/5) |
 | 1.05 | bizim | ✅ 3.7 s / 0.15 m (5/5) | ✅ 3.7 s / 0.15 m (5/5) | ✅ 3.7 s / 0.15 m (5/5) |
-| 1.05 | mekatronik | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) |
+| 1.05 | mekatronik | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) |
 | 1.10 | bizim | ✅ 3.7 s / 0.31 m (5/5) | ✅ 3.7 s / 0.31 m (5/5) | ✅ 3.7 s / 0.31 m (5/5) |
-| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) |
+| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) |
 
 **Sürtünme telafisi kapalı**
 
@@ -107,7 +107,7 @@
 | 1.05 | bizim | ✅ 5.4 s / 0.14 m (5/5) | ✅ 5.4 s / 0.14 m (5/5) | ✅ 5.4 s / 0.14 m (5/5) |
 | 1.05 | mekatronik | ✅ 6.5 s / 0.14 m (5/5) | ✅ 6.5 s / 0.14 m (5/5) | ✅ 6.5 s / 0.14 m (5/5) |
 | 1.10 | bizim | ⚠️ 5.3 s / 0.37 m (4/5) | ⚠️ 5.3 s / 0.37 m (4/5) | ✅ 5.3 s / 0.37 m (5/5) |
-| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) | ❌ dike geldi (0°), yakalama şartları (θ̇, x, ẋ) sağlanmadı (0/5) |
+| 1.10 | mekatronik | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) | ❌ dike geldi (0°), yakalama şartı sağlanmadı: |θ̇| (0/5) |
 
 ## Sonuç
 

@@ -65,7 +65,7 @@ taramasının tanımları ve çalıştırılması: **[3, 6 ve 13 numaralı göre
 Üretilen sonuçlar: [hassasiyet raporu](docs/hassasiyet_raporu.md).
 
 **Swing-up karar çalışması** (#50 Aşama 3; uç kütlesi × geçiş kuralı × hedef enerji oranı × ray × sürtünme
-telafisi, her durum 3 tohum ve m, l ±%5): `python tools/swingup_karar.py` (~900 koşu, 2 çekirdekte ~8 dk;
+telafisi, her durum 3 tohum ve m, l ±%5): `python tools/swingup_karar.py` (~900 koşu, 2 çekirdekte ~6 dk;
 `--hizli` tek durumla dener). Sonuç: [docs/swingup_karar_calismasi.md](docs/swingup_karar_calismasi.md).
 
 ```bash
