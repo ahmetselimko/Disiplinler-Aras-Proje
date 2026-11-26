@@ -29,7 +29,7 @@ Bağlanınca arayüz cihaza `ping` gönderir. Swing-up açık/kapalı anahtarı 
 | Sonuç Özeti | Son denemenin özeti: dengeye geçiş anı, oturma süresi, en büyük \|x\| ve \|u\|, doyumda geçen süre, bitiş modu |
 | Yeşil/turuncu/kırmızı kutu | Mod: BEKLEMEDE · KALİBRASYON · SWING-UP · DENGE (LQR) · DURDURULDU · HATA/STOP. DURDURULDU, DURDUR'dan sonraki BEKLEMEDE'dir (yalnız arayüzde). Simülasyon duraklatılmışsa başında ⏸ görünür |
 | Animasyon | Araba ve sarkacın anlık konumu; yeşil kesikli çizgi hedef konum |
-| **KALİBRE ET (Homing)** | Araba yavaşça sol limit switch'e gider, orayı −ray yarı boyu kabul eder, ortaya döner. İki kademeli düzende (`END_SENSORS 2`) referans içteki optik sensördür; araba dıştaki mikro switch'e basarsa homing `homing_overrun` ile durur. (Sensörler takılmadan denenecekse firmware `END_SENSORS 0` ile derlenir; o zaman araba elle ortaya konup durağanken basılır, o nokta x = 0 olur.) **Bu yapılmadan BAŞLAT kabul edilmez** |
+| **KALİBRE ET (Homing)** | Araba yavaşça sol limit switch'e gider, orayı −ray yarı boyu kabul eder, ortaya döner. İki kademeli düzende (`END_SENSORS 2`) referans içteki optik sensördür ve sıfır −ray yarı boyu + 3 cm'de alınır; araba optik bölgesinde başlarsa önce sağa çekilir. Araba dıştaki mikro switch'e basarsa homing `homing_overrun` ile durur. (Sensörler takılmadan denenecekse firmware `END_SENSORS 0` ile derlenir; o zaman araba elle ortaya konup durağanken basılır, o nokta x = 0 olur.) **Bu yapılmadan BAŞLAT kabul edilmez** |
 | **BAŞLAT** | Swing-up açıksa sarkacı aşağıdan kaldırır; \|θ\| < 15° olunca LQR devreye girer |
 | **DURDUR** | Motoru durdurur (IDLE). Hata modundan çıkmak için de kullanılır |
 | **ACİL STOP** / **Esc** | Motor hemen kapanır (FAULT). Esc tuşu açık bir pencere varken de çalışır |

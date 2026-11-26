@@ -53,6 +53,7 @@ HOME_SAT_S = 0.30        # homing'de gerilim bu süreden uzun doyumda kalırsa �
 HOME_I_MAX = 10.0        # integral sınırı [m/s²] (yer tutucu değerlerle arabada ≈ 5 N)
 HOME_STILL_DX = 0.01     # elle ortalamada araba hızı bundan düşük olmalı [m/s] (firmware ile aynı)
 HOME_SW_CLEAR = 0.05     # sol switch'ten bu kadar sağa gidildiği hâlde hâlâ basılıysa sensör takılı → FAULT (firmware ile aynı)
+HOME_BACKOFF = 0.01      # END_SENSORS 2: homing optik etkinken başlarsa optik bırakıldıktan sonra bu kadar daha sağa (firmware ile aynı)
 OPT_FROM_END = 0.03      # END_SENSORS 2: optik sensör, mikro switch'ten (ray sonundan) bu kadar içeride [m] (firmware ile aynı)
 FW_NAME = "mock-1.2"     # 1.2: θ sola + (#50); firmware gibi boot/ping'de "theta":"sol"
 
@@ -217,6 +218,11 @@ class MockDevice:
             self._home_sat = 0.0
             sup.mode, self._home_phase, self._home_t0 = Mode.HOMING, 1, self.k * self.Ts
             self._home_r0, self._home_i = self._ref("R"), 0.0
+            self._home_x0 = self.enc_sign * self.s[0]          # enkoder okuması (firmware home_x0)
+            self._home_rel = None
+            if self.end_sensors == 2 and self._ref("L"):
+                # optik zaten etkin: araba optik ile uç arasında; sıfır kaymasın diye önce optikten çekil (faz 3)
+                self._home_phase = 3
             return P.encode_ack("home")
         if cmd == "calib":
             if mode != Mode.IDLE:
@@ -371,7 +377,18 @@ class MockDevice:
             # sonra) 1 s içinde sola çekilip bırakması beklenir.
             self._fault("homing_wrong_side")
             return 0.0
-        if self._home_phase == 1:
+        if self._home_phase == 3:             # optikten geri çekil (yalnız END_SENSORS 2)
+            x_enc = self.enc_sign * self.s[0]
+            if self._ref("L"):
+                if x_enc - self._home_x0 > HOME_SW_CLEAR:
+                    self._fault("homing_switch")          # optik bırakmıyor: takılı / kopuk
+                    return 0.0
+            elif self._home_rel is None:
+                self._home_rel = x_enc
+            elif x_enc - self._home_rel >= HOME_BACKOFF:
+                self._home_phase, self._home_i = 1, 0.0
+            v_des = HOME_SPEED
+        elif self._home_phase == 1:
             if self._ref("L"):                # switch SEVİYESİ (zaten basılıysa da çalışır)
                 # referans sensörün konumu: 1'de −rail_half, 2'de optik (OPT_FROM_END kadar içeride)
                 self.x_offset = self.enc_sign * self.s[0] + p.rail_half - self._ref_from_end()

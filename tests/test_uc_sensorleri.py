@@ -123,3 +123,23 @@ def test_firmware_matches_mock():
     assert pins.count("PIN_OPT_L = ") == 2                              # iki kart
     wf = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
     assert "end_sensors: [1, 2]" in wf and "-DEND_SENSORS=${{ matrix.end_sensors }}" in wf
+
+
+@pytest.mark.parametrize("x0", [-0.38, -0.385, -0.395])
+def test_homing_starting_inside_optical_zone_backs_off_first(x0):
+    """Araba optik ile uç arasındayken home: önce optikten çekilip kenara yeniden yaklaşılır, sıfır kaymaz."""
+    dev, out = _dev(x0=x0)
+    assert dev._ref("L") and not dev._hard("L")
+    _home(dev)
+    assert dev.homed and dev.sup.mode == Mode.IDLE
+    measured = dev.true_state[0] - dev.x_offset                       # firmware'in x'i (enc_sign = 1)
+    assert measured == pytest.approx(dev.true_state[0], abs=0.003)    # sıfır hatası < 3 mm
+    m = re.search(r"static const float HOME_BACKOFF_M = ([\d.]+)f;", FW)
+    assert m and float(m.group(1)) == MD.HOME_BACKOFF
+
+
+def test_backoff_with_stuck_optical_faults():
+    dev, out = _dev(x0=0.0)
+    dev.stuck_switch = "L"                                              # optik hep etkin (kopuk kablo)
+    _home(dev)
+    assert _events(out, "fault")[-1]["reason"] == "homing_switch"

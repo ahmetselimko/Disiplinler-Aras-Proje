@@ -66,7 +66,7 @@ Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTO
                       └──────────────────────► PIN_OPT_L (10) / PIN_OPT_R (11)   (yarık kapalı → HIGH)
    PIN_LIM_L (16) / PIN_LIM_R (17) ──► mikro switch NC ── GND   dış kademe (ray sonunda); basılı/kopuk → HIGH
 ```
-Arabadaki bayrak önce optiğin yarığına girer, araba durmazsa 3 cm sonra mikro switch'e basar. İki sensör de kopuk kabloda "etkin" okunur (güvenli tarafta). Gerçek montaj mesafesi farklıysa `OPT_FROM_END_M` (firmware) ve `OPT_FROM_END` (`mock_device.py`) birlikte değiştirilir (test eşliği denetler).
+Arabadaki bayrak önce optiğin yarığına girer, araba durmazsa 3 cm sonra mikro switch'e basar. **Bayrak şartı:** bayrak, optik konumundan mekanik uca kadar (≥ 3 cm + aşma payı) yarığı kesintisiz kapatacak uzunlukta olmalı; araba optik ile uç arasındayken optik hep "etkin" okunmalı. Kısa bayrakta mikro switch'e her çarpışta yanlış `sensor_mismatch` gelir ve uçta verilen `home` yanlış hata verebilir. Optik konumu yazılımsal ray sınırıyla (`SOFT_MARGIN` = 3 cm) aynı yerde: firmware'de optik 3 okumalık (6 ms) parazit filtresinden geçtiği için ~0.1 m/s'nin üstündeki hızlarda FAULT sebebi önce `rail` görünebilir (sanal ESP32'de filtre yok, orada `limit`); iki durumda da motor aynı adımda kesilir. İki sensör de kopuk kabloda "etkin" okunur (güvenli tarafta). Gerçek montaj mesafesi farklıysa `OPT_FROM_END_M` (firmware) ve `OPT_FROM_END` (`mock_device.py`) birlikte değiştirilir (test eşliği denetler).
 
 `END_SENSORS 1`'de sensör tipi: BOM'da iki seçenek var, ikisi de aynı pinlere ve aynı ayarla bağlanır:
 * **Limit switch (DC163-3):** **NC (normalde kapalı) bağlantı önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez.
@@ -90,7 +90,7 @@ Varsayılan `END_SENSORS 1`. Sensörler henüz takılmamışken kartı denemek g
 | Homing'de sola dayandıktan 5 cm sonra sol sensör hâlâ basılı | FAULT `homing_switch` (sol sensör kablosu kopuk ya da takılı; sıfır yanlış olurdu) |
 | Homing'de \|ẋ\| > 0.30 m/s ya da gerilim 0.3 s'den uzun doyumda | FAULT `homing_runaway` (hız döngüsü kontrolden çıktı; ek güvenlik) |
 | Homing 20 s'yi aştı / rayın 2 katından fazla yol gidildi | FAULT `homing_timeout` / `homing_travel` |
-| Homing başlarken sol switch zaten basılı | Hemen sıfırlanır (switch seviyesine bakılır) |
+| Homing başlarken sol switch zaten basılı | `END_SENSORS 1`: hemen sıfırlanır (switch ray sonunda, seviyesine bakılır). `END_SENSORS 2`: sol optik zaten etkinse araba optik ile uç arasında, sıfır 3 cm'ye kadar kayardı: araba önce sağa çekilip optiği bırakır, `HOME_BACKOFF_M` (1 cm) daha gider, sonra kenara yeniden yaklaşıp sıfırı kenardan alır. Geri çekilirken 5 cm'de optik bırakmazsa `homing_switch` |
 | `END_SENSORS 2`: çalışırken optik / mikro switch | FAULT `limit` / `hard_limit` (mikro switch önceliklidir) |
 | `END_SENSORS 2`: homing'de mikro switch | FAULT `homing_overrun` (optik görmedi) |
 | `END_SENSORS 2`: mikro switch basılı | `start`, `home`, `friction` her modda reddedilir; arabayı elle uçtan uzaklaştırın |

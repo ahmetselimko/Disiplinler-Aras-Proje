@@ -117,7 +117,10 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
                 • estop: her modda
                 • sensör hatası: IDLE dışındaki her modda
                 • |x| > rail_half − 3 cm: WAIT, SWING_UP, BALANCE, FRICTION
-                • limit switch: WAIT, SWING_UP, BALANCE, FRICTION (homing'de: homing_* hataları)
+                • uç sensörü (limit; END_SENSORS 2'de optik): WAIT, SWING_UP, BALANCE, FRICTION
+                  (homing'de: homing_* hataları)
+                • END_SENSORS 2, mikro switch (hard_limit): IDLE ve FAULT dışındaki her modda;
+                  homing'de homing_overrun
                 • 1 s PC sessizliği (link): HOMING, WAIT, SWING_UP, BALANCE, FRICTION
 
            friction (homed)        bitti / stop
@@ -125,7 +128,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 ```
 
 Yakalama şartı (`Supervisor.can_catch`): |θ| < catch_deg, |θ̇| < catch_dth, |x| < catch_x ve |ẋ| < catch_dx.
-FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir.
+FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir. `END_SENSORS 2`'de mikro switch basılıyken `home` de reddedilir: önce araba elle uçtan uzaklaştırılır.
 
 ## 6. Homing'i kim başlatır?
 Güç gelince ESP32 IDLE modunda bekler. Homing yalnızca PC'den gelen `home` komutuyla ("KALİBRE ET" butonu) başlar. `start` komutu homing yapılmadan reddedilir. Araba açılışta kendiliğinden hareket etmez.

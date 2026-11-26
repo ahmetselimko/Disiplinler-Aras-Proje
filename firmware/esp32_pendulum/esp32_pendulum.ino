@@ -86,6 +86,7 @@ static const int LIM_PRESSED = HIGH;                  //   NC switch + INPUT_PUL
 // kesilir, çıkış HIGH; kopuk kablo da HIGH okunur (güvenli tarafta).
 static const int OPT_ACTIVE = HIGH;
 static const float OPT_FROM_END_M = 0.03f;            // optik, mikro switch'ten (ray sonundan) bu kadar içeride [m] (mock_device.OPT_FROM_END)
+static const float HOME_BACKOFF_M = 0.01f;             // homing optik etkinken başlarsa: optik bırakıldıktan sonra bu kadar daha sağa (mock_device.HOME_BACKOFF)
 #if END_SENSORS == 2                                   // homing referansı ve "limit" sensörü: iç kademe optik
 #define PIN_REF_L PIN_OPT_L
 #define PIN_REF_R PIN_OPT_R
@@ -436,10 +437,14 @@ void ctrlTask(void *) {
   Mode mode = IDLE; bool homed = false; int home_phase = 0;
   float x_offset = 0, home_t0 = 0, home_x0 = 0, home_i = 0; uint32_t k = 0, n = 0; float tel_acc = 0;
   bool home_r0 = false;                                // homing başlarken sağ switch basılı mıydı
+  float home_rel = NAN;                                // faz 3 (END_SENSORS 2): sol optiğin bırakıldığı enkoder konumu
   float home_sat = 0;                                  // homing'de gerilimin doyumda kaldığı süre [s]
   FrictionTest fr;
   bool limL_prev = false, limR_prev = false, hardL_prev = false, hardR_prev = false;
-  int limL_cnt = 0, limR_cnt = 0, hardL_cnt = 0, hardR_cnt = 0;   // uç sensörü parazit filtresi (LIM_DEBOUNCE)
+  int limL_cnt = 0, limR_cnt = 0;                      // uç sensörü parazit filtresi (LIM_DEBOUNCE)
+#if END_SENSORS == 2
+  int hardL_cnt = 0, hardR_cnt = 0;
+#endif
   int sensor_fails = 0; uint16_t raw = 0;
 
   // açılış kalibrasyonu: sarkaç aşağıda ve hareketsiz olmalı → o konum θ = π
@@ -466,6 +471,11 @@ void ctrlTask(void *) {
       homed = false; SET_SHARED(homed, false);           // eski sıfır geçersiz: homing yarıda kalırsa start reddedilir
       home_sat = 0;
       home_r0 = digitalRead(PIN_REF_R) == REF_ACTIVE;   // referans sensör: 1'de switch, 2'de optik
+#if END_SENSORS == 2
+      // optik zaten etkinse araba optik ile uç arasında, sıfır 3 cm'ye kadar kayardı: önce sağa çekilip optiği
+      // bırak (HOME_BACKOFF_M daha), sonra kenara yeniden yaklaş (faz 3)
+      if (digitalRead(PIN_REF_L) == REF_ACTIVE) { home_phase = 3; home_rel = NAN; }
+#endif
 #else
       // elle ortalama: araba elle ortaya konmuş ve durağan (iletişim görevi denetledi) → bu nokta x = 0
       int32_t c0; portENTER_CRITICAL(&mux); c0 = enc_count; portEXIT_CRITICAL(&mux);
@@ -534,11 +544,15 @@ void ctrlTask(void *) {
         mode = raiseFault(mode, "homing_runaway");   // ilk 0.2 s hız kestirimi oturuyor
       // sol sensör hep "basılı" okunuyor (kopuk kablo, NO/NC karışıklığı): sıfır yanlış olurdu
       else if (home_phase == 2 && limL && x > -RAIL_HALF_M + REF_FROM_END_M + HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
+      // faz 3: optikten geri çekilirken HOME_SW_CLEAR_M gidildiği hâlde optik bırakmıyor → takılı/kopuk
+      else if (home_phase == 3 && limL && x_enc - home_x0 > HOME_SW_CLEAR_M) mode = raiseFault(mode, "homing_switch");
+      else if (home_phase == 3 && !limL && isnan(home_rel)) home_rel = x_enc;
+      else if (home_phase == 3 && !isnan(home_rel) && x_enc - home_rel >= HOME_BACKOFF_M) { home_phase = 1; home_i = 0; }
       else if (home_phase == 1 && limL) {                       // switch SEVİYESİ: zaten basılıysa da çalışır
         // referans sensörün konumu: 1'de −RAIL_HALF_M, 2'de optik (OPT_FROM_END_M içeride)
         x_offset = x_enc + RAIL_HALF_M - REF_FROM_END_M; x = -RAIL_HALF_M + REF_FROM_END_M; vx.reset(); kf.reset(); home_phase = 2; home_i = 0;
       } else {
-        float v_des = home_phase == 1 ? -HOME_SPEED : clampf(-2.0f * x, -0.15f, 0.15f);
+        float v_des = home_phase == 1 ? -HOME_SPEED : home_phase == 3 ? HOME_SPEED : clampf(-2.0f * x, -0.15f, 0.15f);
         if (home_phase == 2 && fabsf(x) < 0.002f && fabsf(dx) < 0.02f) {
           mode = IDLE; home_phase = 0; homed = true;
           portENTER_CRITICAL(&mux); S.ev_homed = true; S.homed = true; portEXIT_CRITICAL(&mux);
