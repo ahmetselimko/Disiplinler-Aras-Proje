@@ -45,6 +45,7 @@ PC portu açarken DTR/RTS'yi düşük tutar, böylece ESP32 resetlenmez.
 | `th`, `dth` | rad, rad/s | Sarkaç açısı ve kestirilen açısal hızı |
 | `u` | V | Motora uygulanan giriş (doyum sonrası) |
 | `mode` | metin | `IDLE`, `HOMING`, `WAIT`, `SWING_UP`, `BALANCE`, `FAULT`, `FRICTION` (sürtünme ölçümü) |
+| `gy` | rad/s | **İsteğe bağlı** (#50 Aşama 5): yalnız `USE_MPU6050 1` ile derlenmiş ve jiroskobu çalışan firmware'de. MPU6050 açısal hızı, kalibrasyon bias'ı çıkarılmış, işareti θ ile aynı (sarkaç sola dönerken pozitif). `dth` kontrolcünün kullandığı kestirimdir: türev bölgesinde `gyro_mix` karışımı, Kalman bölgesinde Kalman |
 
 Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de kabul edilir. Eksik alanlar 0 sayılır.
 
@@ -53,7 +54,8 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 |---|---|
 | `{"evt":"boot","fw":"ref-1.2","theta":"sol","Ts":0.002}` | Açılışta. `theta`: cihazın θ işaret kuralı (`"sol"`: θ > 0 sarkaç sola yatık, #50; ping yanıtında da var). Bu alanı taşımayan ya da başka değer bildiren cihaza (θ sağa + kullanan eski firmware) ve cihaz bilgisi henüz gelmemişken PC K ve ayarları **göndermez** (yalnız swing-up açık/kapalı anahtarı gider) ve uyarır; böyle bir cihazdan alınan kayıtların başlığına `cihaz_theta_pozitif: sag` yazılır (okurken yalnız θ, θ̇ sütunları çevrilir). Cihaz bilgisi gelmeden kayıt başlatılmaz. Firmware boot satırından önce boş bir satır (`\n`) basar: ESP32'nin 115200 baud'daki ROM açılış mesajı 921600'de çöp olarak görünür ve PC çöpü `{`'den önce keser. İlk telemetri satırı ancak ilk gerçek ölçümden sonra gelir. PC sıra sayacını ve grafiği sıfırlar, Ts'yi kontrol eder, K ve ayarları **yeniden yükler** (cihaz resetlenince PC'den gelen ayarlar kaybolur) Açılışta uç sensörü zaten etkinse `limit` / `sensor_mismatch` olayları gerçek kartta `calib`'den önce, sanal ESP32'de sonra gelir (aynı olaylar; sıra önemli değildir). |
 | `{"evt":"friction","ok":true,"v_pos":0.51,"v_neg":0.47,"v_c":0.49,"slope":8.6}` | Sürtünme ölçümü bittiğinde. `v_c`: kayma sürtünmesini yenen gerilim [V] (iki yönün ortalaması), `slope`: (β + b)/α [V·s/m]. Başarısızsa `{"ok":false,"reason":"…"}`, mod IDLE'a döner |
-| `{"evt":"calib","ok":true}` | Açı kalibrasyonu bittiğinde (açılışta ve `calib` komutundan sonra). `ok:false` → `start` reddedilir |
+| `{"evt":"calib","ok":true}` | Açı kalibrasyonu bittiğinde (açılışta ve `calib` komutundan sonra). `ok:false` → `start` reddedilir. `USE_MPU6050 1` ve jiroskop çalışıyorsa `"gyro_bias":0.01234` [rad/s] alanı da gelir: `calib` jiroskop sıfırını da ölçer (sarkaç aşağıda ve hareketsiz, 200 örnek, ~0.2 s). Açı kalibrasyonu başarısızsa (`ok:false`, sarkaç hareketliydi) bias güncellenmez, eskisi kalır |
+| `{"evt":"gyro","ok":false}` | `USE_MPU6050 1`: MPU6050 açılışta yanıt vermedi (`WHO_AM_I`), art arda 3 kez okunamadı, resetlenmiş bulundu (100 ms'de bir okunan PWR_MGMT_1 ≠ 0x01: güç kesintisinden sonra uykuda) ya da değeri AS5600 türevinden 50 ms boyunca 3 rad/s'den fazla saptı. **Bir kez** gelir; **FAULT olmaz** (jiroskop yedek sensör, motor durmaz): karışım 0'a düşer (yalnız AS5600 türevi), telemetride `gy` alanı kalkar. Yeniden denemek için kart resetlenir |
 | `{"evt":"limit","side":"L"}` / `"R"` | Uç sensörü ilk etkinleştiğinde (`END_SENSORS 1`: tek sensör) |
 | `{"evt":"limit","side":"L","stage":"opt"}` / `"hard"` | `END_SENSORS 2` (#50 Aşama 4): iç kademe optik (`opt`) ya da dış kademe mikro switch (`hard`) ilk etkinleştiğinde |
 | `{"evt":"sensor_mismatch","side":"L"}` / `"R"` | `END_SENSORS 2`: mikro switch basıldı ama aynı taraftaki optik görmüyor. Optik arızalı, kablosu yanlış ya da kaymış olabilir; denemeden önce kontrol edin (arayüz uyarı olarak yazar) |
@@ -68,7 +70,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 
 | Komut | Örnek | Etki |
 |---|---|---|
-| `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.2","theta":"sol","homed":false,"angle_ok":true}`. `angle_ok` açılış kalibrasyonu bitene kadar (~1.1 s) **gönderilmez** (alanın yokluğu "başarısız" demek değildir; sonuç `calib` olayıyla gelir). PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
+| `ping` | `{"cmd":"ping"}` | `{"ack":"ping","ok":true,"msg":"pong","Ts":0.002,"fw":"ref-1.2","theta":"sol","homed":false,"angle_ok":true}`. `USE_MPU6050 1` ile ayrıca `"gyro":true/false` (jiroskop çalışıyor mu) ve `"i2c_us":…` (açılıştan beri ölçülen en uzun AS5600 + MPU6050 okuma süresi, µs); bu iki alan da `angle_ok` gibi açılış kalibrasyonu bitene kadar gönderilmez. `angle_ok` açılış kalibrasyonu bitene kadar (~1.1 s, MPU6050 ile ~1.4 s) **gönderilmez** (alanın yokluğu "başarısız" demek değildir; sonuç `calib` olayıyla gelir). PC bağlanınca gönderir; `Ts` tasarımdakiyle aynı değilse K **gönderilmez** |
 | `hb` | `{"cmd":"hb"}` | **Bağlantı bekçisi, yanıtsız.** PC bağlıyken 0.25 s'de bir gönderir (`protocol.py::HB_PERIOD_S`); arayüzde okuyucu thread'inden gider, uzun bir hesap arayüzü dondursa da kesilmez. Cihaz HOMING, SWING_UP, WAIT, BALANCE veya FRICTION modundayken **1 s** (`LINK_TIMEOUT_S`, firmware `LINK_TIMEOUT_MS`) boyunca hiç komut satırı almazsa motoru keser: FAULT `link`. IDLE/FAULT'ta denetlenmez. Herhangi bir komut satırı da sayacı sıfırlar |
 | `home` | `{"cmd":"home"}` | Yalnız IDLE/FAULT modunda. Yeni homing başlarken önceki kalibrasyon geçersiz sayılır (homing yarıda `stop` edilirse `start` reddedilir). Araba sola gider, sol referans sensörde sıfırı ayarlar, sonra ortaya döner. `END_SENSORS 1`'de sensör zaten etkinse sıfır hemen alınır; `END_SENSORS 2`'de sol optik zaten etkinse (araba optik ile uç arasında) araba önce sağa çekilir, optik bırakıldıktan sonra 1 cm daha gider ve kenara yeniden yaklaşır (sıfır kaymasın). Referans: `END_SENSORS 1`'de ray sonundaki sensör (x = −rail_half); `END_SENSORS 2`'de iç kademe optik, mikro switch'ten `OPT_FROM_END_M` (3 cm) içeride (x = −rail_half + 0.03). Güvenlik: bkz. 3.2 `homing_*` hataları. `END_SENSORS 2`'de mikro switch basılıyken `start`, `home` ve `friction` **her modda reddedilir** ("sol/sağ mikro switch basılı: arabayı elle uçtan uzaklaştırın"). **Sensörsüz derlenmiş firmware'de (`END_SENSORS 0`):** araba hareket ettirilmez; elle ortaya konmuş araba durağansa (\|ẋ\| ≤ 0.01 m/s, değilse ret) bulunduğu nokta x = 0 olur, IDLE'da kalınır ve `homed` olayı gelir; `limit` olayı ve `limit`/`homing_*` hataları oluşmaz. Gerçek kartta açılış kalibrasyonu bitene kadar (`calib` olayı) reddedilir. |
 | `calib` | `{"cmd":"calib"}` | Yalnız IDLE modunda. Sarkaç aşağıda ve hareketsizken açı sıfırını yeniden bulur (açılıştaki kalibrasyon başarısız olduysa) |
@@ -98,6 +100,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 | `x_ref` | ±0.3 | Dengedeyken arabanın hedef konumu [m]. Cihaz ayrıca \|x_ref\| ≤ rail_half − 0.1 şartını arar |
 | `u_max` | 0–48 | Giriş doyumu [V]. Cihaz besleme geriliminden büyük değeri reddeder |
 | `telemetry_hz` | 1–500 | Telemetri hızı |
+| `gyro_mix` | 0–1 | MPU6050 karışımı γ (#50 Aşama 5; varsayılan 0): türev bölgesinde (\|θ\| > release ya da Kalman kapalı) θ̇ = γ·ω_gyro + (1 − γ)·θ̇_türev (mekatronik raporu Denklem 8.5). Kalman bölgesinde Kalman aynen kalır. `USE_MPU6050 0` firmware'de ya da jiroskop devre dışıyken kabul edilir ama etkisizdir |
 | `fc_volt` | 0–6 | Coulomb sürtünme telafisi, **gerilim** olarak [V] (yalnız swing-up'ta; homing telafi kullanmaz, sürtünmeyi integralle yener). Sürtünme ölçümünün sonucu (`v_c`). Cihaz kuvvete fc_volt·α ile çevirip yine α'ya bölerek uyguladığı için motor sabitlerindeki hata etkilemez. Bağlanınca PC, parametrelerdeki T_f'den hesaplayıp gönderir |
 
 ## 5. Mod makinesi
@@ -128,7 +131,7 @@ Geriye uyumluluk: ilk taslaktaki `{"t":1.25,"theta":0.05,"x":0.12}` biçimi de k
 ```
 
 Yakalama şartı (`Supervisor.can_catch`): |θ| < catch_deg, |θ̇| < catch_dth, |x| < catch_x ve |ẋ| < catch_dx.
-FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir. `END_SENSORS 2`'de mikro switch basılıyken `home` de reddedilir: önce araba elle uçtan uzaklaştırılır. Gerçek kartta açılış kalibrasyonu (~1.1 s, `calib` olayı gelene kadar) sürerken `start`, `home` ve `friction` reddedilir ("açılış kalibrasyonu sürüyor"); sanal ESP32'de bu bekleme yoktur.
+FAULT modundan `stop` (→ IDLE) veya `home` ile çıkılır; `start` FAULT'ta reddedilir. `END_SENSORS 2`'de mikro switch basılıyken `home` de reddedilir: önce araba elle uçtan uzaklaştırılır. Gerçek kartta açılış kalibrasyonu (~1.1 s, MPU6050 ile ~1.4 s; `calib` olayı gelene kadar) sürerken `start`, `home` ve `friction` reddedilir ("açılış kalibrasyonu sürüyor"); sanal ESP32'de bu bekleme yoktur.
 
 ## 6. Homing'i kim başlatır?
 Güç gelince ESP32 IDLE modunda bekler. Homing yalnızca PC'den gelen `home` komutuyla ("KALİBRE ET" butonu) başlar. `start` komutu homing yapılmadan reddedilir. Araba açılışta kendiliğinden hareket etmez.
@@ -137,9 +140,9 @@ Firmware varsayılanı `END_SENSORS 1` (her uçta tek sensör); `home` sol sens�
 ## 7. Hız bütçesi
 | Kalem | Değer |
 |---|---|
-| Telemetri satırı | ~95 bayt |
+| Telemetri satırı | ~95 bayt (`USE_MPU6050 1`: `,"gy":-12.3456` ile ~110 bayt) |
 | 921600 baud kapasitesi | ~92 000 bayt/s → ~950 satır/s |
-| Varsayılan telemetri | 200 Hz → bant genişliğinin ~%21'i |
+| Varsayılan telemetri | 200 Hz → bant genişliğinin ~%21'i (jiroskopla ~%24; 500 Hz'de ~%60) |
 | PC tarafı çözümleme | satır başına ~5 µs (ayrı thread) |
 | Kontrol döngüsü | 500 Hz (Ts = 2 ms), **ESP32 üzerinde**. Telemetri kontrolü hiç bekletmez |
 | Ts kuralı | Tam sayı milisaniye, 1–20 ms (FreeRTOS 1 ms tik). `gains.h` başka değeri reddeder |

@@ -38,6 +38,33 @@ class AnalysisTab(QtWidgets.QTabWidget):
         self.addTab(RootLocusPage(state), "Kök eğrisi (rlocus)")
 
 
+
+def dth_rmse_lines(r, gyro_mix) -> list[str]:
+    """θ̇ kestirimlerinin gerçek θ̇'ye göre RMSE'si (yalnız AS5600 türevi / jiroskop karışımı / Kalman), yan yana.
+    Kalman yalnız etkin olduğu adımlarda; karşılaştırma adil olsun diye diğerleri de o adımlarda ayrıca verilir."""
+    if r.dth_diff is None:
+        return []
+    true = r.s[:, 3]
+
+    def rmse(est, mask):
+        e = est[mask] - true[mask]
+        return float(np.sqrt(np.mean(e ** 2))) if mask.any() else float("nan")
+    allm = np.isfinite(r.dth_diff)
+    kfm = np.isfinite(r.dth_kf)
+    kf = kfm.any()                               # Kalman kapalıysa (ya da hiç etkin olmadıysa) o sütun yazılmaz
+
+    def pair(est):
+        return f"{rmse(est, allm):.3f}" + (f" | {rmse(est, kfm):.3f}" if kf else "")
+    head = "θ̇ RMSE [rad/s] (tüm koşu | Kalman bölgesinde):" if kf else "θ̇ RMSE [rad/s] (tüm koşu):"
+    cells = [f"AS5600 türevi {pair(r.dth_diff)}"]
+    if r.gy is not None:
+        cells.append(f"karışım γ={gyro_mix:.2f} {pair(r.dth_mix)}")
+        cells.append(f"yalnız jiroskop {rmse(r.gy, allm):.3f}")
+    if kf:
+        cells.append(f"Kalman — | {rmse(r.dth_kf, kfm):.3f}")
+    return [head, "  " + " · ".join(cells)]
+
+
 class SimulationPage(QtWidgets.QWidget):
     def __init__(self, state):
         super().__init__()
@@ -60,6 +87,12 @@ class SimulationPage(QtWidgets.QWidget):
         self.real_cb.setChecked(True)
         self.kalman_cb = QtWidgets.QCheckBox("Kalman filtresi ile hız kestirimi")
         self.kalman_cb.setChecked(True)
+        # MPU6050 (#50 Aşama 5; mekatronik raporunun "sensör füzyonu karşılaştırma" amacı)
+        self.gyro_cb = QtWidgets.QCheckBox("Jiroskop (MPU6050)")
+        self.gyro_cb.setToolTip("Gerçekçi sensöre MPU6050 jiroskobu ekler: ~0.005 °/s/√Hz gürültü, sabit bias "
+                                "(kalibrasyonla çıkarılmış), ±2000 °/s doyum")
+        self.gyro_mix = spin(0.5, 0.0, 1.0, 2, 0.05)
+        self.gyro_mix.setToolTip("Karışım γ: θ̇ = γ·jiroskop + (1 − γ)·AS5600 türevi (Kalman bölgesi dışında)")
         self.noise = spin(0.05, 0, 5, 3, 0.01, "°")
         self.delay = QtWidgets.QSpinBox()
         self.delay.setRange(0, 20)
@@ -105,6 +138,12 @@ class SimulationPage(QtWidgets.QWidget):
         f.addRow("Süre", self.T)
         f.addRow(self.real_cb)
         f.addRow(self.kalman_cb)
+        gyro_row = QtWidgets.QHBoxLayout()
+        gyro_row.addWidget(self.gyro_cb)
+        gyro_row.addWidget(QtWidgets.QLabel("karışım γ:"))
+        gyro_row.addWidget(self.gyro_mix)
+        gyro_row.addStretch(1)
+        f.addRow(gyro_row)
         f.addRow("Açı gürültüsü (σ)", self.noise)
         f.addRow("Giriş gecikmesi", self.delay)
         f.addRow(self.swing_cb)
@@ -173,7 +212,8 @@ class SimulationPage(QtWidgets.QWidget):
     def _on_matlab_toggled(self, on: bool):
         """Matlab denemesinde olmayan ayarları kapat; θ₀'ı Matlab'ın durma sınırının içine al.
         Dürtme açık kalır ama Matlab'daki "Apply push" gibi hep arabaya uygulanır."""
-        for w in (self.real_cb, self.kalman_cb, self.noise, self.delay, self.swing_cb, self.dist_at):
+        for w in (self.real_cb, self.kalman_cb, self.gyro_cb, self.gyro_mix, self.noise, self.delay, self.swing_cb,
+                  self.dist_at):
             w.setEnabled(not on)
         self.matlab_ref_cb.setEnabled(on)
         if on:
@@ -234,7 +274,8 @@ class SimulationPage(QtWidgets.QWidget):
                          release_deg=st.release_deg, swingup_enabled=self.swing_cb.isChecked())
         sup.x_ref = st.x_ref   # cihaza gönderilen hedef konumla aynı (Matlab dalı da kullanıyor)
         sup.start()
-        sensor = (SensorModel.for_params(st.p, th_noise_std=math.radians(self.noise.value()))
+        use_gyro = self.real_cb.isChecked() and self.gyro_cb.isChecked()
+        sensor = (SensorModel.for_params(st.p, th_noise_std=math.radians(self.noise.value()), gyro=use_gyro)
                   if self.real_cb.isChecked() else None)
         dist = pulse_disturbance(self.dist_t.value(), self.dist_F.value(), self.dist_dur.value() / 1000)
         s0 = [self.x0.value(), self.dx0.value(), math.radians(self.th0.value()), math.radians(self.dth0.value())]
@@ -243,14 +284,16 @@ class SimulationPage(QtWidgets.QWidget):
             r = simulate_closed_loop(real, sup, s0,
                                      self.T.value(), dt=st.Ts, sensor=sensor, delay_steps=self.delay.value(),
                                      disturbance=dist, use_kalman=self.kalman_cb.isChecked(),
-                                     disturbance_target=self.dist_at.currentData())
+                                     disturbance_target=self.dist_at.currentData(),
+                                     gyro_mix=self.gyro_mix.value() if use_gyro else 0.0)
         except FloatingPointError as e:
             QtWidgets.QMessageBox.warning(self, "Simülasyon", str(e))
             return
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
         self._xref = st.x_ref                                  # simülasyon başarılıysa (eski sonuçla karışmasın)
-        self._show_result(r, real, [], u_max=st.p.u_max, rail_half=st.p.rail_half)
+        self._show_result(r, real, dth_rmse_lines(r, self.gyro_mix.value() if use_gyro else None),
+                          u_max=st.p.u_max, rail_half=st.p.rail_half)
 
     def _show_result(self, r, real, head_lines, u_max, rail_half):
         self.result = r

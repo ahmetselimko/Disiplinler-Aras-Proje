@@ -35,12 +35,16 @@ class LiveTab(QtWidgets.QWidget):
         self.p_u = self.glw.addPlot(row=2, col=0, title="Kontrol girişi u")
         self.p_e = self.glw.addPlot(row=3, col=0, title="Sarkaç enerjisi E [J]  (0 = dik)")
         self.p_m = self.glw.addPlot(row=4, col=0, title="Kontrolcü modu  (3 = swing-up, 4 = LQR)")
-        for pl in (self.p_th, self.p_x, self.p_u, self.p_e, self.p_m):
+        # MPU6050 (#50 Aşama 5): telemetride "gy" varsa görünür; yoksa gizli
+        self.p_w = self.glw.addPlot(row=5, col=0, title="θ̇ [rad/s]: AS5600 türevi (PC) / jiroskop / kullanılan")
+        self.p_w.addLegend(offset=(5, 5))
+        self.p_w.hide()
+        for pl in (self.p_th, self.p_x, self.p_u, self.p_e, self.p_m, self.p_w):
             pl.showGrid(x=True, y=True, alpha=0.25)
             pl.setClipToView(True)
             pl.setDownsampling(auto=True, mode="peak")
             pl.enableAutoRange(axis="y")
-        for pl in (self.p_x, self.p_u, self.p_e, self.p_m):
+        for pl in (self.p_x, self.p_u, self.p_e, self.p_m, self.p_w):
             pl.setXLink(self.p_th)
         self.p_m.setLabel("bottom", "zaman [s] (0 = şimdi)")
         self.c_th = self.p_th.plot(pen=pg.mkPen("#2980b9", width=2))
@@ -50,6 +54,9 @@ class LiveTab(QtWidgets.QWidget):
         self.c_m = self.p_m.plot(pen=pg.mkPen("#8e44ad", width=2), stepMode="left")
         # "peak" seyreltme kesikli mod değerleri arasında olmayan ara değerler üretebilir
         self.c_m.setDownsampling(ds=1, auto=False)
+        self.c_w_diff = self.p_w.plot(pen=pg.mkPen("#95a5a6", width=1), name="AS5600 türevi")
+        self.c_w_gyro = self.p_w.plot(pen=pg.mkPen("#e67e22", width=1.5), name="jiroskop")
+        self.c_w_used = self.p_w.plot(pen=pg.mkPen("#2980b9", width=2), name="kullanılan (dth)")
 
         self.p_e.addItem(pg.InfiniteLine(angle=0, pen=pg.mkPen("#27ae60", style=QtCore.Qt.DashLine)))
         setup_mode_axis(self.p_m)
@@ -163,6 +170,17 @@ class LiveTab(QtWidgets.QWidget):
                   QtWidgets.QLabel("Pencere:"), self.window, self.pause_cb):
             opts.addWidget(w)
         right.addLayout(opts)
+        gyro_row = QtWidgets.QHBoxLayout()          # MPU6050: yalnız telemetride "gy" varken görünür
+        self.gyro_mix = spin(0.0, 0.0, 1.0, 2, 0.05)
+        self.gyro_mix.setToolTip("Jiroskop karışımı γ: θ̇ = γ·jiroskop + (1 − γ)·AS5600 türevi (yalnız Kalman bölgesi "
+                                 "dışında; dik bölgede Kalman aynen kalır). 0 = yalnız AS5600")
+        self.b_gyro_mix = QtWidgets.QPushButton("Karışımı gönder")
+        self.gyro_lbl = QtWidgets.QLabel("Jiroskop karışımı γ:")
+        for w in (self.gyro_lbl, self.gyro_mix, self.b_gyro_mix):
+            gyro_row.addWidget(w)
+            w.hide()
+        gyro_row.addStretch(1)
+        right.addLayout(gyro_row)
 
         self.log = QtWidgets.QPlainTextEdit()
         self.log.setReadOnly(True)
@@ -173,6 +191,7 @@ class LiveTab(QtWidgets.QWidget):
 
         self._stopped = False      # son mod komutu DURDUR muydu (IDLE "Durduruldu" gösterilir)
         self.b_home.clicked.connect(lambda: self.send_mode_cmd("home"))
+        self.b_gyro_mix.clicked.connect(self._send_gyro_mix)
         self.b_calib.clicked.connect(lambda: state.send("calib"))
         self.b_push.clicked.connect(lambda: push_with_confirm(self, state))
         self.b_start.clicked.connect(lambda: self.send_mode_cmd("start"))
@@ -192,6 +211,12 @@ class LiveTab(QtWidgets.QWidget):
         self._on_conn(False)
 
     # ------------------------------------------------------------ eylemler
+    def _send_gyro_mix(self):
+        """Karışımı gönder; durumda tutulur, kart resetlenince ayarlarla yeniden gider."""
+        v = self.gyro_mix.value()
+        if self.state.send("set_param", gyro_mix=v):
+            self.state.gyro_mix = v
+
     def send_mode_cmd(self, cmd: str):
         # start reddedilebilir: kabul edilirse mod zaten IDLE'dan çıkar, "Durduruldu" burada silinmez
         if self.state.send(cmd) and cmd != "start":
@@ -349,6 +374,18 @@ class LiveTab(QtWidgets.QWidget):
         self.c_e.setData(t, E)
 
         self.c_m.setData(t, data[keep, C["mode"]])
+        gy = data[keep, C["gy"]] if data.shape[1] > C["gy"] else np.full(int(keep.sum()), np.nan)
+        has_gy = bool(np.isfinite(gy).any())
+        if has_gy != self.p_w.isVisible():
+            self.p_w.setVisible(has_gy)
+            for w in (self.gyro_lbl, self.gyro_mix, self.b_gyro_mix):
+                w.setVisible(has_gy)
+        if has_gy:
+            tt = data[keep, C["t"]]
+            d_th = np.diff(np.unwrap(th)) / np.maximum(np.diff(tt), 1e-6)   # PC'de AS5600 açısının türevi
+            self.c_w_diff.setData(t[1:], d_th)
+            self.c_w_gyro.setData(t, gy)
+            self.c_w_used.setData(t, dth)
         self.p_th.setXRange(-self.window.value(), 0, padding=0)
 
     # ------------------------------------------------------------ yardımcılar

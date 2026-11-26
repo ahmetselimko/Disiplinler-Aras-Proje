@@ -11,6 +11,8 @@ import queue
 import threading
 import time
 from collections import deque
+import math
+
 import numpy as np
 
 from ..control.supervisor import MODE_CODES, Mode
@@ -18,7 +20,9 @@ from ..analysis.summary import LiveTrialTracker
 from . import protocol as P
 from .transport import Transport
 
-COLUMNS = ("t", "x", "dx", "th", "dth", "u", "mode")
+# "gy": MPU6050 açısal hızı (#50 Aşama 5); telemetride yoksa NaN (CSV'de boş). Eski kayıtlarda sütun yok.
+COLUMNS = ("t", "x", "dx", "th", "dth", "u", "mode", "gy")
+OLD_COLUMNS = COLUMNS[:7]
 _MODE_TO_CODE = {m.value: float(c) for m, c in MODE_CODES.items()}
 
 
@@ -193,7 +197,8 @@ class TelemetryReader:
                     if self._last_n is not None and msg.n > self._last_n + 1:
                         self.dropped += msg.n - self._last_n - 1
                     self._last_n = msg.n
-                rows.append((msg.t, msg.x, msg.dx, msg.th, msg.dth, msg.u, _MODE_TO_CODE.get(msg.mode, -1.0)))
+                rows.append((msg.t, msg.x, msg.dx, msg.th, msg.dth, msg.u, _MODE_TO_CODE.get(msg.mode, -1.0),
+                             msg.gy if msg.gy is not None else math.nan))
                 self.last = msg
             else:
                 if isinstance(msg, P.Event) and msg.name == "boot":

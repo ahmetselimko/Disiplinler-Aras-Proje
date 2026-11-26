@@ -77,6 +77,7 @@ SET_PARAM_LIMITS = {
     "x_ref": (-0.3, 0.3),        # ray yarı boyu − 0.1 m (yer tutucu ray ±0.4 m)
     "u_max": (0.0, 48.0),        # cihaz ayrıca kendi besleme gerilimiyle sınırlar
     "telemetry_hz": (1, 500),
+    "gyro_mix": (0.0, 1.0),      # MPU6050 karışımı γ: θ̇ = γ·ω_gyro + (1 − γ)·θ̇_türev (türev bölgesinde; #50 Aşama 5)
     "fc_volt": (0.0, 6.0),       # sürtünme telafisi, gerilim olarak [V] (sürtünme ölçümünün sonucu)
 }
 
@@ -111,6 +112,7 @@ class Telemetry:
     dth: float
     u: float
     mode: str
+    gy: float | None = None      # MPU6050 açısal hızı [rad/s], bias çıkarılmış, θ ile aynı işaret (yalnız USE_MPU6050)
 
 
 @dataclass(slots=True)
@@ -140,7 +142,8 @@ def parse_line(line: bytes | str) -> Telemetry | Event | Ack:
             return Telemetry(
                 int(d.get("n", -1)), float(d["t"]), float(d.get("x", 0.0)), float(d.get("dx", 0.0)),
                 float(d["th"] if "th" in d else d.get("theta", 0.0)), float(d.get("dth", 0.0)),
-                float(d.get("u", 0.0)), str(d.get("mode", "")))
+                float(d.get("u", 0.0)), str(d.get("mode", "")),
+                float(d["gy"]) if d.get("gy") is not None else None)
         except (TypeError, ValueError) as e:
             raise ProtocolError(f"telemetri alanı sayı değil: {line!r}") from e
     if "evt" in d:
@@ -169,10 +172,13 @@ def encode_command(cmd: str, **fields) -> bytes:
     return _dump({"cmd": cmd, **fields})
 
 
-def encode_telemetry(n: int, t: float, x: float, dx: float, th: float, dth: float, u: float, mode: str) -> bytes:
-    """Cihaz tarafı (sanal ESP32) için hızlı biçimlendirme; firmware'deki snprintf ile aynı biçim."""
+def encode_telemetry(n: int, t: float, x: float, dx: float, th: float, dth: float, u: float, mode: str,
+                     gy: float | None = None) -> bytes:
+    """Cihaz tarafı (sanal ESP32) için hızlı biçimlendirme; firmware'deki snprintf ile aynı biçim.
+    gy verilirse (MPU6050) satırın sonuna "gy" alanı eklenir."""
+    g = f',"gy":{gy:.4f}' if gy is not None else ""
     return (f'{{"n":{n},"t":{t:.4f},"x":{x:.5f},"dx":{dx:.4f},"th":{th:.5f},'
-            f'"dth":{dth:.4f},"u":{u:.3f},"mode":"{mode}"}}\n').encode()
+            f'"dth":{dth:.4f},"u":{u:.3f},"mode":"{mode}"{g}}}\n').encode()
 
 
 def encode_event(name: str, **data) -> bytes:

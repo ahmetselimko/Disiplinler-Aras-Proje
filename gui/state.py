@@ -58,6 +58,7 @@ class AppState(QtCore.QObject):
         self.catch_dx = CATCH_DX        # LQR'a girişte |ẋ| sınırı [m/s]
         self.swingup_enabled = True
         self.x_ref = 0.0
+        self.gyro_mix = 0.0             # MPU6050 karışımı; kart resetlenirse yeniden gönderilir
         self.device_Ts: float | None = None     # cihazın bildirdiği kontrol periyodu
         self.device_info_seen = False
         self.device_theta = None
@@ -129,6 +130,7 @@ class AppState(QtCore.QObject):
                           "'Açı Sıfırla (calib)'a basın; olmadan BAŞLAT reddedilir.")
         if self.placeholder_on_real_device:
             self.send_swingup()                  # güvenlik: K gitmese de swing-up kapalıysa kart bunu bilmeli
+            self.send_gyro_mix()
             self.log.emit("UYARI: parametreler YER TUTUCU — K ve ayarlar (swing-up açık/kapalı hariç) gerçek karta "
                           "otomatik GÖNDERİLMEDİ; "
                           "kart derlendiği gains.h ile çalışır. Ölçülmüş değerleri girin ya da "
@@ -154,6 +156,7 @@ class AppState(QtCore.QObject):
         Swing-up açık/kapalı anahtarı güvenlikle ilgili olduğu için K'yı durduran engellerden ÖNCE ve her
         durumda gönderilir (kart resetlenince firmware varsayılanı olan "açık"a döner)."""
         self.send_swingup()
+        self.send_gyro_mix()
         if self.p.input_mode != "voltage":
             # firmware yalnız DC motor (gerilim girişi) için yazıldı; kuvvet/ivme için tasarlanan K'nın birimi
             # ve ölçeği farklıdır, cihazda arabayı raydan kaçırır (gains.h dışa aktarımı da #error verir)
@@ -206,6 +209,11 @@ class AppState(QtCore.QObject):
     def clear_params_fallback(self):
         """Bir parametre dosyası yüklendi: K gönderimi ve dışa aktarma yeniden serbest (kaydetmek kaldırmaz)."""
         self.params_fallback = False
+
+    def send_gyro_mix(self) -> bool:
+        """MPU6050 karışımı K engellerinden bağımsız gider (kart resetlenince 0'a döner; MPU'suz firmware'de etkisiz).
+        0 kartın varsayılanı olduğundan yalnız γ > 0 ise gönderilir."""
+        return self.gyro_mix <= 0 or self.send("set_param", gyro_mix=self.gyro_mix)
 
     def send_swingup(self) -> bool:
         """Swing-up açık/kapalı anahtarını tek başına gönderir (bağlıysa)."""

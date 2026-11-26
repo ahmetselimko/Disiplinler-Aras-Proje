@@ -41,7 +41,7 @@ Araba konumu enkoder sayımından `x = sayım · 2π·PULLEY_R_M / (ENC_CPR_MOTO
 ## Pinler (`board_pins.h` — kart türüne göre otomatik)
 | İşlev | ESP32-S3-DevKitC-1 N16R8 | Klasik ESP32 |
 |---|---|---|
-| I2C SDA / SCL (AS5600, ileride MPU6050) | 8 / 9 (400 kHz) | 21 / 22 |
+| I2C SDA / SCL (AS5600 0x36; isteğe bağlı MPU6050 0x68, aynı hat) | 8 / 9 (400 kHz) | 21 / 22 |
 | Enkoder A / B (harici 10k pull-up, **3.3 V'a**) | 4 / 5 | 32 / 33 |
 | BTS7960 RPWM / LPWM / EN | 6 / 7 / 15 | 25 / 26 / 27 |
 | Uç sensörü sol / sağ (INPUT_PULLUP; `END_SENSORS 2`'de dış kademe mikro switch) | 16 / 17 | 18 / 19 |
@@ -71,6 +71,16 @@ Arabadaki bayrak önce optiğin yarığına girer, araba durmazsa 3 cm sonra mik
 `END_SENSORS 1`'de sensör tipi: BOM'da iki seçenek var, ikisi de aynı pinlere ve aynı ayarla bağlanır:
 * **Limit switch (DC163-3):** **NC (normalde kapalı) bağlantı önerilir**: basılı veya kablo kopuk → HIGH → güvenli taraf. NO kullanılırsa `LIM_PRESSED = LOW` yapın; o zaman kopuk kablo fark edilmez.
 * **Yarık optik sensör (TCST2103):** IR LED'e akım sınırlama direnci (3.3 V'ta ~100 Ω, 5 V'ta ~220 Ω → ~15–20 mA), fototransistör çıkışına 3.3 V'a **harici 4.7–10 kΩ pull-up**. Arabadaki bayrak yarığa girince çıkış HIGH olur; kablo koparsa da HIGH → `LIM_PRESSED = HIGH` değişmez. Ortam ışığından etkilenmemesi için yarık kapalı tarafa bakmalı.
+
+### MPU6050 jiroskopu (`USE_MPU6050 1`, isteğe bağlı, #50 Aşama 5)
+Varsayılan `USE_MPU6050 0`: firmware MPU6050'ye hiç dokunmaz, davranış eskisiyle aynıdır. MPU6050 **sarkaç koluna** takılırsa jiroskop θ̇'yı doğrudan ölçer (AS5600 açısının türevinden daha az gürültülü); açı yine AS5600'den okunur (ivmeölçer dönen sarkaçta bozulur, jiroskop integrali kayar).
+* **Bağlantı:** AS5600 ile aynı I²C hattı (SDA/SCL, yukarıdaki tablo), VCC 3.3 V, GND; **AD0 = GND** (adres 0x68). Sarkaç kolundan gelen kablo dönme eksenine yakın ve esnek olmalı (kablo sarkacı frenlemesin).
+* **Ayar (`.ino` başı):** `USE_MPU6050 1`; `MPU_AXIS` (0 = X, 1 = Y, 2 = Z: dönme eksenine paralel eksen) ve `MPU_SIGN` (±1). Açılışta WHO_AM_I okunur, DLPF ~98 Hz, aralık ±2000 °/s ayarlanır; sarkaç hareketsizken jiroskop sıfırı (bias) ölçülür (`calib` olayında `gyro_bias`).
+* **Eksen/işaret kontrolü:** BEKLEMEDE'de sarkacı elle **+θ yönüne (sola)** itin: Canlı İzleme'deki θ̇ grafiğinde jiroskop çizgisi (gy) AS5600 türeviyle aynı yönde, pozitif olmalı. Ters ise `MPU_SIGN`'i, hiç tepki yoksa `MPU_AXIS`'i değiştirin. İşaret ya da eksen yanlışsa hızlıca itince tutarlılık denetimi (aşağıda) birkaç on ms içinde `{"evt":"gyro","ok":false}` gönderip jiroskobu kapatır ve `gy` telemetriden kalkar: MPU bozuk değildir, ayarı düzeltip kartı resetleyin. Yan etkisi iyidir: yanlış takılmış jiroskop γ > 0 iken bile kontrolü bozmadan kapanır.
+* **Kullanım:** `gyro_mix` (0…1, varsayılan 0) θ̇'nın ne kadarının jiroskoptan alınacağını seçer (`set_param gyro_mix`; arayüzde "Karışımı gönder"). 0'da jiroskop yalnız telemetride `gy` olarak görünür, kontrolü etkilemez. Önce 0 ile kayıt alıp Analiz/Kayıt Oynatma sekmelerinde karşılaştırın, sonra artırın. Karışım yalnız Kalman bölgesinin dışında (|θ| > release ya da Kalman kapalıyken, ör. swing-up) kullanılır; Kalman bölgesinde Kalman tahmini aynen kalır (jiroskobun Kalman'a ölçüm olarak eklenmesi ileride).
+* **Açılışta `gyro ok:false`:** `WHO_AM_I` yalnız 0x68 kabul edilir. Piyasadaki bazı "MPU6050" modülleri klon ya da MPU6500/9250'dir (0x70, 0x71, 0x98 …) ve bu yüzden kapanır; modülün yongasını kontrol edin.
+* **Arıza:** art arda 3 okuma başarısız olursa, MPU resetlenmiş bulunursa (100 ms'de bir PWR_MGMT_1 okunur; güç kesintisinden sonra MPU uykuya döner, I²C'ye yanıt verir ama 0 okur) ya da jiroskop AS5600 türevinden 50 ms boyunca 3 rad/s'den fazla saparsa jiroskop kapatılır, θ̇ yeniden yalnız AS5600'den gelir, bir kez `{"evt":"gyro","ok":false}` gönderilir; FAULT olmaz.
+* **I²C süresi:** her adımda AS5600 ve MPU6050'den 2'şer bayt okunur (MPU'dan yalnız seçilen eksen; ayrıca 100 ms'de bir 1 baytlık PWR_MGMT_1 denetimi); 400 kHz'de tahminen ~0.2 ms (500 Hz döngüde ~%10). Gerçek değeri `ping` yanıtındaki `i2c_us` gösterir; döngü süresine sığmıyorsa `USE_MPU6050 0`'a dönün.
 
 ### Uç sensörsüz çalışma (`END_SENSORS 0`, isteğe bağlı)
 Varsayılan `END_SENSORS 1`. Sensörler henüz takılmamışken kartı denemek gerekirse `0` yapılır (eski ad `LIMIT_SWITCHES 0` da çalışır, derleme uyarısıyla); yoksa NC ayarındaki boş pinler "basılı" okunur ve kart hemen `limit` hatasına düşer. Bu modda:

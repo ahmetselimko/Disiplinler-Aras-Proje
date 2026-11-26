@@ -262,7 +262,7 @@ def test_recorder_writes_csv(tmp_path):
     assert text[0] == "# theta_pozitif: sol"          # θ işaret kuralı her kaydın başında (#50)
     assert text[1] == "# not: test"
     assert text[2] == ",".join(COLUMNS)
-    assert text[3].endswith("BALANCE")
+    assert text[3].endswith("BALANCE,")             # boş gy sütunu (jiroskop yok)
 
 
 def test_gains_header_contains_K():
