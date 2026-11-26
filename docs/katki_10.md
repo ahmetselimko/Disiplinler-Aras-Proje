@@ -105,14 +105,14 @@ python -m pytest tests/test_matlab_compat.py -v
 ## Dikkat: Matlab K'sı ESP32 için yeterli değil
 İşaret kuralı artık aynı, ama Matlab modeli kuvvet girişlidir ve motor içermez; ESP32 ise motora
 gerilim uygular ve 2 ms örneklemeyle çalışır. Aynı Q, R ile bile motorlu modelden çıkan K farklıdır. Proje
-parametreleriyle (`config/params.json`, HTD3M 20 diş kasnak r = 9.55 mm; θ sola +, #50 öncesi θ ve θ̇ kazançları ters
-işaretliydi; 25.11.2026'da yeniden hesaplandı, önceki tablo eski 12.7 mm kasnaklaydı):
+parametreleriyle (`config/params.json`: mekatronik tasarım değerleri, +20 g uç kütlesi, JGB37-520 19:1; θ sola +, #50 öncesi θ
+ve θ̇ kazançları ters işaretliydi; #50 Aşama 2'de yeniden hesaplandı):
 
 | | $k_x$ | $k_{\dot x}$ | $k_\theta$ | $k_{\dot\theta}$ |
 |---|---|---|---|---|
 | Matlab K'sı | −50.00 | −45.37 | +168.66 | +33.25 |
-| Motorlu model, sürekli zamanlı | −50.00 | −56.85 | +150.24 | +26.13 |
-| Motorlu model, ayrık ($T_s$ = 2 ms) — **ESP32'ye giden budur** | −38.82 | −46.78 | +117.50 | +20.42 |
+| Motorlu model, sürekli zamanlı | −50.00 | −71.31 | +171.12 | +25.48 |
+| Motorlu model, ayrık ($T_s$ = 2 ms) — **ESP32'ye giden budur** | −48.04 | −69.41 | +165.58 | +24.65 |
 
 Motorlu modelde giriş gerilimdir, Matlab'da kuvvettir; aynı R değeri iki modelde farklı bir şeyi cezalandırır.
 Gerçek düzenekte kullanılacak K, arayüzün
