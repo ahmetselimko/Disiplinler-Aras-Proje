@@ -223,3 +223,14 @@ def test_gyro_mix_resent_even_when_k_blocked(tmp_path):
     sent.clear(); st.gyro_mix = 0.0
     st.on_device_info({"fw": "ref-1.2", "theta": "sol", "Ts": 0.002}, boot=True)
     assert all("gyro_mix" not in f for _, f in sent)          # varsayılan 0: gereksiz alan gönderilmez
+
+
+def test_rmse_lines_without_kalman_has_no_nan():
+    from types import SimpleNamespace
+    from gui.analysis_tab import dth_rmse_lines
+    n = 50
+    true = np.zeros((n, 4)); true[:, 3] = np.linspace(0, 1, n)
+    r = SimpleNamespace(s=true, dth_diff=true[:, 3] + 0.1, dth_mix=true[:, 3] + 0.05, gy=true[:, 3],
+                        dth_kf=np.full(n, np.nan))
+    text = "\n".join(dth_rmse_lines(r, 0.5))
+    assert "nan" not in text and "Kalman" not in text

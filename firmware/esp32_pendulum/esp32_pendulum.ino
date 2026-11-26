@@ -835,7 +835,7 @@ static void handleCommand(const char *line) {
   const char *cmd = d["cmd"] | "";
   Shared s; portENTER_CRITICAL(&mux); s = S; portEXIT_CRITICAL(&mux);
   bool moves = !strcmp(cmd, "start") || !strcmp(cmd, "home") || !strcmp(cmd, "friction");
-  // açılış kalibrasyonu (~1.1 s) bitmeden kontrol döngüsü çalışmıyor, uç sensörleri henüz okunmadı
+  // açılış kalibrasyonu (~1.1 s, MPU6050 ile ~1.4 s) bitmeden kontrol döngüsü çalışmıyor, uç sensörleri henüz okunmadı
   if (moves && !s.calib_done) { sendAck(cmd, false, "açılış kalibrasyonu sürüyor: biraz bekleyin"); return; }
   // END_SENSORS 2: mikro switch basılıyken hareket başlatan komutlar her modda reddedilir (mock_device ile aynı)
   if ((s.hardL || s.hardR) && (!strcmp(cmd, "start") || !strcmp(cmd, "home") || !strcmp(cmd, "friction"))) {
@@ -847,7 +847,7 @@ static void handleCommand(const char *line) {
   if (!strcmp(cmd, "hb")) return;                      // bağlantı bekçisi: yanıtsız (zamanı commTask kaydetti)
   if (!strcmp(cmd, "ping")) {
     char extra[144];                                   // angle_ok: açılıştaki calib olayını kaçıran PC de görsün
-    // açılış kalibrasyonu (~1.1 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
+    // açılış kalibrasyonu (~1.1 s, MPU6050 ile ~1.4 s) bitmeden angle_ok gönderilmez (yanlış "başarısız" uyarısı olmasın)
     snprintf(extra, sizeof extra, ",\"Ts\":%.4f,\"fw\":\"%s\",\"theta\":\"sol\",\"homed\":%s%s", CTRL_PERIOD_MS / 1000.0f,
              FW_NAME, s.homed ? "true" : "false",
              !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");

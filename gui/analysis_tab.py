@@ -51,12 +51,16 @@ def dth_rmse_lines(r, gyro_mix) -> list[str]:
         return float(np.sqrt(np.mean(e ** 2))) if mask.any() else float("nan")
     allm = np.isfinite(r.dth_diff)
     kfm = np.isfinite(r.dth_kf)
-    head = "θ̇ RMSE [rad/s] (tüm koşu | Kalman bölgesinde):"
-    cells = [f"AS5600 türevi {rmse(r.dth_diff, allm):.3f} | {rmse(r.dth_diff, kfm):.3f}"]
+    kf = kfm.any()                               # Kalman kapalıysa (ya da hiç etkin olmadıysa) o sütun yazılmaz
+
+    def pair(est):
+        return f"{rmse(est, allm):.3f}" + (f" | {rmse(est, kfm):.3f}" if kf else "")
+    head = "θ̇ RMSE [rad/s] (tüm koşu | Kalman bölgesinde):" if kf else "θ̇ RMSE [rad/s] (tüm koşu):"
+    cells = [f"AS5600 türevi {pair(r.dth_diff)}"]
     if r.gy is not None:
-        cells.append(f"karışım γ={gyro_mix:.2f} {rmse(r.dth_mix, allm):.3f} | {rmse(r.dth_mix, kfm):.3f}")
+        cells.append(f"karışım γ={gyro_mix:.2f} {pair(r.dth_mix)}")
         cells.append(f"yalnız jiroskop {rmse(r.gy, allm):.3f}")
-    if kfm.any():
+    if kf:
         cells.append(f"Kalman — | {rmse(r.dth_kf, kfm):.3f}")
     return [head, "  " + " · ".join(cells)]
 
