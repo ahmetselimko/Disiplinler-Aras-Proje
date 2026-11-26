@@ -566,7 +566,12 @@ void ctrlTask(void *) {
   bool mpu_ok = mpuInit();
   int mpu_fails = 0; float gyro_bias = 0.0f, gy = 0.0f;
   int mpu_bad = 0;                                     // tutarlılık denetimi sayacı
-  if (mpu_ok) { vTaskDelay(pdMS_TO_TICKS(50)); mpu_ok = calibrateGyro(gyro_bias); }   // uykudan çıkış ~30 ms
+  // bias yalnız açı kalibrasyonu başarılıyken (sarkaç hareketsiz) alınır: sallanırken ölçülen bias birkaç rad/s
+  // yanlış çıkar ve tutarlılık denetimi sağlam MPU'yu kapatırdı. Okuma başarısızsa yine devre dışı.
+  if (mpu_ok) {
+    vTaskDelay(pdMS_TO_TICKS(50));                     // uykudan çıkış ~30 ms
+    float b; mpu_ok = calibrateGyro(b); if (mpu_ok && angle_ok) gyro_bias = b;
+  }
   if (!mpu_ok) SET_SHARED(ev_gyro_fail, true);         // WHO_AM_I yanıtsız ya da bias okunamadı: MPU'suz devam
   portENTER_CRITICAL(&mux); S.mpu_ok = mpu_ok; S.gyro_bias = gyro_bias; portEXIT_CRITICAL(&mux);
 #endif
@@ -605,7 +610,11 @@ void ctrlTask(void *) {
     if (p.req_calib && mode == IDLE) {
       angle_ok = calibrateAngle(raw_hang);              // motor kapalıyken ~130 ms bloklar
 #if USE_MPU6050
-      if (mpu_ok && !calibrateGyro(gyro_bias)) { mpu_ok = false; SET_SHARED(ev_gyro_fail, true); }  // +~0.2 s
+      if (mpu_ok) {                                    // +~0.2 s; bias yalnız angle_ok iken güncellenir (yukarıdaki not)
+        float b;
+        if (!calibrateGyro(b)) { mpu_ok = false; SET_SHARED(ev_gyro_fail, true); }
+        else if (angle_ok) gyro_bias = b;
+      }
       portENTER_CRITICAL(&mux); S.mpu_ok = mpu_ok; S.gyro_bias = gyro_bias; portEXIT_CRITICAL(&mux);
 #endif
       vth.reset(); kf.reset(); last = xTaskGetTickCount();
@@ -843,7 +852,7 @@ static void handleCommand(const char *line) {
              FW_NAME, s.homed ? "true" : "false",
              !s.calib_done ? "" : s.angle_ok ? ",\"angle_ok\":true" : ",\"angle_ok\":false");
 #if USE_MPU6050
-    {   // jiroskop durumu ve ölçülen en büyük I²C okuma süresi (AS5600 + MPU, µs): README'deki bütçe için
+    if (s.calib_done) {   // jiroskop durumu ve en büyük I²C okuma süresi (µs); açılış kalibrasyonundan önce yok
       size_t L = strlen(extra);
       snprintf(extra + L, sizeof extra - L, ",\"gyro\":%s,\"i2c_us\":%lu", s.mpu_ok ? "true" : "false",
                (unsigned long)s.i2c_us);

@@ -201,7 +201,8 @@ def test_calib_with_failed_gyro_and_boot_bias():
     dev.step()
     names = [m.name for m in _msgs(out) if isinstance(m, P.Event)]
     assert names == ["gyro", "calib"] and not dev.mpu_ok
-    assert "vTaskDelay(pdMS_TO_TICKS(50)); mpu_ok = calibrateGyro" in FW   # uykudan çıkışı bekle
+    assert "vTaskDelay(pdMS_TO_TICKS(50));                     // uykudan çıkış" in FW   # uykudan çıkışı bekle
+    assert FW.count("else if (angle_ok) gyro_bias = b;") == 1 and "if (mpu_ok && angle_ok) gyro_bias = b;" in FW
 
 
 def test_gyro_mix_resent_even_when_k_blocked(tmp_path):

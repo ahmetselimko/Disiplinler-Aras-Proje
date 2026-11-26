@@ -295,6 +295,12 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | 1. turdaki `gyro_mix` düzeltmesi eksikti: gönderim K mesajlarının içindeydi, gerçek kartta parametreler yer tutucuyken (bugünkü durum) boot'ta gitmiyordu | `send_gyro_mix()` swing-up anahtarı gibi K engellerinden bağımsız gönderiliyor; test |
 | Belge | İşaret/eksen kontrolünde ayar yanlışsa tutarlılık denetimi jiroskobu kapatıyor; README bunu söylemiyordu (kullanıcı MPU'yu bozuk sanabilirdi) | README'ye eklendi |
 
+**#50 Aşama 5, üçüncü tur (26.11.2026):** `send_gyro_mix`'in K engellerinden önce gittiği, kapalıyken telemetri/`calib`/`ping`'in birebir eski olduğu, 12 CI derlemesi, yazmaçlar, karışım, telemetri bütçesi (%60), CSV ve sanal ESP32 eşliği doğrulandı. Kritik/Önemli bulgu yok. Düzeltilenler:
+| Önem | Konu | Düzeltme |
+|---|---|---|
+| Küçük | Sarkaç sallanırken (açılışta ya da `calib`'de, `angle_ok` false) jiroskop bias'ı yine ölçülüyordu: 1–5 rad/s yanlış bias, sarkaç durunca tutarlılık denetimi sağlam MPU'yu kapatıyordu | Bias yalnız açı kalibrasyonu başarılıyken güncelleniyor (okuma hatası yine devre dışı bırakır) |
+| Belge | `ping`'deki `gyro` açılış kalibrasyonundan önce `false` dönüyordu; klon modüllerin (WHO_AM_I ≠ 0x68) kapanacağı yazmıyordu | `gyro`/`i2c_us` `angle_ok` gibi kalibrasyondan sonra gönderiliyor; README'ye klon notu |
+
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
 ---
