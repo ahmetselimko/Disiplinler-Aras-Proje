@@ -36,13 +36,18 @@ import numpy as np
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(ROOT_DIR / "tools"))
 
+from pendulum_lab.analysis.sensitivity import evaluate_result  # noqa: E402
 from pendulum_lab.control.lqr import design_lqr  # noqa: E402
 from pendulum_lab.control.supervisor import (CATCH_DEG, CATCH_DTH, CATCH_DX, CATCH_X, RELEASE_DEG,  # noqa: E402
                                               Supervisor)
 from pendulum_lab.control.swingup import EnergySwingUp  # noqa: E402
 from pendulum_lab.model.params import load_params  # noqa: E402
 from pendulum_lab.sim.simulator import SensorModel, simulate_closed_loop  # noqa: E402
+from rapor_sekilleri import classify  # noqa: E402  (şekiller ve ön değerlendirmeyle aynı sonuç sınıflandırması)
+
+OK_STATUS = ("BAŞARILI", "SINIRDA")             # sonda dengede ve LQR bir kez yakaladıktan sonra hiç bırakmadı
 
 PROFILES = {                                    # ad → parametre dosyası (Aşama 2)
     "uç kütlesiz": "config/params_ucsuz.json",
@@ -92,11 +97,16 @@ def run_one(args) -> dict:
     tb = float(r.t[np.argmax(modes == "BALANCE")]) if (modes == "BALANCE").any() else None
     ang = np.abs(np.degrees(np.arctan2(np.sin(r.th), np.cos(r.th))))
     fault = "FAULT" in r.mode
-    up = r.mode[-1] == "BALANCE"
+    status = classify(r, evaluate_result(r, real))
+    up = status in OK_STATUS
     if fault:
         reason = "ray sınırı (FAULT)"
     elif up:
         reason = ""
+    elif status == "DÜŞTÜ":
+        reason = "düştü, swing-up yeniden kaldırdı"
+    elif status == "OTURMADI":
+        reason = "süre sonunda LQR'da ama ±2°'de oturmadı"
     elif tb is not None:
         reason = "yakalandı, tutulamadı"
     else:
@@ -111,7 +121,7 @@ def run_one(args) -> dict:
             reason = f"dike geldi ({closest:.0f}°), yakalama şartı sağlanmadı: {why}"
         else:
             reason = f"kalkmadı (dike en fazla {closest:.0f}°)"
-    return {"key": case_key(profile, rule, e_ratio, rail, comp), "variant": vname, "up": bool(up),
+    return {"key": case_key(profile, rule, e_ratio, rail, comp), "variant": vname, "up": bool(up), "status": status,
             "t_catch": tb, "max_x": float(np.abs(r.x).max()), "max_u": float(np.abs(r.u).max()),
             "fault": bool(fault), "reason": reason}
 
@@ -146,6 +156,7 @@ def summarize(results: list[dict]) -> dict:
     for key, vs in by.items():
         nom = vs.get("t0")
         out[key] = {"nominal": nom, "runs": list(vs.values()), "n_up": sum(v["up"] for v in vs.values()), "n": len(vs),
+                    "n_fell": sum(v.get("status") == "DÜŞTÜ" for v in vs.values()),
                     "robust": all(v["up"] for v in vs.values()) and len(vs) == len(VARIANTS),
                     "worst_max_x": max(v["max_x"] for v in vs.values())}
     return out
@@ -153,9 +164,11 @@ def summarize(results: list[dict]) -> dict:
 
 def cell(s: dict) -> str:
     nom = s["nominal"]
-    tag = f" ({s['n_up']}/{s['n']})"
+    tag = f" ({s['n_up']}/{s['n']}" + (f", {s['n_fell']} düştü" if s.get("n_fell") else "") + ")"
     if nom["up"]:
         return f"{'✅' if s['robust'] else '⚠️'} {nom['t_catch']:.1f} s / {nom['max_x']:.2f} m{tag}"
+    if nom.get("status") == "DÜŞTÜ":
+        return f"🔄 düştü, yeniden kalktı (ilk yakalama {nom['t_catch']:.1f} s){tag}"
     return f"❌ {nom['reason']}{tag}"
 
 
@@ -182,12 +195,13 @@ def conclusions(summ: dict) -> list[str]:
     groups = {}
     for k, s in summ.items():
         prof, rule, er, rail, comp = k.split("|")
-        groups.setdefault((prof, rule, er, comp), []).append((s["robust"], s["nominal"]["up"]))
+        groups.setdefault((prof, rule, er, comp), []).append((s["robust"], s["nominal"]["up"], s["n_up"]))
     differ = sum(1 for v in groups.values() if len(set(v)) > 1)
     ups = [r["max_x"] for s in summ.values() for r in s["runs"] if r["up"]]
     mx = max(ups) if ups else float("nan")
     L += ["", f"**Ray uzunluğu:** {len(groups)} (uç kütlesi, kural, E_ratio, telafi) grubundan {differ}'inde sonuç "
-          f"(sağlamlık ya da nominal kalkış) ray boyuyla değişti. Kalkan koşularda en büyük max |x| {mx:.2f} m."]
+          f"(sağlamlık, nominal kalkış ya da 5 koşudan kalkan sayısı) ray boyuyla değişti. Kalkan koşularda en büyük "
+          f"max |x| {mx:.2f} m."]
     # 2. her uç kütlesi ve kural için sağlam E_ratio'lar ve gereken en kısa ray
     L += ["", "**Kural ve hedef enerji oranına göre gereken en kısa ray** (sağlam olduğu en kısa `rail_half`; "
           "telafi açık / kapalı):", "",
@@ -253,8 +267,10 @@ def markdown(results: list[dict], meta: dict) -> str:
          "**kapalı**: `fc_volt` = 0, fizikte yine 3 N.",
          "- Hücre: nominal koşu (tohum 0) için LQR'a geçiş zamanı / max |x|; parantezde 5 koşunun (3 tohum, m ve l "
          "−%5, +%5) kaçında son mod BALANCE. Nominal koşuya da gürültü eklendiği için sayılar gürültüsüz "
-         "`mekatronik_on_degerlendirme.md` tablolarıyla birebir karşılaştırılamaz. ✅ beşinde de kalktı; ⚠️ nominalde kalktı ama en az birinde "
-         "kalkmadı; ❌ nominalde kalkmadı (sebep).", ""]
+         "`mekatronik_on_degerlendirme.md` tablolarıyla birebir karşılaştırılamaz. \"Kalktı\": sonda dengede ve LQR "
+         "yakaladıktan sonra hiç bırakmadı (`tools/rapor_sekilleri.py::classify`; LQR'ın bırakıp swing-up'ın "
+         "yeniden kaldırdığı koşu \"düştü\" sayılır, kalkmış sayılmaz). ✅ beşinde de kalktı; ⚠️ nominalde kalktı ama "
+         "en az birinde kalkmadı; 🔄 nominalde düştü ve yeniden kalktı; ❌ nominalde kalkmadı (sebep).", ""]
     for prof in PROFILES:
         L += [f"## {prof}", ""]
         for comp in ("açık", "kapalı"):
