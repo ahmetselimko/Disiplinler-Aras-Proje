@@ -307,6 +307,8 @@ Arayüz sanal ESP32 ile baştan sona otomatik olarak sürüldü (bağlan → hom
 | Küçük | Analiz sekmesinde Kalman kapalıyken θ̇ RMSE satırında "nan" yazıyordu | Kalman sütunu yalnız Kalman etkinken yazılıyor; test |
 | Belge | Açılış kalibrasyonu MPU6050 ile ~1.4 s sürüyor, belgede ~1.1 s | Düzeltildi |
 
+**#50 Aşama 5, beşinci tur (26.11.2026):** **Yeni bulgu yok.** Kapalıyken birebir eski davranış, yazmaçlar, karışımın sırası (firmware = sanal ESP32 = simülatör), MPU arızasında motorun güvenliği (I²C kilitlenirse AS5600 de okunamaz → `sensor` FAULT), tutarlılık denetiminin yanlış tetiklenmediği, tampon boyları, protokol/CSV/arayüz ve 12 CI derlemesi doğrulandı. **Aşama 5 incelemesi tamamlandı.** Donanımda ölçülecek: gerçek I²C süresi (`ping` → `i2c_us`).
+
 Sanal cihazda gözlenen, hata olmayan bir etki (Aşama 2 öncesi parametrelerle): motor sürtünmesi (T_f) 0 olduğu için homing bittiğinde sallanan sarkaç arabayı serbestçe kaydırıyor ve sürtünme ölçümü "sarkaç hareketsiz olmalı" diye reddediliyordu. Aşama 2'nin `params.json`'ında T_f 3 N olduğundan artık kabul ediliyor.
 
 ---
