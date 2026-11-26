@@ -95,7 +95,7 @@ Toplantı notları ve tahtadaki plana göre:
 * Her rayda ve telafi açık/kapalı sağlam yalnız **+50 g, bizim kural, E_ratio 1.02 ya da 1.05** (araba en fazla 0.26 / 0.19 m).
 * Yalnız sürtünme telafisi açıkken her rayda sağlam: uç kütlesiz – bizim – 1.10; **+20 g – bizim – 1.05**; +50 g – bizim – 1.01; +50 g – mekatronik – 1.02. +20 g telafi kapalıyken hiçbir durumda sağlam değil: **ilk denemeden önce sürtünme ölçülüp telafi açılmalı.**
 * **Mekatroniğin geçiş kuralı** yalnız +50 g'de sağlam (E_ratio 1.02 telafi açık, 1.05 telafi kapalı); uç kütlesiz ve +20 g'de hiçbir durumda sağlam değil.
-* **Ray uzunluğu** 60 grubun hiçbirinde sonucu değiştirmedi; kalkan koşularda araba en fazla 0.34 m gitti: mevcut swing-up kazançlarıyla ±0.40 m yetiyor.
+* **Ray uzunluğu** 60 grubun hiçbirinde sağlamlığı ya da kalkan koşu sayısını değiştirmedi (yalnız iki grupta başarısızlığın biçimi değişti: ray ucuna çarpma ↔ düşüp yeniden kalkma); kalkan koşularda araba en fazla 0.34 m gitti: mevcut swing-up kazançlarıyla ±0.40 m yetiyor.
 * Varsayılanlar (eşikler #11, `rail_half`) değiştirilmedi; karar iki ekibin.
 
 ## 4. Bağımsız kod incelemesi
